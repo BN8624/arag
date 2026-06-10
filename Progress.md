@@ -110,44 +110,59 @@
 
 ---
 
-## 향후 고려사항
+## 향후 로드맵 (우선순위 순)
 
-### 1. Discord 봇 상태 전송 + status.json
-**목표**: 사용자가 폰에서 생성 진행 상황을 real-time으로 모니터링
+### A. 프로덕션급 격상 (결과물 퀄리티)
 
-**구현 계획**
-- `status.json`: 현재 run 디렉토리, phase (design/implement/gate/critique), progress, API 콜 수
-- Discord webhook or bot: 단계 완료마다 메시지 전송 (emoji + 진행률)
-- Polling interval: 5초 (로컬 파일 시스템이므로 지연 무시 가능)
+현재 생성물에 빠진 것은 코드 품질이 아니라 "주변 장치"(테스트·문서·패키징).
+Gemma 4 코딩 능력 검증 결과(LiveCodeBench 80%, Codeforces ELO 2150, τ2-bench 86.4%),
+소형 멀티파일 프로젝트에서 모델 천장은 병목이 아님 — 병목은 루프 설계.
 
-**제약**: 기존 개인툴(웹 관제)보다 간단한 구현이지만, 사용자가 Windows PC 안 되면 휴대폰에서만 폰 볼 수 있음
+1. **테스트 생성** (효과 최대)
+   - 31B가 설계 때 pytest 테스트 파일도 출제 (`test_*.py`)
+   - 26B는 테스트를 통과하는 코드를 짜고, 실행 게이트에서 pytest 실행
+   - 출제자(31B)/응시자(26B) 분리 원칙이 그대로 적용됨 — 자기한테 유리한 테스트 불가
+   - 비용: 회차당 API 1~2콜 추가
+2. **엣지케이스 비평 체크리스트**
+   - 비평 프롬프트에 전용 체크리스트: 빈 입력, 거대 입력, 음수/0, 파일 없음, 인코딩
+   - 채점표에 엣지케이스 체크 커맨드 추가 (기존 구조 재활용, 추가 콜 거의 없음)
+3. **README 자동 생성** — 마지막에 26B 1콜 (REPORT.md 재료 재활용, 거의 공짜)
+4. **패키징 (pyproject.toml)** — API 0콜. project_name·external_imports()·진입점에서
+   기계적으로 생성 → `pip install .` 후 어디서든 명령어 한 줄로 실행 가능
 
-### 2. 토큰카운트 기능
-**목표**: 모델별(31B/26B), 단계별(design/implement/critique) 토큰 사용량 추적
+### B. 산출물 형태 확장 (검증 난이도 순)
 
-**구현 계획**
-- Gemma 4 API response에 usage 필드 파싱
-- `tokens_used.json`: {model, phase, input_tokens, output_tokens, thinking_tokens(31B만)}
-- Report.md에 "API cost summary" 섹션 추가
-- 쿼터 모니터링: RPM 15, TPM ∞ → 장기 실행 시 사용 패턴 분석
+핵심은 코드 생성이 아니라 **실행 게이트가 자동 검증할 수 있느냐**.
 
-**추적 대상**
-- 자가수정 횟수별 토큰 증가량 (K=3 제한이 충분한지 검증)
-- 비평-개선 바퀴 2~3회의 누적 토큰 (LGTM 조기 종료 효과)
-- 오답노트 주입이 토큰 절감에 기여하는 정도
+1. **라이브러리** (낮음) — 성공 신호를 pytest 실행으로. A-1(테스트 생성) 후 거의 공짜
+2. **웹 API 서버** (중간) — Docker 게이트에 서버 모드 필요:
+   백그라운드 기동 → HTTP 요청 검증(`python check.py`) → 종료.
+   flask 화이트리스트 추가 또는 stdlib http.server
+3. **GUI (tkinter)** (중간) — Docker 이미지에 xvfb + python3-tk 추가.
+   검증은 스크린샷이 아니라 위젯 조작 API(`button.invoke()`, `label.cget("text")`)로
+   assert — CLI 검증과 본질적으로 같은 난이도. 시각 품질(레이아웃 깨짐)은 검증 제외,
+   사용자가 직접 확인. 바이브코더에게 "되나/안 되나" 체감 가치가 가장 높은 형태
+4. TUI (rich) — `--once` 플래그(한 번 렌더 후 종료)를 설계 규칙으로 강제하면 CLI처럼 검증
 
----
+### C. 토큰카운트
+- Gemma 4 API response의 usage 필드 파싱
+- `tokens_used.json`: {model, phase, input_tokens, output_tokens, thinking_tokens}
+- REPORT.md에 토큰 사용 요약 섹션 추가
+- 분석 대상: 자가수정 횟수별 토큰 증가(K=3 적정성), 비평 바퀴 누적 토큰(LGTM 조기 종료
+  효과), 오답노트 주입의 토큰 절감 기여도
 
-## 다음 마일스톤
+### D. 보류
+- **Discord 봇 상태 전송 + status.json**: 봇 세팅이 선행 필요해서 보류.
+  계획만 기록 — status.json(현재 phase·진행률·API 콜 수)을 단계 완료마다 갱신,
+  Discord webhook으로 폰에 전송
+- GUI 시각 품질 검증(스크린샷→비전 모델 판정): 판정 불안정 + 콜 비용. 사용자 육안 확인으로 대체
 
-1. **즉시** (선택)
-   - Discord 봇 통합 (webhook 또는 discord.py)
-   - tokens_used.json 추적 + Report.md에 포함
-
-2. **2차 스프린트** (향후)
-   - 2-3문장 아이디어 처리 (현재는 한 줄 고정)
-   - 비표준 라이브러리 프로젝트 지원 (go, js, 등)
-   - 사용자 피드백 루프: CLI 인터페이스 (generate --idea "..." --max-cost 50)
+### E. 추가 후보 (미확정)
+- **밤샘 배치 모드**: 아이디어 여러 개를 큐에 넣고 순차 실행. RPD 1,500이면
+  하룻밤에 수십 개 가능 — 아침에 결과만 확인하는 사용 패턴과 잘 맞음
+- **파일 수 확대**: 현재 산출물이 2파일 위주 → 설계 규칙으로 3~5파일 유도
+  (파일 간 정합성 검증이라는 프로젝트 목적에 더 부합)
+- 2-3문장 복합 아이디어 처리 (현재는 한 줄 위주)
 
 ---
 
