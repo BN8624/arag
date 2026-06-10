@@ -134,6 +134,18 @@ def validate_shape(design: dict) -> list[str]:
     if not isinstance(ac, list) or not ac or not all(isinstance(x, str) for x in ac):
         errors.append("'acceptance_criteria' must be a non-empty list of strings")
 
+    fixtures = design.get("mock_fixtures")
+    if fixtures is not None:
+        if not isinstance(fixtures, list):
+            errors.append("'mock_fixtures' must be a list")
+        else:
+            for i, fx in enumerate(fixtures):
+                if not isinstance(fx, dict) or not isinstance(fx.get("path"), str):
+                    errors.append(f"mock_fixtures[{i}] needs a string 'path'")
+                elif "content" not in fx:
+                    errors.append(f"mock_fixtures[{i}] needs 'content' "
+                                  "(string or JSON value)")
+
     reqs = design.get("requirements")
     if reqs is not None:
         if not isinstance(reqs, list):

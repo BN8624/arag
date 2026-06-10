@@ -21,6 +21,7 @@
 
 import ast
 import builtins
+import re
 import sys
 from pathlib import Path
 
@@ -43,6 +44,9 @@ ALLOWED_PACKAGES = {
     "colorama": "colorama",
     "jinja2": "Jinja2",
     "markdown": "Markdown",
+    "openpyxl": "openpyxl",   # 엑셀 입출력 (sop류 앱)
+    "PIL": "Pillow",          # 이미지 처리
+    "pypdf": "pypdf",         # PDF 읽기 (순수 파이썬 - 시스템 의존성 없음)
 }
 
 
@@ -154,6 +158,35 @@ def _check_file(name, tree, local_modules, defined, edges) -> list[dict]:
 
     issues.extend(_check_stubs(name, tree))
     issues.extend(_check_undefined(name, tree))
+    issues.extend(_check_secrets(name, tree))
+    return issues
+
+
+_SECRET_NAME = re.compile(r"(?i)(api_?key|secret|token|password|passwd)")
+
+
+def _check_secrets(name, tree) -> list[dict]:
+    """키처럼 보이는 이름에 리터럴 문자열 대입 탐지. 키는 CLI 인자/환경변수로만."""
+    issues = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            targets = [t for t in node.targets if isinstance(t, ast.Name)]
+            value = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            targets = [node.target]
+            value = node.value
+        else:
+            continue
+        if not (isinstance(value, ast.Constant) and isinstance(value.value, str)):
+            continue
+        if len(value.value) < 12:
+            continue  # 빈 문자열·짧은 기본값은 통과 (명백한 것만 잡는다)
+        for t in targets:
+            if _SECRET_NAME.search(t.id):
+                issues.append(issue(
+                    name, node.lineno, "hardcoded-secret",
+                    f"'{t.id}' is assigned a literal string - secrets must "
+                    "come from CLI arguments or environment variables"))
     return issues
 
 

@@ -75,6 +75,16 @@ def validate_design(design: dict) -> list[str]:
                     f"requirements[{i}].covered_by contains an invalid index - "
                     f"acceptance_criteria has {n_criteria} items (valid: 0..{n_criteria - 1})")
 
+    # 모의 응답 파일: 평탄 구조, .py 금지, 코드 파일과 이름 충돌 금지
+    for i, fx in enumerate(design.get("mock_fixtures") or []):
+        p = str(fx.get("path", "")) if isinstance(fx, dict) else ""
+        if "/" in p or "\\" in p:
+            errors.append(f"mock_fixtures[{i}].path must be flat (no directories): {p}")
+        elif p.endswith(".py"):
+            errors.append(f"mock_fixtures[{i}].path must not be a .py file: {p}")
+        elif p in set(paths):
+            errors.append(f"mock_fixtures[{i}].path collides with a code file: {p}")
+
     for i, chk in enumerate(design.get("criteria_checks") or []):
         cmd = str(chk.get("command", "")).strip()
         bad = _non_python_parts(cmd)

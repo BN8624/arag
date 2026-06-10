@@ -71,7 +71,13 @@ HARD_RULES = """HARD CONSTRAINTS (violations are rejected by automated gates):
 - The program must run with plain `python <entrypoint> ...` and exit by itself.
 - Commands run in a fresh directory containing ONLY the project files. They must
   not assume any other file exists - if the tool needs an input file, an earlier
-  command must create it through the tool itself."""
+  command must create it through the tool itself.
+- The verification sandbox has NO network access. If the idea requires calling
+  an external service/API, isolate ALL such calls in ONE dedicated module, and
+  every command must work offline through a `--mock <file>` CLI option that
+  reads a local fixture file instead of calling the real service. Secrets
+  (API keys) come only from CLI arguments or environment variables - never
+  hardcode them, and mock mode must not require one."""
 
 
 def design_prompt(idea: str, previous_errors: list[str] | None = None,
@@ -116,6 +122,12 @@ Also produce:
 - "success_signal": ONE command line that exercises a core behavior of the
   idea (not just --help) plus a substring its output must contain. Its final
   step must run the entrypoint, be deterministic, and finish within 30 seconds.
+- "mock_fixtures" (ONLY if the idea calls an external service): realistic fake
+  API response files, e.g. [{{"path": "mock_response.json", "content": {{...}}}}].
+  These files are placed next to the code before verification. Every
+  success_signal / criteria_checks command must then use `--mock <that file>`
+  so the whole pipeline is verified offline. Make the fake response rich
+  enough to exercise parsing, edge values included.
 
 Command rules (for success_signal AND criteria_checks):
 - A command line may chain several steps with '&&' when setup is needed,

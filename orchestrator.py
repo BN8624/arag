@@ -84,6 +84,7 @@ class Orchestrator:
             self._phase_design(idea, self._load_lessons(idea))
             self._phase_tests()
             self._phase_implement()
+            self._write_fixtures()
             self._git_init()
             ok = self._pass_gates(context="initial build")
             if not ok:
@@ -240,6 +241,19 @@ class Orchestrator:
             written[path] = code
             self.log("file-written", file=path, chars=len(code))
             self._say(f"  [OK] wrote {path}")
+
+    def _write_fixtures(self) -> None:
+        """설계가 출제한 모의 API 응답 파일을 워크스페이스에 깐다 (콜 0)."""
+        for fx in (self.design or {}).get("mock_fixtures") or []:
+            path = str(fx.get("path", "")).strip()
+            if not path:
+                continue
+            content = fx.get("content")
+            if not isinstance(content, str):
+                content = json.dumps(content, ensure_ascii=False, indent=2)
+            (self.workspace / path).write_text(content, encoding="utf-8")
+            self.log("fixture-written", file=path, chars=len(content))
+            self._say(f"  [OK] wrote fixture {path}")
 
     def _pass_gates(self, context: str) -> bool:
         """정적 게이트 -> 실행 게이트, 층별 K회 자가수정. 둘 다 통과하면 True."""
