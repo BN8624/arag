@@ -271,6 +271,12 @@ A [FAIL] line in the scoreboard is a real unmet criterion - it MUST be
 addressed, never excused. Do NOT raise style preferences, hypothetical
 scaling concerns, or rewrites that do not change behavior.
 
+If every scoreboard line is [PASS] and the execution log shows the tool
+working, the default verdict is LGTM. Request changes only for a defect you
+can point to in the evidence above - a concrete wrong output, a crash path,
+or a capability from the ORIGINAL IDEA that is genuinely absent. Revisions
+are not free: a wrong revision can break a working build.
+
 If there is nothing meaningful left to improve, reply with exactly:
 LGTM
 
