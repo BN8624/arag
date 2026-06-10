@@ -54,6 +54,8 @@ def make_design() -> dict:
         "dependencies": {"main.py": ["core.py"], "core.py": []},
         "entrypoint": "main.py",
         "key_points": ["store as JSON"],
+        "requirements": [{"text": "user can add a todo item",
+                          "covered_by": [0]}],
         "acceptance_criteria": ["adding an item prints confirmation with the text"],
         "success_signal": {"command": 'python main.py add "buy milk"',
                            "expect_substring": "buy milk"},

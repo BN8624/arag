@@ -52,6 +52,29 @@ def validate_design(design: dict) -> list[str]:
     if not any(targets for targets in deps.values()):
         errors.append("no import edges in 'dependencies' - files must actually use each other")
 
+    # 요구사항 커버리지: 아이디어 분해 강제 + 모든 요구사항이 수용기준에 매핑돼야 함
+    reqs = design.get("requirements")
+    n_criteria = len(design["acceptance_criteria"])
+    if not reqs:
+        errors.append(
+            "'requirements' is missing or empty - decompose the IDEA into "
+            "atomic requirements, each with 'covered_by' criterion indices")
+    else:
+        for i, r in enumerate(reqs):
+            if not isinstance(r, dict):
+                continue  # 형태 문제는 schema가 이미 잡았다
+            text = str(r.get("text", "")).strip()
+            cov = r.get("covered_by")
+            if not isinstance(cov, list) or not cov:
+                errors.append(
+                    f"requirements[{i}] ({text[:50]!r}) has empty 'covered_by' - "
+                    "every requirement must map to at least one acceptance criterion")
+            elif any(not isinstance(x, int) or x < 0 or x >= n_criteria
+                     for x in cov):
+                errors.append(
+                    f"requirements[{i}].covered_by contains an invalid index - "
+                    f"acceptance_criteria has {n_criteria} items (valid: 0..{n_criteria - 1})")
+
     for i, chk in enumerate(design.get("criteria_checks") or []):
         cmd = str(chk.get("command", "")).strip()
         bad = _non_python_parts(cmd)

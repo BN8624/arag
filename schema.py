@@ -134,6 +134,18 @@ def validate_shape(design: dict) -> list[str]:
     if not isinstance(ac, list) or not ac or not all(isinstance(x, str) for x in ac):
         errors.append("'acceptance_criteria' must be a non-empty list of strings")
 
+    reqs = design.get("requirements")
+    if reqs is not None:
+        if not isinstance(reqs, list):
+            errors.append("'requirements' must be a list")
+        else:
+            for i, r in enumerate(reqs):
+                if not isinstance(r, dict) or not isinstance(r.get("text"), str):
+                    errors.append(f"requirements[{i}] needs a string 'text'")
+                elif not isinstance(r.get("covered_by"), list):
+                    errors.append(f"requirements[{i}] needs a 'covered_by' list "
+                                  "of acceptance_criteria indices")
+
     checks = design.get("criteria_checks")
     if checks is not None:
         if not isinstance(checks, list):

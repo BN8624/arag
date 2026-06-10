@@ -67,6 +67,8 @@ def run_static_gate(workdir: Path, design: dict | None = None) -> list[dict]:
 
     for path in sorted(workdir.glob("*.py")):
         name = path.name
+        if name.startswith("test_"):
+            continue  # 31B가 출제한 테스트는 정적 게이트 대상이 아님 - pytest가 검증
         text = path.read_text(encoding="utf-8-sig")
         sources[name] = text
         try:

@@ -33,6 +33,10 @@ DESIGN_SCHEMA_EXAMPLE = """{
   "dependencies": {"main.py": ["core.py"], "core.py": []},
   "entrypoint": "main.py",
   "key_points": ["store data as JSON file", "no third-party packages"],
+  "requirements": [
+    {"text": "user can add a todo item from the command line", "covered_by": [0]},
+    {"text": "user can list previously added items", "covered_by": [1]}
+  ],
   "acceptance_criteria": [
     "adding an item prints a confirmation containing the item text",
     "listing items shows previously added items"
@@ -54,6 +58,9 @@ DESIGN_SCHEMA_EXAMPLE = """{
 HARD_RULES = """HARD CONSTRAINTS (violations are rejected by automated gates):
 - At least 2 .py files, flat layout (no subdirectories). The files must genuinely
   use each other via imports - decorative files that nothing imports are rejected.
+  Aim for 3-5 focused modules when the idea has enough substance (e.g. CLI
+  parsing / core logic / storage / formatting as separate files); use 2 only
+  for genuinely trivial ideas.
 - Allowed imports: the Python standard library, plus ONLY these third-party
   packages when genuinely needed: requests, rich, click, tabulate, yaml (PyYAML),
   dateutil, tqdm, colorama, jinja2, markdown. Any other package is rejected.
@@ -91,6 +98,12 @@ IDEA: {idea}
 {HARD_RULES}
 {lessons_part}
 Also produce:
+- "requirements": FIRST decompose the IDEA into atomic requirements - every
+  distinct capability the idea mentions or clearly implies, one entry each.
+  Each requirement maps to the acceptance criteria that cover it via
+  "covered_by" (a list of 0-based indices into "acceptance_criteria").
+  Every requirement MUST be covered by at least one criterion - if a
+  capability from the idea has no criterion, add a criterion for it.
 - "dependencies": which file imports which (this becomes the expected import
   graph that gates verify against the actual code).
 - "interfaces": the exact functions/classes each file must define, with
@@ -185,16 +198,37 @@ that already works. Respond with exactly one Python code block containing the
 complete corrected file."""
 
 
+EDGE_CASE_CHECKLIST = """EDGE-CASE CHECKLIST (walk through the code for each;
+flag only breaks a normal user would actually hit):
+- empty input (empty file, empty string argument, zero rows)
+- missing or nonexistent input file
+- invalid values (non-numeric where a number is expected, negative, zero)
+- malformed lines mixed into otherwise valid input
+- duplicate entries
+- non-ASCII text (Korean) in values"""
+
+
 def critique_prompt(design: dict, all_files: dict[str, str],
                     static_summary: str, exec_log: str,
-                    scoreboard: str | None = None) -> str:
+                    scoreboard: str | None = None,
+                    idea: str | None = None) -> str:
     parts = [f"--- {name} ---\n{content}" for name, content in all_files.items()]
     criteria = "\n".join(f"- {c}" for c in design["acceptance_criteria"])
+    idea_part = ""
+    if idea:
+        idea_part = (f"ORIGINAL IDEA (the user's actual request):\n{idea}\n\n"
+                     "COVERAGE CHECK: compare the ORIGINAL IDEA against the code and\n"
+                     "the acceptance criteria. If the idea mentions a capability that\n"
+                     "neither the criteria nor the code delivers, that is a REAL issue -\n"
+                     "flag the file that should implement it. The criteria passing is\n"
+                     "not enough if the criteria themselves missed part of the idea.\n\n")
     return f"""You are a strict but fair code reviewer for a small Python CLI prototype.
 Base your review on EVIDENCE, not speculation.
 
-ACCEPTANCE CRITERIA (you wrote these; check each):
+{idea_part}ACCEPTANCE CRITERIA (you wrote these; check each):
 {criteria}
+
+{EDGE_CASE_CHECKLIST}
 
 EVIDENCE - acceptance check scoreboard (each criterion actually executed):
 {scoreboard or "(not run)"}
@@ -250,6 +284,71 @@ Design contract (interfaces must stay intact):
 Rewrite `{file_path}` with the feedback applied. Do not break anything that
 currently works. Respond with exactly one Python code block containing the
 complete revised file."""
+
+
+def tests_prompt(design: dict) -> str:
+    return f"""You are the examiner for a small multi-file Python CLI project.
+Write a pytest test file that verifies the project against its design contract.
+The implementer has NOT written the code yet - your tests ARE the bar it must
+clear, so test only what the design promises.
+
+PROJECT DESIGN:
+{json.dumps(design, ensure_ascii=False, indent=2)}
+
+Rules:
+- The file will be saved as `test_acceptance.py` next to the project files and
+  run with `python -m pytest -q` inside an offline container.
+- Import ONLY: pytest, the standard library, and the project modules listed in
+  the design. Use exactly the interfaces (names, signatures) the design
+  defines - never invent helpers the design does not promise.
+- Tests must be deterministic, offline, fast, and never read stdin.
+- Use the tmp_path fixture for any files tests create; never depend on
+  pre-existing files or on test execution order.
+- Cover the acceptance criteria that are testable at function level, plus
+  edge cases (empty input, invalid values) ONLY where the design contract
+  makes the expected behavior unambiguous. When the contract does not specify
+  a behavior, do not test it.
+- Write 5-12 focused test functions.
+
+Respond with exactly one Python code block containing the complete test file."""
+
+
+def readme_prompt(design: dict) -> str:
+    sig = design.get("success_signal", {})
+    checks = design.get("criteria_checks") or []
+    examples = "\n".join(f"- {c.get('command', '')}" for c in checks if c.get("command"))
+    return f"""Write a README.md for this small Python CLI tool, aimed at a
+non-programmer who just wants to use it.
+
+PROJECT DESIGN:
+{json.dumps(design, ensure_ascii=False, indent=2)}
+
+Known-working commands (verified by automated checks):
+- {sig.get('command', '')}
+{examples}
+
+Structure: what the tool does (2-3 sentences), requirements (Python version,
+`pip install .` if there are dependencies), usage with the verified commands
+above as examples plus expected output, and a short options/subcommands table
+if applicable. Keep it under 80 lines. Do not invent commands or options that
+are not in the design.
+
+Respond with exactly one markdown code block containing the complete README:
+
+```markdown
+# ...
+```"""
+
+
+def extract_markdown(text: str) -> str | None:
+    """응답에서 마크다운 블록을 꺼낸다. 펜스 없으면 #으로 시작할 때 전체."""
+    blocks = re.findall(r"```(?:markdown|md)\s*\n(.*?)```", text, re.DOTALL)
+    if blocks:
+        return max(blocks, key=len).strip() + "\n"
+    stripped = text.strip()
+    if stripped.startswith("#"):
+        return stripped + "\n"
+    return None
 
 
 def extract_code(text: str) -> str | None:

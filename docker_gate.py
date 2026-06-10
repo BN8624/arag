@@ -94,6 +94,25 @@ def run_exec_gate(workdir: Path, success_signal: dict,
     return issues, "\n\n".join(logs)
 
 
+def run_pytest(workdir: Path, timeout: int = 60,
+               deps_dir: Path | None = None) -> tuple[list[dict], str]:
+    """31B가 출제한 test_acceptance.py를 실행. (문제 목록, 로그) 반환."""
+    workdir = Path(workdir).resolve()
+    rc, out = _run_in_docker(workdir, ["python", "-m", "pytest", "-q",
+                                       "test_acceptance.py"],
+                             timeout, deps_dir)
+    log = f"$ python -m pytest -q test_acceptance.py\n(exit {rc})\n{out}".rstrip()
+    issues: list[dict] = []
+    if rc == -1:
+        issues.append(_exec_issue(f"pytest timed out after {timeout}s", out))
+    elif rc == 5:
+        issues.append(_exec_issue("pytest collected no tests from "
+                                  "test_acceptance.py", out))
+    elif rc != 0:
+        issues.append(_exec_issue(f"pytest failed (exit {rc})", out))
+    return issues, log
+
+
 def run_criteria_checks(workdir: Path, checks: list[dict],
                         timeout: int = EXEC_TIMEOUT_SEC,
                         deps_dir: Path | None = None) -> list[dict]:

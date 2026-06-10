@@ -19,12 +19,13 @@ from pathlib import Path
 from config import PROJECT_ROOT, force_utf8_stdout
 from design_validator import implementation_order, validate_design
 from docker_gate import (docker_available, install_packages,
-                         run_criteria_checks, run_exec_gate)
+                         run_criteria_checks, run_exec_gate, run_pytest)
 from gates import external_imports, format_issues, run_static_gate
 from lessons import find_relevant, record_lesson
 from llm import CallBudgetExceeded
-from prompts import (critique_prompt, design_prompt, extract_code, fix_prompt,
-                     implement_prompt, revise_prompt)
+from prompts import (critique_prompt, design_prompt, extract_code,
+                     extract_markdown, fix_prompt, implement_prompt,
+                     readme_prompt, revise_prompt, tests_prompt)
 from schema import extract_json, parse_design
 
 K_MAX_FIX = 3          # 층마다 자가수정 상한
@@ -32,6 +33,7 @@ DESIGN_ATTEMPTS = 3    # 설계 1회 + 재설계 2회
 DEFAULT_ROUNDS = 2     # 비평-개선 바퀴
 DEFAULT_MAX_CALLS = 60
 DEFAULT_MAX_MINUTES = 40
+TEST_FILE = "test_acceptance.py"
 
 
 class RunAborted(Exception):
@@ -49,6 +51,7 @@ class Orchestrator:
         self.skip_exec = skip_exec
         self.deadline = time.monotonic() + max_minutes * 60
         self.design: dict | None = None
+        self.idea = ""
         self.critique_history: list[dict] = []
         self.last_exec_log = "(execution gate skipped)"
         self.scoreboard: list[dict] = []
@@ -76,8 +79,10 @@ class Orchestrator:
     # ------------------------------------------------------------ main
 
     def run(self, idea: str) -> bool:
+        self.idea = idea
         try:
             self._phase_design(idea, self._load_lessons(idea))
+            self._phase_tests()
             self._phase_implement()
             self._git_init()
             ok = self._pass_gates(context="initial build")
@@ -86,6 +91,8 @@ class Orchestrator:
             self._snapshot("gates-pass-initial")
             self._run_scoreboard()
             self._phase_critique_loop()
+            self._write_readme()
+            self._write_pyproject()
             self._write_report(idea, status="OK")
             self._say(f"[OK] run complete: {self.workspace}")
             return True
@@ -174,6 +181,30 @@ class Orchestrator:
                       f"{len(errs)} errors")
         raise RunAborted(f"design failed after {DESIGN_ATTEMPTS} attempts: {errors}")
 
+    def _phase_tests(self) -> None:
+        """31B가 설계 계약 기반 pytest 출제. 실패해도 회차는 계속 (테스트 없이 진행)."""
+        if self.skip_exec:
+            return  # 실행 게이트가 없으면 pytest를 돌릴 곳도 없다
+        self._say("[PHASE] write acceptance tests (31B)")
+        import ast as ast_mod
+        for attempt in range(2):
+            self._check_time()
+            text = self.llm.generate("critic", tests_prompt(self.design))
+            code = extract_code(text)
+            if code is None:
+                continue
+            try:
+                ast_mod.parse(code)
+            except SyntaxError:
+                self.log("tests-syntax-error", attempt=attempt + 1)
+                continue
+            (self.workspace / TEST_FILE).write_text(code, encoding="utf-8")
+            self.log("tests-written", chars=len(code))
+            self._say(f"  [OK] wrote {TEST_FILE}")
+            return
+        self.log("tests-skipped", reason="no valid test code after 2 attempts")
+        self._say("  [SKIP] test generation failed twice - continuing without tests")
+
     def _phase_implement(self) -> None:
         self._say("[PHASE] implement (26B)")
         order = implementation_order(self.design)
@@ -233,6 +264,10 @@ class Orchestrator:
                                                   self.design["success_signal"],
                                                   deps_dir=deps_dir)
             self.last_exec_log = log_text
+            if not exec_issues and (self.workspace / TEST_FILE).exists():
+                exec_issues, pytest_log = run_pytest(self.workspace,
+                                                     deps_dir=deps_dir)
+                self.last_exec_log = log_text + "\n\n" + pytest_log
             if not exec_issues:
                 self._say("  [GATE] static + exec passed")
                 return True
@@ -248,7 +283,7 @@ class Orchestrator:
                 self._say("[STUCK] exec gate: fix budget exhausted")
                 return False
             exec_left -= 1
-            target = self._blame_file(log_text)
+            target = self._blame_file(self.last_exec_log)
             self._say(f"  [GATE] exec failed -> self-fix {target} ({exec_left} left)")
             self.log("exec-issues", context=context, target=target,
                      issues=[i["message"] for i in exec_issues])
@@ -268,7 +303,8 @@ class Orchestrator:
                 return
             self.critique_history.append({"round": round_no, "critique": verdict})
             flagged = [f for f in verdict.get("files", [])
-                       if (self.workspace / f.get("path", "")).exists()]
+                       if (self.workspace / f.get("path", "")).exists()
+                       and f.get("path") != TEST_FILE]  # 테스트는 계약 - 26B가 못 고침
             if not flagged:
                 self._say("  [SKIP] critique flagged no existing files")
                 return
@@ -291,6 +327,8 @@ class Orchestrator:
     def _ensure_packages(self) -> Path | None:
         """워크스페이스가 쓰는 화이트리스트 패키지를 deps에 설치. 없으면 None."""
         self._packages = sorted(external_imports(self.workspace))
+        if (self.workspace / TEST_FILE).exists():
+            self._packages = sorted(set(self._packages) | {"pytest"})
         if not self._packages:
             return None
         ok, out = install_packages(self.deps_dir, self._packages)
@@ -333,7 +371,8 @@ class Orchestrator:
         prompt = critique_prompt(self.design, self._read_files(),
                                  "clean (all static checks passed)",
                                  self.last_exec_log,
-                                 self._scoreboard_text())
+                                 self._scoreboard_text(),
+                                 idea=self.idea)
         for _ in range(2):
             text = self.llm.generate("critic", prompt).strip()
             if re.match(r"^LGTM\b", text):
@@ -387,6 +426,8 @@ class Orchestrator:
         """실행 로그의 트레이스백에서 책임 파일을 고른다. 못 찾으면 진입점."""
         project_files = {f["path"] for f in self.design["files"]}
         hits = re.findall(r'File "(?:/app/)?([\w.]+\.py)"', log_text)
+        # pytest -q 스타일 트레이스백 (예: "core.py:12: in add_item")도 본다
+        hits += re.findall(r'^([\w.]+\.py):\d+:', log_text, re.MULTILINE)
         for name in reversed(hits):  # 가장 깊은 프레임 우선
             if name in project_files:
                 return name
@@ -421,6 +462,69 @@ class Orchestrator:
             self._git("reset", "--hard", "-q", self._last_snapshot)
             self._git("clean", "-fdq")
 
+    # ------------------------------------------------------------ extras
+
+    def _write_readme(self) -> None:
+        """26B 1콜로 README.md 생성. 실패해도 회차는 계속 (비필수 산출물)."""
+        if self.skip_exec:
+            return
+        try:
+            text = self.llm.generate("generator", readme_prompt(self.design))
+            md = extract_markdown(text)
+            if md:
+                (self.workspace / "README.md").write_text(md, encoding="utf-8")
+                self.log("readme-written", chars=len(md))
+                self._say("  [OK] README.md generated")
+            else:
+                self.log("readme-skipped", reason="no markdown block in response")
+        except Exception as err:  # noqa: BLE001 - README 실패로 회차를 막지 않는다
+            self.log("readme-skipped", reason=str(err))
+
+    def _write_pyproject(self) -> None:
+        """pip install 가능한 패키징 메타데이터. 모델 콜 0 - 기계적 생성."""
+        try:
+            d = self.design
+            name = re.sub(r"[^a-zA-Z0-9]+", "-", d["project_name"]).strip("-").lower()
+            name = name or "prototype"
+            mods = [Path(f["path"]).stem for f in d["files"]
+                    if f["path"].endswith(".py")
+                    and not f["path"].startswith("test_")]
+            deps = sorted(external_imports(self.workspace))
+            deps_str = ", ".join(f'"{p}"' for p in deps)
+            mods_str = ", ".join(f'"{m}"' for m in mods)
+            scripts = ""
+            entry_mod = Path(d["entrypoint"]).stem
+            if self._entry_defines_main():
+                scripts = (f'\n[project.scripts]\n'
+                           f'{name} = "{entry_mod}:main"\n')
+            content = (
+                '[build-system]\n'
+                'requires = ["setuptools>=68"]\n'
+                'build-backend = "setuptools.build_meta"\n\n'
+                '[project]\n'
+                f'name = "{name}"\n'
+                'version = "0.1.0"\n'
+                f'description = "{d.get("description", "")}"\n'
+                'requires-python = ">=3.10"\n'
+                f'dependencies = [{deps_str}]\n'
+                f'{scripts}\n'
+                '[tool.setuptools]\n'
+                f'py-modules = [{mods_str}]\n')
+            (self.workspace / "pyproject.toml").write_text(content, encoding="utf-8")
+            self.log("pyproject-written", name=name, dependencies=deps)
+        except Exception as err:  # noqa: BLE001 - 패키징 실패로 회차를 막지 않는다
+            self.log("pyproject-skipped", reason=str(err))
+
+    def _entry_defines_main(self) -> bool:
+        import ast as ast_mod
+        path = self.workspace / self.design["entrypoint"]
+        try:
+            tree = ast_mod.parse(path.read_text(encoding="utf-8-sig"))
+        except (OSError, SyntaxError):
+            return False
+        return any(isinstance(n, ast_mod.FunctionDef) and n.name == "main"
+                   for n in tree.body)
+
     # ------------------------------------------------------------ report
 
     def _write_report(self, idea: str, status: str) -> None:
@@ -432,7 +536,12 @@ class Orchestrator:
             criteria = "\n".join(f"- {c}" for c in self.design["acceptance_criteria"])
             files = "\n".join(f"- `{f['path']}` - {f.get('role', '')}"
                               for f in self.design["files"])
-            design_part = (f"## Files\n{files}\n\n"
+            reqs = self.design.get("requirements") or []
+            req_lines = "\n".join(f"- {r.get('text', '')}" for r in reqs
+                                  if isinstance(r, dict))
+            req_part = (f"## Requirements (decomposed from the idea)\n"
+                        f"{req_lines}\n\n") if req_lines else ""
+            design_part = (f"## Files\n{files}\n\n{req_part}"
                            f"## Acceptance criteria\n{criteria}\n")
             run_part = (f"## How to run\n```\ncd {self.workspace}\n"
                         f"{sig['command']}\n```\n"
