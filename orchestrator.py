@@ -88,6 +88,14 @@ class Orchestrator:
             self._say(f"[FAIL] run aborted: {err}")
             self._say(f"       details: {self.run_dir / 'events.jsonl'}")
             return False
+        except Exception as err:
+            import traceback
+            tb = traceback.format_exc()
+            self.log("error", reason=str(err), traceback=tb)
+            self._write_report(idea, status=f"ERROR: {err}")
+            self._say(f"[FAIL] unexpected error: {err}")
+            self._say(f"       details: {self.run_dir / 'events.jsonl'}")
+            return False
         finally:
             self._events.close()
 
