@@ -56,5 +56,29 @@
       "nargs"
     ],
     "lesson": "When using the click library for CLI options, use 'multiple=True' instead of 'nargs=-1' to accept multiple values for a single flag."
+  },
+  {
+    "t": "2026-06-11T02:23:07",
+    "idea": "재고 관리 CLI: 품목 추가/출고/입고, 현재 재고 목록 표 출력, 재고가 최소 수량 아래로 떨어진 품목 경고 목록, 전체 재고 현황 요약 리포트",
+    "keywords": [
+      "inventory",
+      "cli",
+      "state-management",
+      "initialization",
+      "key-error"
+    ],
+    "lesson": "Ensure all tracked numeric fields, such as current quantity, are initialized to a default value (e.g., 0) during item creation to avoid KeyErrors during update operations."
+  },
+  {
+    "t": "2026-06-11T02:49:35",
+    "idea": "재고 관리 CLI: 품목 추가/출고/입고, 현재 재고 목록 표 출력, 재고가 최소 수량 아래로 떨어진 품목 경고 목록, 전체 재고 현황 요약 리포트",
+    "keywords": [
+      "cli",
+      "state",
+      "idempotency",
+      "acceptance-tests",
+      "persistence"
+    ],
+    "lesson": "Ensure success signals use unique identifiers or explicitly clear persistent storage before execution to prevent failures caused by existing data."
   }
 ]

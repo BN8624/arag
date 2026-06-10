@@ -97,6 +97,21 @@ class Orchestrator:
             self._say(f"[OK] run complete: {self.workspace}")
             return True
         except (RunAborted, CallBudgetExceeded) as err:
+            if self._last_snapshot:
+                # 게이트 통과본이 있다 - 비평 도중 예산이 끝나도 그걸 결과물로 낸다
+                self._say(f"[SALVAGE] aborted mid-critique ({err}) - "
+                          "delivering last passing build")
+                self.log("salvaged", reason=str(err), snapshot=self._last_snapshot)
+                self._rollback()
+                try:
+                    self._run_scoreboard()  # 복원본 기준 점수로 보고
+                except Exception:  # noqa: BLE001
+                    pass
+                self._write_pyproject()
+                self._write_report(idea, status=f"OK (salvaged last passing "
+                                                f"build - aborted later: {err})")
+                self._say(f"[OK] run complete (salvaged): {self.workspace}")
+                return True
             self.log("aborted", reason=str(err))
             self._record_failure(idea, str(err))
             self._write_report(idea, status=f"ABORTED: {err}")
@@ -313,8 +328,23 @@ class Orchestrator:
                 self._check_time()
                 self._revise_file(f["path"], f.get("issues", []))
             if self._pass_gates(context=f"critique round {round_no}"):
-                self._snapshot(f"critique-round-{round_no}-pass")
+                prev_score = self._score_passed()
                 self._run_scoreboard()
+                now_score = self._score_passed()
+                if (prev_score is not None and now_score is not None
+                        and now_score < prev_score):
+                    # 수정본이 돌긴 하는데 수용기준을 더 못 맞춤 -> 손해 본 수정
+                    self._say(f"  [ROLLBACK] revision lowered the score "
+                              f"({prev_score} -> {now_score}) - restoring")
+                    self.log("score-regression", round=round_no,
+                             before=prev_score, after=now_score)
+                    self._rollback()
+                    try:
+                        self._run_scoreboard()  # 복원본 점수로 되돌림
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return
+                self._snapshot(f"critique-round-{round_no}-pass")
             else:
                 self._say("  [ROLLBACK] revision broke the gates - "
                           "restoring last good snapshot")
@@ -354,6 +384,11 @@ class Orchestrator:
                           for r in self.scoreboard])
         self._say(f"  [SCORE] acceptance checks: "
                   f"{passed}/{len(self.scoreboard)} passed")
+
+    def _score_passed(self) -> int | None:
+        if not self.scoreboard:
+            return None
+        return sum(1 for r in self.scoreboard if r["passed"])
 
     def _scoreboard_text(self) -> str:
         if not self.scoreboard:
