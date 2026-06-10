@@ -19,7 +19,7 @@ PLACEHOLDER = "your-api-key-here"
 # 모델 ID 기본값. check_api.py로 실제 사용 가능한 ID를 확인한 뒤
 # .env의 GENERATOR_MODEL / CRITIC_MODEL로 재정의할 수 있다.
 DEFAULT_MODELS = {
-    "generator": "gemma-4-26b-it",  # 26B = 손 (구현)
+    "generator": "gemma-4-26b-a4b-it",  # 26B = 손 (구현. MoE, active 4B)
     "critic": "gemma-4-31b-it",     # 31B = 머리 (설계·비평)
 }
 
