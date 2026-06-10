@@ -54,21 +54,33 @@ def validate_design(design: dict) -> list[str]:
 
     for i, chk in enumerate(design.get("criteria_checks") or []):
         cmd = str(chk.get("command", "")).strip()
-        if not cmd.startswith("python "):
+        bad = _non_python_parts(cmd)
+        if bad:
             errors.append(
-                f"criteria_checks[{i}].command must start with 'python ': {cmd!r}")
+                f"criteria_checks[{i}].command: every '&&' step must start "
+                f"with 'python ': {bad[0]!r}")
 
     command = design["success_signal"]["command"].strip()
-    if not command.startswith("python "):
-        errors.append(f"success_signal.command must start with 'python ': {command!r}")
+    bad = _non_python_parts(command)
+    if bad:
+        errors.append(
+            f"success_signal.command: every '&&' step must start with "
+            f"'python ': {bad[0]!r}")
     else:
-        first_arg = command.split()[1] if len(command.split()) > 1 else ""
+        last = command.split("&&")[-1].strip()
+        first_arg = last.split()[1] if len(last.split()) > 1 else ""
         if first_arg != entry:
             errors.append(
-                f"success_signal.command must run the entrypoint {entry!r} "
-                f"(got {first_arg!r})"
+                f"success_signal.command's final step must run the entrypoint "
+                f"{entry!r} (got {first_arg!r})"
             )
     return errors
+
+
+def _non_python_parts(command: str) -> list[str]:
+    """'&&'로 쪼갠 각 단계 중 'python '으로 시작하지 않는 것들."""
+    parts = [p.strip() for p in command.split("&&")]
+    return [p for p in parts if not p.startswith("python ")]
 
 
 def _find_cycle(deps: dict) -> list[str] | None:

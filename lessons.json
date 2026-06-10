@@ -21,5 +21,16 @@
       "automation"
     ],
     "lesson": "Ensure every functional requirement specified in the success signal is explicitly mapped to a defined option in the CLI argument parser implementation."
+  },
+  {
+    "t": "2026-06-10T23:34:48",
+    "idea": "마크다운 표 생성기 CLI: CSV→마크다운 테이블 변환. 셀 내 | 이스케이프, 따옴표 필드 지원, 정렬 옵션, 숫자 컬럼 합계 행 추가",
+    "keywords": [
+      "cli",
+      "argument-parsing",
+      "feature-mapping",
+      "csv-conversion"
+    ],
+    "lesson": "Ensure every functional requirement involving optional behavior is explicitly mapped to a CLI argument or flag in the interface definition."
   }
 ]

@@ -79,7 +79,7 @@ def run_exec_gate(workdir: Path, success_signal: dict,
 
     command = success_signal["command"].strip()
     expect = success_signal["expect_substring"]
-    rc, out = _run_in_docker(workdir, shlex.split(command), timeout, deps_dir)
+    rc, out = _run_in_docker(workdir, _as_argv(command), timeout, deps_dir)
     logs.append(f"$ {command}\n(exit {rc})\n{out}".rstrip())
     if rc == -1:
         issues.append(_exec_issue(
@@ -109,7 +109,7 @@ def run_criteria_checks(workdir: Path, checks: list[dict],
         criterion = str(chk.get("criterion", "")) or command
         if not command:
             continue
-        rc, out = _run_in_docker(workdir, shlex.split(command), timeout, deps_dir)
+        rc, out = _run_in_docker(workdir, _as_argv(command), timeout, deps_dir)
         if rc == -1:
             passed, detail = False, f"timed out after {timeout}s"
         elif rc != 0:
@@ -122,6 +122,13 @@ def run_criteria_checks(workdir: Path, checks: list[dict],
         results.append({"criterion": criterion, "command": command,
                         "passed": passed, "detail": detail, "output_tail": tail})
     return results
+
+
+def _as_argv(command: str) -> list[str]:
+    """설계 커맨드를 컨테이너 argv로. '&&' 체인은 sh -c로 위임."""
+    if "&&" in command:
+        return ["sh", "-c", command]
+    return shlex.split(command)
 
 
 def _exec_issue(message: str, output: str) -> dict:

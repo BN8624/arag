@@ -81,6 +81,30 @@ def test_design_without_checks_still_valid():
     assert validate_design(make_design()) == []
 
 
+def test_chained_python_commands_allowed():
+    d = make_design()
+    d["success_signal"]["command"] = (
+        "python main.py add \"x\" && python main.py add \"y\"")
+    assert validate_design(d) == []
+    d["criteria_checks"] = [{"criterion": "c",
+                             "command": "python main.py add a && python main.py list",
+                             "expect_substring": "a"}]
+    assert validate_design(d) == []
+
+
+def test_chained_command_with_shell_step_rejected():
+    d = make_design()
+    d["success_signal"]["command"] = "echo hi > f.csv && python main.py add x"
+    assert any("&&" in e for e in validate_design(d))
+
+
+def test_chain_final_step_must_run_entrypoint():
+    d = make_design()
+    d["success_signal"]["command"] = (
+        "python main.py add x && python core.py add y")
+    assert any("entrypoint" in e for e in validate_design(d))
+
+
 # ---------------------------------------------------------------- lessons
 
 def _write_lessons(path, data):

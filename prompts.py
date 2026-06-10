@@ -98,12 +98,19 @@ Also produce:
 - "acceptance_criteria": 3-6 concrete, checkable statements of what the
   finished tool must do.
 - "criteria_checks": for EVERY acceptance criterion, one executable check:
-  a command (must start with `python`, deterministic, finishes within 30
-  seconds) plus a substring its output must contain. Checks run in order in
+  a command plus a substring its output must contain. Checks run in order in
   the same directory, so an earlier command may create state a later one reads.
-- "success_signal": ONE command that exercises a core behavior of the idea
-  (not just --help) plus a substring its output must contain. The command must
-  run the entrypoint, be deterministic, and finish within 30 seconds.
+- "success_signal": ONE command line that exercises a core behavior of the
+  idea (not just --help) plus a substring its output must contain. Its final
+  step must run the entrypoint, be deterministic, and finish within 30 seconds.
+
+Command rules (for success_signal AND criteria_checks):
+- A command line may chain several steps with '&&' when setup is needed,
+  e.g. first create an input file THROUGH THE TOOL, then process it:
+  "python main.py make-sample data.csv && python main.py convert data.csv"
+- EVERY step must start with `python` (no echo/cat/shell tricks).
+- Each option/subcommand a command uses MUST exist in the designed interfaces -
+  commands and interfaces must match exactly.
 
 Respond with a single JSON object exactly in this shape (no prose before or
 after, no markdown fences):
