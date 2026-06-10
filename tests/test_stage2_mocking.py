@@ -77,6 +77,25 @@ def test_fixtures_written_to_workspace(tmp_path):
     assert (ws / "sample.txt").read_text(encoding="utf-8") == "plain text"
 
 
+def test_pingpong_errors_detected(tmp_path):
+    """A->B->A 교대 에러도 진전 없음으로 잡아야 함 (연속 중복만이 아니라)."""
+    broken_a = GOOD_MAIN.replace("from core import add_item",
+                                 "from core import add_item_nope")
+    broken_b = GOOD_MAIN.replace("import sys",
+                                 "import sys\nimport json")  # json 미사용
+    llm = MockLLM(
+        critic=[json.dumps(make_design())],
+        # 초기 A -> 수정 B -> 수정이 다시 A (핑퐁) -> 즉시 중단돼야 함
+        generator=[fenced(GOOD_CORE), fenced(broken_a), fenced(broken_b),
+                   fenced(broken_a)],
+    )
+    orch = Orchestrator(llm, tmp_path / "run", skip_exec=True)
+    assert orch.run("todo") is False
+    events = (tmp_path / "run" / "events.jsonl").read_text(encoding="utf-8")
+    assert "no-progress" in events
+    assert llm.queues["generator"] == []  # 큐를 다 쓰고 더 부르지 않았어야 함
+
+
 # ------------------------------------------------- hardcoded secrets
 
 SECRET_MAIN = '''\

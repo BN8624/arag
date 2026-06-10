@@ -99,7 +99,7 @@ def run_pytest(workdir: Path, timeout: int = 60,
     """31B가 출제한 test_acceptance.py를 실행. (문제 목록, 로그) 반환."""
     workdir = Path(workdir).resolve()
     rc, out = _run_in_docker(workdir, ["python", "-m", "pytest", "-q",
-                                       "test_acceptance.py"],
+                                       "--tb=short", "test_acceptance.py"],
                              timeout, deps_dir)
     log = f"$ python -m pytest -q test_acceptance.py\n(exit {rc})\n{out}".rstrip()
     issues: list[dict] = []
@@ -109,7 +109,9 @@ def run_pytest(workdir: Path, timeout: int = 60,
         issues.append(_exec_issue("pytest collected no tests from "
                                   "test_acceptance.py", out))
     elif rc != 0:
-        issues.append(_exec_issue(f"pytest failed (exit {rc})", out))
+        # 실패한 assert 본문이 보이도록 꼬리를 넉넉히 (15줄이면 요약에서 잘림)
+        issues.append(_exec_issue(f"pytest failed (exit {rc})", out,
+                                  tail_lines=40))
     return issues, log
 
 
@@ -150,8 +152,8 @@ def _as_argv(command: str) -> list[str]:
     return shlex.split(command)
 
 
-def _exec_issue(message: str, output: str) -> dict:
-    tail = output.strip().splitlines()[-15:]
+def _exec_issue(message: str, output: str, tail_lines: int = 15) -> dict:
+    tail = output.strip().splitlines()[-tail_lines:]
     return {"file": "(run)", "line": 0, "kind": "exec-fail",
             "message": message + ("\n--- output tail ---\n" + "\n".join(tail) if tail else "")}
 

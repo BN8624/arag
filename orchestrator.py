@@ -259,8 +259,8 @@ class Orchestrator:
         """정적 게이트 -> 실행 게이트, 층별 K회 자가수정. 둘 다 통과하면 True."""
         static_left = K_MAX_FIX
         exec_left = K_MAX_FIX
-        prev_static: frozenset | None = None
-        prev_exec: frozenset | None = None
+        seen_static: set[frozenset] = set()
+        seen_exec: set[frozenset] = set()
 
         while True:
             self._check_time()
@@ -268,11 +268,12 @@ class Orchestrator:
             if issues:
                 self._last_issues = issues
                 sig = frozenset((i["file"], i["kind"], i["message"]) for i in issues)
-                if sig == prev_static:
+                if sig in seen_static:
+                    # 동일 에러 재방문 = 핑퐁(A->B->A 포함) - K를 안 채우고 중단
                     self.log("no-progress", layer="static", context=context)
-                    self._say("[STUCK] static gate: same errors twice in a row")
+                    self._say("[STUCK] static gate: error state repeated")
                     return False
-                prev_static = sig
+                seen_static.add(sig)
                 if static_left == 0:
                     self.log("budget-exhausted", layer="static", context=context)
                     self._say("[STUCK] static gate: fix budget exhausted")
@@ -302,11 +303,11 @@ class Orchestrator:
                 return True
             self._last_issues = exec_issues
             sig = frozenset(i["message"] for i in exec_issues)
-            if sig == prev_exec:
+            if sig in seen_exec:
                 self.log("no-progress", layer="exec", context=context)
-                self._say("[STUCK] exec gate: same errors twice in a row")
+                self._say("[STUCK] exec gate: error state repeated")
                 return False
-            prev_exec = sig
+            seen_exec.add(sig)
             if exec_left == 0:
                 self.log("budget-exhausted", layer="exec", context=context)
                 self._say("[STUCK] exec gate: fix budget exhausted")

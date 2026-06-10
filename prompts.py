@@ -111,7 +111,11 @@ Also produce:
   Every requirement MUST be covered by at least one criterion - if a
   capability from the idea has no criterion, add a criterion for it.
 - "dependencies": which file imports which (this becomes the expected import
-  graph that gates verify against the actual code).
+  graph that gates verify against the actual code). dependencies and
+  interfaces MUST be consistent: if file X is listed as importing file Y,
+  X's code must genuinely import AND use Y. If a function instead receives
+  a collaborator object as a parameter (dependency injection), do NOT also
+  list that module in X's imports - pick one style per edge.
 - "interfaces": the exact functions/classes each file must define, with
   signatures. The implementer will follow these as a contract.
 - "acceptance_criteria": 3-6 concrete, checkable statements of what the
@@ -189,12 +193,18 @@ def fix_prompt(file_path: str, all_files: dict[str, str],
                        f"  (its output must contain: {sig.get('expect_substring', '')!r})\n"
                        "If the command uses an option or subcommand the code does not\n"
                        "define, ADD it to the code - do not rename or remove it.\n")
+    deps = design.get("dependencies", {}).get(file_path, [])
+    deps_part = ""
+    if deps:
+        deps_part = (f"\nDesign dependency contract: `{file_path}` must import "
+                     f"AND actually use: {', '.join(deps)}. Satisfy both - an "
+                     "import that is never called is also a gate failure.\n")
     return f"""A multi-file Python project failed automated checks.
 You must fix the file `{file_path}`.
 
 Exact errors reported by the gate (file:line [kind] message):
 {issues_text}
-{signal_part}
+{signal_part}{deps_part}
 
 Current project files:
 

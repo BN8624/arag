@@ -80,5 +80,29 @@
       "persistence"
     ],
     "lesson": "Ensure success signals use unique identifiers or explicitly clear persistent storage before execution to prevent failures caused by existing data."
+  },
+  {
+    "t": "2026-06-11T03:56:00",
+    "idea": "환율 변환 CLI: 외부 환율 API에서 환율을 받아 통화 금액을 변환하고, 변환 기록을 저장/조회하고, 보유 외화 목록의 원화 환산 총액을 출력",
+    "keywords": [
+      "cli",
+      "currency-converter",
+      "state-persistence",
+      "valuation-logic",
+      "portfolio-management"
+    ],
+    "lesson": "Ensure the persistence layer uses a consistent schema for holdings and that valuation logic explicitly iterates through all stored assets to fetch the latest rates for each unique currency before aggregation."
+  },
+  {
+    "t": "2026-06-11T04:13:59",
+    "idea": "환율 변환 CLI: 외부 환율 API에서 환율을 받아 통화 금액을 변환하고, 변환 기록을 저장/조회하고, 보유 외화 목록의 원화 환산 총액을 출력",
+    "keywords": [
+      "cli",
+      "modular architecture",
+      "unused imports",
+      "service layer",
+      "python"
+    ],
+    "lesson": "Avoid creating thin wrapper modules that only import other services; consolidate business logic into a single service class to ensure all dependencies are actively used."
   }
 ]
