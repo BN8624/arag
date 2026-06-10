@@ -37,6 +37,14 @@ DESIGN_SCHEMA_EXAMPLE = """{
     "adding an item prints a confirmation containing the item text",
     "listing items shows previously added items"
   ],
+  "criteria_checks": [
+    {"criterion": "adding an item prints a confirmation containing the item text",
+     "command": "python main.py add \\"buy milk\\"",
+     "expect_substring": "buy milk"},
+    {"criterion": "listing items shows previously added items",
+     "command": "python main.py list",
+     "expect_substring": "buy milk"}
+  ],
   "success_signal": {
     "command": "python main.py add \\"buy milk\\"",
     "expect_substring": "buy milk"
@@ -46,14 +54,21 @@ DESIGN_SCHEMA_EXAMPLE = """{
 HARD_RULES = """HARD CONSTRAINTS (violations are rejected by automated gates):
 - At least 2 .py files, flat layout (no subdirectories). The files must genuinely
   use each other via imports - decorative files that nothing imports are rejected.
-- Python standard library ONLY. No third-party packages.
+- Allowed imports: the Python standard library, plus ONLY these third-party
+  packages when genuinely needed: requests, rich, click, tabulate, yaml (PyYAML),
+  dateutil, tqdm, colorama, jinja2, markdown. Any other package is rejected.
+  Prefer the standard library when it is enough.
 - NO interactive input: never use input() or read from stdin. All input comes
   from CLI arguments or files.
 - The entrypoint file must have an `if __name__ == "__main__":` block.
-- The program must run with plain `python <entrypoint> ...` and exit by itself."""
+- The program must run with plain `python <entrypoint> ...` and exit by itself.
+- Commands run in a fresh directory containing ONLY the project files. They must
+  not assume any other file exists - if the tool needs an input file, an earlier
+  command must create it through the tool itself."""
 
 
-def design_prompt(idea: str, previous_errors: list[str] | None = None) -> str:
+def design_prompt(idea: str, previous_errors: list[str] | None = None,
+                  lessons: list[str] | None = None) -> str:
     feedback = ""
     if previous_errors:
         feedback = (
@@ -62,13 +77,19 @@ def design_prompt(idea: str, previous_errors: list[str] | None = None) -> str:
             + "\n".join(f"- {e}" for e in previous_errors)
             + "\nFix every error and return the complete corrected JSON.\n"
         )
+    lessons_part = ""
+    if lessons:
+        lessons_part = (
+            "\nLESSONS FROM PAST FAILED RUNS on similar ideas "
+            "(design so these mistakes cannot repeat):\n"
+            + "\n".join(f"- {l}" for l in lessons) + "\n")
     return f"""You are the architect of a small multi-file Python CLI prototype.
 Design the project for this idea:
 
 IDEA: {idea}
 
 {HARD_RULES}
-
+{lessons_part}
 Also produce:
 - "dependencies": which file imports which (this becomes the expected import
   graph that gates verify against the actual code).
@@ -76,6 +97,10 @@ Also produce:
   signatures. The implementer will follow these as a contract.
 - "acceptance_criteria": 3-6 concrete, checkable statements of what the
   finished tool must do.
+- "criteria_checks": for EVERY acceptance criterion, one executable check:
+  a command (must start with `python`, deterministic, finishes within 30
+  seconds) plus a substring its output must contain. Checks run in order in
+  the same directory, so an earlier command may create state a later one reads.
 - "success_signal": ONE command that exercises a core behavior of the idea
   (not just --help) plus a substring its output must contain. The command must
   run the entrypoint, be deterministic, and finish within 30 seconds.
@@ -124,11 +149,20 @@ Respond with exactly one Python code block containing the full file:
 def fix_prompt(file_path: str, all_files: dict[str, str],
                issues_text: str, design: dict) -> str:
     parts = [f"--- {name} ---\n{content}" for name, content in all_files.items()]
+    sig = design.get("success_signal", {})
+    signal_part = ""
+    if sig.get("command"):
+        signal_part = (f"\nThis exact command MUST succeed after your fix:\n"
+                       f"  $ {sig['command']}\n"
+                       f"  (its output must contain: {sig.get('expect_substring', '')!r})\n"
+                       "If the command uses an option or subcommand the code does not\n"
+                       "define, ADD it to the code - do not rename or remove it.\n")
     return f"""A multi-file Python project failed automated checks.
 You must fix the file `{file_path}`.
 
 Exact errors reported by the gate (file:line [kind] message):
 {issues_text}
+{signal_part}
 
 Current project files:
 
@@ -145,7 +179,8 @@ complete corrected file."""
 
 
 def critique_prompt(design: dict, all_files: dict[str, str],
-                    static_summary: str, exec_log: str) -> str:
+                    static_summary: str, exec_log: str,
+                    scoreboard: str | None = None) -> str:
     parts = [f"--- {name} ---\n{content}" for name, content in all_files.items()]
     criteria = "\n".join(f"- {c}" for c in design["acceptance_criteria"])
     return f"""You are a strict but fair code reviewer for a small Python CLI prototype.
@@ -153,6 +188,9 @@ Base your review on EVIDENCE, not speculation.
 
 ACCEPTANCE CRITERIA (you wrote these; check each):
 {criteria}
+
+EVIDENCE - acceptance check scoreboard (each criterion actually executed):
+{scoreboard or "(not run)"}
 
 EVIDENCE - static analysis result:
 {static_summary or "clean (no findings)"}
@@ -166,8 +204,9 @@ PROJECT FILES:
 
 Review for: unmet acceptance criteria, real bugs, broken edge cases that a
 normal user would hit, and files that do not genuinely work together.
-Do NOT raise style preferences, hypothetical scaling concerns, or rewrites
-that do not change behavior.
+A [FAIL] line in the scoreboard is a real unmet criterion - it MUST be
+addressed, never excused. Do NOT raise style preferences, hypothetical
+scaling concerns, or rewrites that do not change behavior.
 
 If there is nothing meaningful left to improve, reply with exactly:
 LGTM

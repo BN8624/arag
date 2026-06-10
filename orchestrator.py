@@ -18,8 +18,10 @@ from pathlib import Path
 
 from config import PROJECT_ROOT, force_utf8_stdout
 from design_validator import implementation_order, validate_design
-from docker_gate import docker_available, run_exec_gate
-from gates import format_issues, run_static_gate
+from docker_gate import (docker_available, install_packages,
+                         run_criteria_checks, run_exec_gate)
+from gates import external_imports, format_issues, run_static_gate
+from lessons import find_relevant, record_lesson
 from llm import CallBudgetExceeded
 from prompts import (critique_prompt, design_prompt, extract_code, fix_prompt,
                      implement_prompt, revise_prompt)
@@ -49,6 +51,10 @@ class Orchestrator:
         self.design: dict | None = None
         self.critique_history: list[dict] = []
         self.last_exec_log = "(execution gate skipped)"
+        self.scoreboard: list[dict] = []
+        self.deps_dir = self.run_dir / "deps"
+        self._packages: list[str] = []
+        self._last_issues: list[dict] = []
         self._last_snapshot: str | None = None
         self._events = (self.run_dir / "events.jsonl").open("a", encoding="utf-8")
 
@@ -71,19 +77,21 @@ class Orchestrator:
 
     def run(self, idea: str) -> bool:
         try:
-            self._phase_design(idea)
+            self._phase_design(idea, self._load_lessons(idea))
             self._phase_implement()
             self._git_init()
             ok = self._pass_gates(context="initial build")
             if not ok:
                 raise RunAborted("gates not passed after self-fix budget")
             self._snapshot("gates-pass-initial")
+            self._run_scoreboard()
             self._phase_critique_loop()
             self._write_report(idea, status="OK")
             self._say(f"[OK] run complete: {self.workspace}")
             return True
         except (RunAborted, CallBudgetExceeded) as err:
             self.log("aborted", reason=str(err))
+            self._record_failure(idea, str(err))
             self._write_report(idea, status=f"ABORTED: {err}")
             self._say(f"[FAIL] run aborted: {err}")
             self._say(f"       details: {self.run_dir / 'events.jsonl'}")
@@ -92,6 +100,7 @@ class Orchestrator:
             import traceback
             tb = traceback.format_exc()
             self.log("error", reason=str(err), traceback=tb)
+            self._record_failure(idea, f"{err}\n{tb}")
             self._write_report(idea, status=f"ERROR: {err}")
             self._say(f"[FAIL] unexpected error: {err}")
             self._say(f"       details: {self.run_dir / 'events.jsonl'}")
@@ -99,14 +108,53 @@ class Orchestrator:
         finally:
             self._events.close()
 
+    # ------------------------------------------------------------ lessons
+
+    def _load_lessons(self, idea: str) -> list[str]:
+        try:
+            found = find_relevant(idea)
+            if found:
+                self.log("lessons-injected", count=len(found), lessons=found)
+                self._say(f"[NOTE] {len(found)} lesson(s) from past failures injected")
+            return found
+        except Exception:  # noqa: BLE001 - 오답노트 문제로 회차를 막지 않는다
+            return []
+
+    def _record_failure(self, idea: str, reason: str) -> None:
+        try:
+            entry = record_lesson(self.llm, idea, self._failure_summary(reason))
+            if entry:
+                self.log("lesson-recorded", lesson=entry["lesson"],
+                         keywords=entry["keywords"])
+                self._say("[NOTE] failure lesson recorded to lessons.json")
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _failure_summary(self, reason: str) -> str:
+        parts = [f"failure reason: {reason}"]
+        if self._last_issues:
+            parts.append("last gate issues:\n"
+                         + format_issues(self._last_issues[:10]))
+        if self.last_exec_log and "skipped" not in self.last_exec_log:
+            tail = "\n".join(self.last_exec_log.strip().splitlines()[-15:])
+            parts.append("execution log tail:\n" + tail)
+        if self.design is not None:
+            parts.append("designed files: "
+                         + ", ".join(f["path"] for f in self.design["files"]))
+            sig = self.design.get("success_signal", {})
+            parts.append(f"success signal: {sig.get('command', '')!r} "
+                         f"expecting {sig.get('expect_substring', '')!r}")
+        return "\n\n".join(parts)
+
     # ------------------------------------------------------------ phases
 
-    def _phase_design(self, idea: str) -> None:
+    def _phase_design(self, idea: str, lesson_texts: list[str] | None = None) -> None:
         self._say("[PHASE] design (31B)")
         errors: list[str] = []
         for attempt in range(DESIGN_ATTEMPTS):
             self._check_time()
-            text = self.llm.generate("critic", design_prompt(idea, errors or None))
+            text = self.llm.generate("critic",
+                                     design_prompt(idea, errors or None, lesson_texts))
             design, errs = parse_design(text)
             if design is not None:
                 errs = validate_design(design)
@@ -158,6 +206,7 @@ class Orchestrator:
             self._check_time()
             issues = run_static_gate(self.workspace, self.design)
             if issues:
+                self._last_issues = issues
                 sig = frozenset((i["file"], i["kind"], i["message"]) for i in issues)
                 if sig == prev_static:
                     self.log("no-progress", layer="static", context=context)
@@ -179,12 +228,15 @@ class Orchestrator:
                 self._say("  [GATE] static passed (exec gate skipped)")
                 return True
 
+            deps_dir = self._ensure_packages()
             exec_issues, log_text = run_exec_gate(self.workspace,
-                                                  self.design["success_signal"])
+                                                  self.design["success_signal"],
+                                                  deps_dir=deps_dir)
             self.last_exec_log = log_text
             if not exec_issues:
                 self._say("  [GATE] static + exec passed")
                 return True
+            self._last_issues = exec_issues
             sig = frozenset(i["message"] for i in exec_issues)
             if sig == prev_exec:
                 self.log("no-progress", layer="exec", context=context)
@@ -226,6 +278,7 @@ class Orchestrator:
                 self._revise_file(f["path"], f.get("issues", []))
             if self._pass_gates(context=f"critique round {round_no}"):
                 self._snapshot(f"critique-round-{round_no}-pass")
+                self._run_scoreboard()
             else:
                 self._say("  [ROLLBACK] revision broke the gates - "
                           "restoring last good snapshot")
@@ -235,10 +288,52 @@ class Orchestrator:
 
     # ------------------------------------------------------------ helpers
 
+    def _ensure_packages(self) -> Path | None:
+        """워크스페이스가 쓰는 화이트리스트 패키지를 deps에 설치. 없으면 None."""
+        self._packages = sorted(external_imports(self.workspace))
+        if not self._packages:
+            return None
+        ok, out = install_packages(self.deps_dir, self._packages)
+        if not ok:
+            self.log("pip-install-failed", packages=self._packages,
+                     output=out[-2000:])
+            raise RunAborted(f"package install failed: {self._packages}")
+        self.log("packages-installed", packages=self._packages)
+        return self.deps_dir
+
+    def _run_scoreboard(self) -> None:
+        """수용기준 채점표 실행 (게이트 통과 후). 실패해도 회차는 계속."""
+        self.scoreboard = []
+        checks = (self.design or {}).get("criteria_checks") or []
+        if self.skip_exec or not checks:
+            return
+        deps = self.deps_dir if self._packages else None
+        self.scoreboard = run_criteria_checks(self.workspace, checks,
+                                              deps_dir=deps)
+        passed = sum(1 for r in self.scoreboard if r["passed"])
+        self.log("scoreboard", passed=passed, total=len(self.scoreboard),
+                 results=[{k: r[k] for k in ("criterion", "passed", "detail")}
+                          for r in self.scoreboard])
+        self._say(f"  [SCORE] acceptance checks: "
+                  f"{passed}/{len(self.scoreboard)} passed")
+
+    def _scoreboard_text(self) -> str:
+        if not self.scoreboard:
+            return "(not run)"
+        lines = []
+        for r in self.scoreboard:
+            mark = "[PASS]" if r["passed"] else "[FAIL]"
+            line = f"{mark} {r['criterion']}"
+            if not r["passed"]:
+                line += f" - {r['detail']}"
+            lines.append(line)
+        return "\n".join(lines)
+
     def _get_critique(self) -> dict | str | None:
         prompt = critique_prompt(self.design, self._read_files(),
                                  "clean (all static checks passed)",
-                                 self.last_exec_log)
+                                 self.last_exec_log,
+                                 self._scoreboard_text())
         for _ in range(2):
             text = self.llm.generate("critic", prompt).strip()
             if re.match(r"^LGTM\b", text):
@@ -342,6 +437,12 @@ class Orchestrator:
             run_part = (f"## How to run\n```\ncd {self.workspace}\n"
                         f"{sig['command']}\n```\n"
                         f"(expected output contains: `{sig['expect_substring']}`)\n")
+        score_part = ""
+        if self.scoreboard:
+            passed = sum(1 for r in self.scoreboard if r["passed"])
+            score_part = (f"## Acceptance check scoreboard "
+                          f"({passed}/{len(self.scoreboard)} passed)\n"
+                          f"{self._scoreboard_text()}\n\n")
         critiques = ""
         for entry in self.critique_history:
             critiques += f"\n### Round {entry['round']}\n"
@@ -353,7 +454,7 @@ class Orchestrator:
                   f"- Status: **{status}**\n"
                   f"- Idea: {idea}\n"
                   f"- API calls used: {getattr(self.llm, 'call_count', '?')}\n\n"
-                  f"{design_part}\n{run_part}\n"
+                  f"{design_part}\n{run_part}\n{score_part}"
                   f"## Critique history\n{critiques or '(none - passed without revision)'}\n\n"
                   f"## Last execution log\n```\n{self.last_exec_log}\n```\n")
         (self.run_dir / "REPORT.md").write_text(report, encoding="utf-8")
@@ -369,6 +470,8 @@ def main() -> int:
                         help="skip the Docker execution gate")
     parser.add_argument("--max-calls", type=int, default=DEFAULT_MAX_CALLS)
     parser.add_argument("--max-minutes", type=int, default=DEFAULT_MAX_MINUTES)
+    parser.add_argument("--no-retry", action="store_true",
+                        help="do not auto-retry once after a failed run")
     args = parser.parse_args()
 
     skip_exec = args.skip_exec
@@ -384,6 +487,17 @@ def main() -> int:
     orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
                         skip_exec=skip_exec, max_minutes=args.max_minutes)
     ok = orch.run(args.idea)
+
+    # 실패 시 1회 자동 재도전: 방금 기록된 오답노트 교훈을 들고 처음부터 다시
+    if not ok and not args.no_retry and llm.call_count + 8 <= args.max_calls:
+        print("[RETRY] first attempt failed - retrying once with recorded lessons")
+        run_dir = PROJECT_ROOT / "runs" / (
+            datetime.now().strftime("%Y%m%d-%H%M%S") + "-retry")
+        print(f"[START] run dir: {run_dir}")
+        orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
+                            skip_exec=skip_exec, max_minutes=args.max_minutes)
+        ok = orch.run(args.idea)
+
     print(f"[INFO] API calls used: {llm.call_count}")
     print(f"[INFO] report: {run_dir / 'REPORT.md'}")
     return 0 if ok else 1

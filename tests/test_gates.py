@@ -108,7 +108,8 @@ def test_contract_arg_mismatch(tmp_path):
 
 
 def test_non_stdlib_import(tmp_path):
-    core = "import requests\n\n\ndef fetch(url):\n    return requests.get(url)\n"
+    # numpy는 화이트리스트에 없는 외부 패키지 (requests 등 10개만 허용)
+    core = "import numpy\n\n\ndef fetch(url):\n    return numpy.array([url])\n"
     main = GOOD_MAIN.replace("from core import add_item", "from core import fetch") \
                     .replace("add_item(\"todo.json\", sys.argv[2])",
                              "fetch(sys.argv[2])") \

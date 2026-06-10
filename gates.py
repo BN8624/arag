@@ -30,6 +30,21 @@ _BUILTIN_NAMES = set(dir(builtins)) | {
 }
 _DYNAMIC_MARKERS = {"eval", "exec", "globals", "locals", "__import__", "vars"}
 
+# 외부 패키지 화이트리스트: import 이름 -> pip 패키지 이름.
+# Docker 게이트가 설치 단계에서만 네트워크를 열고 이 목록만 설치한다.
+ALLOWED_PACKAGES = {
+    "requests": "requests",
+    "rich": "rich",
+    "click": "click",
+    "tabulate": "tabulate",
+    "yaml": "PyYAML",
+    "dateutil": "python-dateutil",
+    "tqdm": "tqdm",
+    "colorama": "colorama",
+    "jinja2": "Jinja2",
+    "markdown": "Markdown",
+}
+
 
 def issue(file: str, line: int, kind: str, message: str) -> dict:
     return {"file": file, "line": line, "kind": kind, "message": message}
@@ -94,10 +109,10 @@ def _check_file(name, tree, local_modules, defined, edges) -> list[dict]:
                 if top in local_modules:
                     edges.add(local_modules[top])
                     import_aliases[bound] = (local_modules[top], node.lineno)
-                elif not _is_stdlib(top):
+                elif not _is_stdlib(top) and top not in ALLOWED_PACKAGES:
                     issues.append(issue(name, node.lineno, "non-stdlib-import",
                                         f"'{alias.name}' is not in the standard library "
-                                        "(v1 allows stdlib only)"))
+                                        "or the allowed package whitelist"))
                 if not _name_used(tree, bound, node):
                     issues.append(issue(name, node.lineno, "unused-import",
                                         f"'{bound}' is imported but never used"))
@@ -120,10 +135,11 @@ def _check_file(name, tree, local_modules, defined, edges) -> list[dict]:
                     if not _name_used(tree, bound, node):
                         issues.append(issue(name, node.lineno, "unused-import",
                                             f"'{bound}' is imported but never used"))
-            elif mod and mod != "__future__" and not _is_stdlib(mod):
+            elif (mod and mod != "__future__" and not _is_stdlib(mod)
+                    and mod not in ALLOWED_PACKAGES):
                 issues.append(issue(name, node.lineno, "non-stdlib-import",
                                     f"'{node.module}' is not in the standard library "
-                                    "(v1 allows stdlib only)"))
+                                    "or the allowed package whitelist"))
 
     # import한 로컬 모듈의 없는 속성 접근 (utils.foo 인데 utils에 foo 없음)
     for node in ast.walk(tree):
@@ -281,6 +297,27 @@ def _check_contracts(trees, design) -> list[dict]:
                         f"'{iname}' takes {got} args but the design contract "
                         f"specifies {expected_args}"))
     return issues
+
+
+def external_imports(workdir: Path) -> set[str]:
+    """워크스페이스가 쓰는 화이트리스트 외부 패키지의 pip 이름 집합."""
+    pkgs: set[str] = set()
+    for path in sorted(Path(workdir).glob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    top = alias.name.split(".")[0]
+                    if top in ALLOWED_PACKAGES:
+                        pkgs.add(ALLOWED_PACKAGES[top])
+            elif isinstance(node, ast.ImportFrom) and not node.level:
+                top = (node.module or "").split(".")[0]
+                if top in ALLOWED_PACKAGES:
+                    pkgs.add(ALLOWED_PACKAGES[top])
+    return pkgs
 
 
 # ---------------------------------------------------------------- helpers

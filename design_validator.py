@@ -52,6 +52,12 @@ def validate_design(design: dict) -> list[str]:
     if not any(targets for targets in deps.values()):
         errors.append("no import edges in 'dependencies' - files must actually use each other")
 
+    for i, chk in enumerate(design.get("criteria_checks") or []):
+        cmd = str(chk.get("command", "")).strip()
+        if not cmd.startswith("python "):
+            errors.append(
+                f"criteria_checks[{i}].command must start with 'python ': {cmd!r}")
+
     command = design["success_signal"]["command"].strip()
     if not command.startswith("python "):
         errors.append(f"success_signal.command must start with 'python ': {command!r}")
