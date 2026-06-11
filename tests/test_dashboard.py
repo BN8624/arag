@@ -141,6 +141,49 @@ def test_humanize_unknown_event_falls_back_to_raw():
         {"t": "x", "event": "some-new-event"})
 
 
+def test_improvable_runs_filters_ok(tmp_path, monkeypatch):
+    runs = tmp_path / "runs"
+    d = _mk_run(runs, "20260611-1")
+    run_index.record_run(d, {"run": "ok-run", "ok": True, "idea": "todo cli",
+                             "score": {"passed": 4, "total": 5}})
+    run_index.record_run(d, {"run": "fail-run", "ok": False, "idea": "broken"})
+    monkeypatch.setattr(dashboard, "RUNS_DIR", runs)
+    out = dashboard.improvable_runs()
+    assert [e["run"] for e in out] == ["ok-run"]
+    assert out[0]["score"] == {"passed": 4, "total": 5}
+    # status에도 동일 목록이 실린다
+    s = dashboard.build_status(runs)
+    assert [e["run"] for e in s["improvable"]] == ["ok-run"]
+
+
+def test_launch_improve_rejects_bad_run(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "RUNS_DIR", tmp_path / "runs")
+    ok, msg = dashboard.launch_improve("../etc", "fix")
+    assert ok is False and "bad run name" in msg
+    ok, msg = dashboard.launch_improve("nope", "fix")
+    assert ok is False and "not found" in msg
+
+
+def test_launch_improve_spawns_with_args(tmp_path, monkeypatch):
+    runs = tmp_path / "runs"
+    d = _mk_run(runs, "good-run", report=True)
+    run_index.record_run(d, {"run": "good-run", "ok": True,
+                             "idea": "expense cli"})
+    monkeypatch.setattr(dashboard, "RUNS_DIR", runs)
+    monkeypatch.setattr(dashboard, "build_status",
+                        lambda: {"live": None, "history": [],
+                                 "stop_after": False, "improvable": []})
+    captured = {}
+    monkeypatch.setattr(dashboard.subprocess, "Popen",
+                        lambda cmd, **kw: captured.setdefault("cmd", cmd))
+    ok, msg = dashboard.launch_improve("good-run", "고쳐줘")
+    assert ok is True
+    cmd = captured["cmd"]
+    assert "--improve" in cmd and "--feedback" in cmd
+    assert "고쳐줘" in cmd
+    assert "expense cli" in cmd  # 원래 아이디어가 positional로 전달
+
+
 def test_corrupt_events_skipped(tmp_path):
     runs = tmp_path / "runs"
     d = runs / "20260611-1"

@@ -176,9 +176,13 @@ def build_status(runs_dir: Path | None = None) -> dict:
 
     history = list(reversed(load_index(RUNS_DIR)))
     total_cost = sum(e.get("cost_usd") or 0 for e in history)
+    improvable = [{"run": e["run"], "idea": (e.get("idea") or "")[:60],
+                   "score": e.get("score")}
+                  for e in history if e.get("ok")]
     return {"live": live, "history": history,
             "total_cost_usd": round(total_cost, 4),
-            "stop_after": STOP_FILE.exists()}
+            "stop_after": STOP_FILE.exists(),
+            "improvable": improvable}
 
 
 def toggle_stop() -> bool:
@@ -202,14 +206,49 @@ def launch_run(idea: str) -> tuple[bool, str]:
     # 수동 시작은 명시적 의사 — 남아 있던 종료 예약은 해제
     if STOP_FILE.exists():
         STOP_FILE.unlink()
+    return _spawn([sys.executable, "orchestrator.py", idea])
+
+
+def improvable_runs() -> list[dict]:
+    """개선 가능한 런(성공 = ok) 목록. 최신순. 드롭다운 소스."""
+    out = []
+    for e in reversed(load_index(RUNS_DIR)):
+        if e.get("ok"):
+            out.append({"run": e["run"],
+                        "idea": (e.get("idea") or "")[:60],
+                        "score": e.get("score")})
+    return out
+
+
+def launch_improve(run: str, feedback: str) -> tuple[bool, str]:
+    """기존 성공 런을 개선 모드로 시작."""
+    run = (run or "").strip()
+    if not run or "/" in run or "\\" in run or ".." in run:
+        return False, "bad run name"
+    run_dir = RUNS_DIR / run
+    if not run_dir.exists():
+        return False, f"run not found: {run}"
+    status = build_status()
+    if status["live"] and status["live"]["running"]:
+        return False, f"already running: {status['live']['run']}"
+    if STOP_FILE.exists():
+        STOP_FILE.unlink()
+    # 개선 대상의 원래 아이디어를 그대로 넘긴다 (리포트·맥락용)
+    idea = next((e.get("idea", "") for e in load_index(RUNS_DIR)
+                 if e.get("run") == run), run)
+    cmd = [sys.executable, "orchestrator.py",
+           "--improve", str(run_dir), "--feedback", feedback or "", idea]
+    return _spawn(cmd)
+
+
+def _spawn(cmd: list[str]) -> tuple[bool, str]:
     RUNS_DIR.mkdir(exist_ok=True)
     log_path = RUNS_DIR / f"launch-{datetime.now():%Y%m%d-%H%M%S}.log"
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     with log_path.open("w", encoding="utf-8") as log:
-        subprocess.Popen([sys.executable, "orchestrator.py", idea],
-                         cwd=PROJECT_ROOT, stdout=log,
+        subprocess.Popen(cmd, cwd=PROJECT_ROOT, stdout=log,
                          stderr=subprocess.STDOUT, creationflags=flags)
-    return True, f"started (console log: {log_path.name})"
+    return True, f"started (log: {log_path.name})"
 
 
 PAGE = """<!DOCTYPE html>
@@ -234,16 +273,37 @@ PAGE = """<!DOCTYPE html>
 </style></head><body>
 <h1>generator <span id="badge" class="badge idle">-</span>
     <span id="cost" style="float:right;font-size:12px;color:#999"></span></h1>
-<div style="margin:10px 0">
-  <textarea id="idea" rows="3" placeholder="아이디어 한 줄..."
-    style="width:100%;box-sizing:border-box;background:#1a1a1a;color:#ddd;
-           border:1px solid #333;border-radius:6px;padding:8px;font:inherit"></textarea>
-  <button id="start" onclick="startRun()"
-    style="background:#274;color:#cfc;border:0;border-radius:6px;
-           padding:8px 16px;font:inherit;margin-top:4px">작업 시작</button>
-  <button id="stopbtn" onclick="toggleStop()"
-    style="background:#333;color:#ddd;border:0;border-radius:6px;
-           padding:8px 16px;font:inherit;margin-top:4px">종료 예약</button>
+<style>
+ .mode{background:#222;color:#aaa;border:1px solid #333;border-radius:6px;
+       padding:8px 14px;font:inherit;margin:2px}
+ .mode.sel{background:#274;color:#cfc;border-color:#3a6}
+ .mode:disabled{opacity:.4}
+ .ctl textarea,.ctl select{width:100%;box-sizing:border-box;background:#1a1a1a;
+       color:#ddd;border:1px solid #333;border-radius:6px;padding:8px;
+       font:inherit;margin-bottom:6px}
+ #go{background:#7c4;color:#020;border:0;border-radius:6px;padding:10px 22px;
+     font:inherit;font-weight:bold}
+</style>
+<div style="margin:10px 0" class="ctl">
+  <div style="margin-bottom:8px">
+    <button class="mode sel" id="m-single" onclick="setMode('single')">단일</button>
+    <button class="mode" id="m-improve" onclick="setMode('improve')">개선</button>
+    <button class="mode" id="m-auto" onclick="setMode('auto')">자동</button>
+    <button id="stopbtn" class="mode" onclick="toggleStop()">종료 예약</button>
+  </div>
+  <div id="panel-single">
+    <textarea id="idea" rows="3" placeholder="아이디어 한 줄..."></textarea>
+  </div>
+  <div id="panel-improve" style="display:none">
+    <select id="imp-run"></select>
+    <textarea id="imp-fb" rows="3"
+      placeholder="개선점 (무엇을 고치거나 추가할지)..."></textarea>
+  </div>
+  <div id="panel-auto" style="display:none">
+    <textarea id="auto-note" rows="2" readonly
+      style="color:#888">자동(배치) 모드 — 자동 아이디어 출제기로 연속 생산.</textarea>
+  </div>
+  <button id="go" onclick="go()">시작</button>
   <span id="msg" style="font-size:12px;color:#999;margin-left:8px"></span>
 </div>
 <div id="live"></div>
@@ -257,9 +317,17 @@ async function tick(){
   if(lv && lv.running){ b.textContent='RUNNING'; b.className='badge run'; }
   else { b.textContent='idle'; b.className='badge idle'; }
   const sb = document.getElementById('stopbtn');
-  if(r.stop_after){ sb.textContent='종료 예약됨 (해제)'; sb.style.background='#a52'; }
-  else { sb.textContent='종료 예약'; sb.style.background='#333'; }
-  document.getElementById('start').disabled = !!(lv && lv.running);
+  if(r.stop_after){ sb.textContent='종료 예약됨'; sb.style.background='#a52'; }
+  else { sb.textContent='종료 예약'; sb.style.background='#222'; }
+  document.getElementById('go').disabled = !!(lv && lv.running);
+  // 개선 드롭다운 갱신 (선택값 보존)
+  const sel = document.getElementById('imp-run');
+  const keep = sel.value;
+  sel.innerHTML = (r.improvable||[]).map(e=>{
+    const sc = e.score&&e.score.total ? ' ('+e.score.passed+'/'+e.score.total+')' : '';
+    return '<option value="'+e.run+'">'+e.run+sc+' &mdash; '+e.idea+'</option>';
+  }).join('') || '<option value="">(개선 가능한 성공 런 없음)</option>';
+  if(keep) sel.value = keep;
   document.getElementById('cost').textContent =
       'total $' + (r.total_cost_usd||0).toFixed(3);
   let h = '';
@@ -283,13 +351,33 @@ async function tick(){
   }
   document.getElementById('history').innerHTML = t+'</table>';
 }
-async function startRun(){
-  const idea = document.getElementById('idea').value;
-  const res = await (await fetch('/api/start', {method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({idea})})).json();
+let MODE = 'single';
+function setMode(m){
+  MODE = m;
+  for(const x of ['single','improve','auto']){
+    document.getElementById('m-'+x).classList.toggle('sel', x===m);
+    document.getElementById('panel-'+x).style.display = x===m?'block':'none';
+  }
+}
+async function post(path, body){
+  return (await fetch(path, {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body||{})})).json();
+}
+async function go(){
+  let res;
+  if(MODE==='single'){
+    res = await post('/api/start', {idea: document.getElementById('idea').value});
+    if(res.ok) document.getElementById('idea').value='';
+  } else if(MODE==='improve'){
+    res = await post('/api/improve', {
+      run: document.getElementById('imp-run').value,
+      feedback: document.getElementById('imp-fb').value});
+    if(res.ok) document.getElementById('imp-fb').value='';
+  } else {
+    res = await post('/api/auto', {});
+  }
   document.getElementById('msg').textContent = res.message;
-  if(res.ok) document.getElementById('idea').value='';
   tick();
 }
 async function toggleStop(){
@@ -335,26 +423,38 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, "not found", "text/plain")
 
+    def _read_body(self) -> dict | None:
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            return json.loads(self.rfile.read(length) or b"{}")
+        except json.JSONDecodeError:
+            return None
+
+    def _send_result(self, ok: bool, message: str) -> None:
+        self._send(200 if ok else 409,
+                   json.dumps({"ok": ok, "message": message},
+                              ensure_ascii=False),
+                   "application/json")
+
     def do_POST(self):  # noqa: N802 - http.server 규약
         url = urlparse(self.path)
-        if url.path == "/api/start":
-            length = int(self.headers.get("Content-Length", 0))
-            try:
-                body = json.loads(self.rfile.read(length) or b"{}")
-            except json.JSONDecodeError:
-                self._send(400, json.dumps({"ok": False,
-                                            "message": "bad json"}),
-                           "application/json")
-                return
-            ok, message = launch_run(str(body.get("idea", "")))
-            self._send(200 if ok else 409,
-                       json.dumps({"ok": ok, "message": message},
-                                  ensure_ascii=False),
-                       "application/json")
-        elif url.path == "/api/stop-toggle":
+        if url.path == "/api/stop-toggle":
             state = toggle_stop()
             self._send(200, json.dumps({"stop_after": state}),
                        "application/json")
+            return
+        body = self._read_body()
+        if body is None:
+            self._send_result(False, "bad json")
+            return
+        if url.path == "/api/start":
+            self._send_result(*launch_run(str(body.get("idea", ""))))
+        elif url.path == "/api/improve":
+            self._send_result(*launch_improve(str(body.get("run", "")),
+                                              str(body.get("feedback", ""))))
+        elif url.path == "/api/auto":
+            # 자동(배치) 모드는 3층에서 구현 — 자리만 잡아둔다
+            self._send_result(False, "자동(배치) 모드는 아직 미구현")
         else:
             self._send(404, "not found", "text/plain")
 
