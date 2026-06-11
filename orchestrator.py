@@ -23,7 +23,7 @@ from design_validator import implementation_order, validate_design
 from docker_gate import (docker_available, install_packages,
                          run_criteria_checks, run_exec_gate, run_pytest)
 from gates import external_imports, format_issues, run_static_gate
-from lessons import find_relevant, record_lesson
+from lessons import find_relevant_entries, record_lesson
 from llm import CallBudgetExceeded
 from prompts import (critique_prompt, design_prompt, extract_code,
                      extract_markdown, fix_prompt, implement_prompt,
@@ -68,6 +68,7 @@ class Orchestrator:
         self._tests_regen_left = 1  # 테스트 자체 버그 시 31B 재생성 허용 횟수
         self.critique_rounds_used = 0
         self._failure_keywords: list[str] = []
+        self._injected_lesson_keywords: list[str] = []
         self.resume_from = Path(resume_from) if resume_from else None
         self.improve_from = Path(improve_from) if improve_from else None
         self.feedback = feedback
@@ -161,8 +162,13 @@ class Orchestrator:
 
     def _load_lessons(self, idea: str) -> list[str]:
         try:
-            found = find_relevant(idea)
+            entries = find_relevant_entries(idea)
+            found = [str(e.get("lesson", "")).strip() for e in entries]
             if found:
+                # 재발률 집계용: 주입한 lesson의 keyword를 index에 남긴다
+                self._injected_lesson_keywords = sorted(
+                    {str(k).lower() for e in entries
+                     for k in e.get("keywords", []) if str(k).strip()})
                 self.log("lessons-injected", count=len(found), lessons=found)
                 self._say(f"[NOTE] {len(found)} lesson(s) from past failures injected")
             return found
@@ -967,6 +973,8 @@ class Orchestrator:
             "packages": list(self._packages),
             "failure_keywords": list(self._failure_keywords),
         }
+        if self._injected_lesson_keywords:
+            entry["lessons_injected"] = list(self._injected_lesson_keywords)
         if self.improve_from:
             entry["improved_from"] = self.improve_from.name
             entry["improvement"] = self._improvement_verdict()

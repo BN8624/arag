@@ -278,5 +278,16 @@
       "interface-design"
     ],
     "lesson": "Explicitly define the full method signature, including all required parameters, in the design contract to ensure implementation consistency across API clients and service wrappers."
+  },
+  {
+    "t": "2026-06-11T23:33:51",
+    "idea": "회사 경비 정산 CLI 도구: 직원들이 제출한 여러 CSV 경비 내역을 읽어 필수 필드, 날짜 형식, 음수 금액, 한도 초과를 검증하고, 외부 환율 API를 mock JSON 응답 파일로 대체해 외화 금액을 원화로 환산하며, 정책 규칙 JSON에 따라 Approved/Hold/Rejected로 분류한 뒤, openpyxl로 부서별 시트가 있는 xlsx 리포트를 생성한다. mock 모드에서는 API 키 없이 동작해야 하고, live 모드에서 EXCHANGE_API_KEY가 없으면 명확한 메시지와 exit 1로 종료해야 한다. 반려 사유 요약과 Approved/Hold/Rejected 개수 요약을 콘솔에 출력한다.",
+    "keywords": [
+      "cli tool",
+      "api mock",
+      "interface contract",
+      "module design"
+    ],
+    "lesson": "Explicitly specify the required class structure and method signatures in the design contract for any module handling external API interactions or mock data."
   }
 ]

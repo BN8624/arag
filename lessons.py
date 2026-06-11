@@ -37,13 +37,16 @@ def _tokens(text: str) -> set[str]:
     return set(re.findall(r"[0-9a-zA-Z가-힣]{2,}", text.lower()))
 
 
-def find_relevant(idea: str, lessons: list[dict] | None = None,
-                  max_n: int = MAX_INJECT) -> list[str]:
-    """아이디어와 키워드가 겹치는 교훈을 점수순으로 최대 max_n개 반환."""
+def find_relevant_entries(idea: str, lessons: list[dict] | None = None,
+                          max_n: int = MAX_INJECT) -> list[dict]:
+    """아이디어와 키워드가 겹치는 교훈 엔트리를 점수순으로 최대 max_n개 반환.
+
+    엔트리 전체를 반환하므로 호출자가 keywords를 알 수 있다 (재발률 집계용).
+    """
     if lessons is None:
         lessons = load_lessons()
     idea_tokens = _tokens(idea)
-    scored: list[tuple[int, str]] = []
+    scored: list[tuple[int, dict]] = []
     for entry in lessons:
         lesson_text = str(entry.get("lesson", "")).strip()
         if not lesson_text:
@@ -51,18 +54,26 @@ def find_relevant(idea: str, lessons: list[dict] | None = None,
         keywords = " ".join(str(k) for k in entry.get("keywords", []))
         overlap = idea_tokens & _tokens(keywords + " " + str(entry.get("idea", "")))
         if overlap:
-            scored.append((len(overlap), lesson_text))
+            scored.append((len(overlap), entry))
     scored.sort(key=lambda x: -x[0])
     # 같은 교훈 중복 제거
     seen: set[str] = set()
-    out: list[str] = []
-    for _, lesson_text in scored:
+    out: list[dict] = []
+    for _, entry in scored:
+        lesson_text = str(entry.get("lesson", "")).strip()
         if lesson_text not in seen:
             seen.add(lesson_text)
-            out.append(lesson_text)
+            out.append(entry)
         if len(out) >= max_n:
             break
     return out
+
+
+def find_relevant(idea: str, lessons: list[dict] | None = None,
+                  max_n: int = MAX_INJECT) -> list[str]:
+    """아이디어와 키워드가 겹치는 교훈을 점수순으로 최대 max_n개 반환."""
+    return [str(e.get("lesson", "")).strip()
+            for e in find_relevant_entries(idea, lessons, max_n)]
 
 
 def record_lesson(llm, idea: str, failure_summary: str,

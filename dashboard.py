@@ -25,7 +25,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from config import PROJECT_ROOT, STOP_FILE, force_utf8_stdout
-from run_index import load_index
+from run_index import load_index, recurrence_stats
 
 RUNS_DIR = PROJECT_ROOT / "runs"
 LIVE_THRESHOLD_SEC = 120  # events.jsonl이 이 안에 갱신됐으면 "진행 중"
@@ -182,7 +182,8 @@ def build_status(runs_dir: Path | None = None) -> dict:
     return {"live": live, "history": history,
             "total_cost_usd": round(total_cost, 4),
             "stop_after": STOP_FILE.exists(),
-            "improvable": improvable}
+            "improvable": improvable,
+            "recurrence": recurrence_stats(history)}
 
 
 def toggle_stop() -> bool:
@@ -239,6 +240,22 @@ def launch_improve(run: str, feedback: str) -> tuple[bool, str]:
     cmd = [sys.executable, "orchestrator.py",
            "--improve", str(run_dir), "--feedback", feedback or "", idea]
     return _spawn(cmd)
+
+
+def launch_batch(runs) -> tuple[bool, str]:
+    """자동(배치) 모드 시작: 출제기 + orchestrator 연속 생산."""
+    try:
+        runs = int(runs)
+    except (TypeError, ValueError):
+        return False, "bad runs count"
+    if not 1 <= runs <= 20:
+        return False, "runs must be 1-20"
+    status = build_status()
+    if status["live"] and status["live"]["running"]:
+        return False, f"already running: {status['live']['run']}"
+    if STOP_FILE.exists():
+        STOP_FILE.unlink()
+    return _spawn([sys.executable, "batch.py", "--runs", str(runs)])
 
 
 def _spawn(cmd: list[str]) -> tuple[bool, str]:
@@ -301,7 +318,11 @@ PAGE = """<!DOCTYPE html>
   </div>
   <div id="panel-auto" style="display:none">
     <textarea id="auto-note" rows="2" readonly
-      style="color:#888">자동(배치) 모드 — 자동 아이디어 출제기로 연속 생산.</textarea>
+      style="color:#888">자동(배치) 모드 — 깃허브에서 주제를 뽑아 아이디어를 출제하고 연속 생산. 회차 사이마다 종료예약을 확인.</textarea>
+    <label style="font-size:12px;color:#999">회차 수 (1~20):
+      <input id="auto-runs" type="number" min="1" max="20" value="3"
+        style="width:70px;background:#1a1a1a;color:#ddd;border:1px solid #333;
+               border-radius:6px;padding:6px;font:inherit"></label>
   </div>
   <button id="go" onclick="go()">시작</button>
   <span id="msg" style="font-size:12px;color:#999;margin-left:8px"></span>
@@ -328,8 +349,11 @@ async function tick(){
     return '<option value="'+e.run+'">'+e.run+sc+' &mdash; '+e.idea+'</option>';
   }).join('') || '<option value="">(개선 가능한 성공 런 없음)</option>';
   if(keep) sel.value = keep;
+  const rec = r.recurrence;
   document.getElementById('cost').textContent =
-      'total $' + (r.total_cost_usd||0).toFixed(3);
+      'total $' + (r.total_cost_usd||0).toFixed(3) +
+      (rec && rec.injected_runs ?
+        ' · 재발 ' + rec.recurred + '/' + rec.injected_runs : '');
   let h = '';
   if(lv){
     h += '<h2>'+lv.run+(lv.description?' &mdash; '+lv.description:'')+'</h2>';
@@ -375,7 +399,8 @@ async function go(){
       feedback: document.getElementById('imp-fb').value});
     if(res.ok) document.getElementById('imp-fb').value='';
   } else {
-    res = await post('/api/auto', {});
+    res = await post('/api/auto',
+      {runs: document.getElementById('auto-runs').value});
   }
   document.getElementById('msg').textContent = res.message;
   tick();
@@ -453,8 +478,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send_result(*launch_improve(str(body.get("run", "")),
                                               str(body.get("feedback", ""))))
         elif url.path == "/api/auto":
-            # 자동(배치) 모드는 3층에서 구현 — 자리만 잡아둔다
-            self._send_result(False, "자동(배치) 모드는 아직 미구현")
+            self._send_result(*launch_batch(body.get("runs", 3)))
         else:
             self._send(404, "not found", "text/plain")
 

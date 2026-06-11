@@ -35,6 +35,25 @@ def load_index(runs_dir: Path) -> list[dict]:
         return []
 
 
+def recurrence_stats(entries: list[dict]) -> dict:
+    """오답노트 재발률 (콜 0).
+
+    lesson이 주입된 런 중, 실패했고 실패 keyword가 주입 keyword와 겹치는 런 =
+    "같은 실패 유형 재발". 배치가 쌓일수록 오답노트 효과의 공짜 증거가 된다.
+    """
+    injected = [e for e in entries if e.get("lessons_injected")]
+    recurred = 0
+    for e in injected:
+        if e.get("ok"):
+            continue
+        failure = {str(k).lower() for k in e.get("failure_keywords") or []}
+        inject = {str(k).lower() for k in e.get("lessons_injected") or []}
+        if failure & inject:
+            recurred += 1
+    rate = round(recurred / len(injected), 3) if injected else None
+    return {"injected_runs": len(injected), "recurred": recurred, "rate": rate}
+
+
 def record_run(run_dir: Path, entry: dict) -> bool:
     """run_dir의 부모(runs/)에 있는 index.json에 entry를 추가.
 
