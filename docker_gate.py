@@ -131,10 +131,11 @@ def run_criteria_checks(workdir: Path, checks: list[dict],
         if not command:
             continue
         rc, out = _run_in_docker(workdir, _as_argv(command), timeout, deps_dir)
+        expect_rc = chk.get("expect_exit_code", 0)
         if rc == -1:
             passed, detail = False, f"timed out after {timeout}s"
-        elif rc != 0:
-            passed, detail = False, f"command failed (exit {rc})"
+        elif rc != expect_rc:
+            passed, detail = False, f"command failed (exit {rc}, expected {expect_rc})"
         elif expect and expect not in out:
             passed, detail = False, f"expected output {expect!r} not found"
         else:

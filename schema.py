@@ -169,6 +169,10 @@ def validate_shape(design: dict) -> list[str]:
                         or not isinstance(c.get("expect_substring"), str)):
                     errors.append(f"criteria_checks[{i}] needs string "
                                   "'command' and 'expect_substring'")
+                elif ("expect_exit_code" in c
+                      and not isinstance(c.get("expect_exit_code"), int)):
+                    errors.append(f"criteria_checks[{i}].expect_exit_code "
+                                  "must be an integer")
 
     sig = design["success_signal"]
     if not isinstance(sig, dict):

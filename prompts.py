@@ -47,7 +47,11 @@ DESIGN_SCHEMA_EXAMPLE = """{
      "expect_substring": "buy milk"},
     {"criterion": "listing items shows previously added items",
      "command": "python main.py list",
-     "expect_substring": "buy milk"}
+     "expect_substring": "buy milk"},
+    {"criterion": "tool errors when run without required argument",
+     "command": "python main.py add",
+     "expect_substring": "Error",
+     "expect_exit_code": 1}
   ],
   "success_signal": {
     "command": "python main.py add \\"buy milk\\"",
@@ -63,7 +67,8 @@ HARD_RULES = """HARD CONSTRAINTS (violations are rejected by automated gates):
   for genuinely trivial ideas.
 - Allowed imports: the Python standard library, plus ONLY these third-party
   packages when genuinely needed: requests, rich, click, tabulate, yaml (PyYAML),
-  dateutil, tqdm, colorama, jinja2, markdown. Any other package is rejected.
+  dateutil, tqdm, colorama, jinja2, markdown, openpyxl, pypdf, Pillow (PIL).
+  Any other package is rejected.
   Prefer the standard library when it is enough.
 - NO interactive input: never use input() or read from stdin. All input comes
   from CLI arguments or files.
@@ -121,8 +126,11 @@ Also produce:
 - "acceptance_criteria": 3-6 concrete, checkable statements of what the
   finished tool must do.
 - "criteria_checks": for EVERY acceptance criterion, one executable check:
-  a command plus a substring its output must contain. Checks run in order in
-  the same directory, so an earlier command may create state a later one reads.
+  a command, a substring its output must contain, and optionally
+  "expect_exit_code" (integer, default 0). Use "expect_exit_code": 1 when the
+  criterion is that the tool FAILS (e.g. "tool errors when no API key given").
+  Checks run in order in the same directory, so an earlier command may create
+  state a later one reads.
 - "success_signal": ONE command line that exercises a core behavior of the
   idea (not just --help) plus a substring its output must contain. Its final
   step must run the entrypoint, be deterministic, and finish within 30 seconds.
@@ -332,6 +340,14 @@ Rules:
 - Tests must be deterministic, offline, fast, and never read stdin.
 - Use the tmp_path fixture for any files tests create; never depend on
   pre-existing files or on test execution order.
+- NEVER pass a non-existent file path to a function in a test — always create
+  the file first (e.g. with tmp_path) or use pytest.raises() to assert the
+  expected exception. Calling f(mock_file="file") where "file" does not exist
+  without wrapping it in pytest.raises is always wrong.
+- If the project uses click: invoke CLI commands via click.testing.CliRunner,
+  NOT by calling main() directly. CliRunner.invoke() returns a Result object;
+  check result.exit_code (0 = success). Never assert that main() returns 0 —
+  click functions return None in standalone_mode=False, not an integer.
 - Cover the acceptance criteria that are testable at function level, plus
   edge cases (empty input, invalid values) ONLY where the design contract
   makes the expected behavior unambiguous. When the contract does not specify

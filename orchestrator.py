@@ -42,7 +42,8 @@ class RunAborted(Exception):
 
 class Orchestrator:
     def __init__(self, llm, run_dir: Path, critique_rounds: int = DEFAULT_ROUNDS,
-                 skip_exec: bool = False, max_minutes: int = DEFAULT_MAX_MINUTES):
+                 skip_exec: bool = False, max_minutes: int = DEFAULT_MAX_MINUTES,
+                 resume_from: Path | None = None):
         self.llm = llm
         self.run_dir = Path(run_dir)
         self.workspace = self.run_dir / "workspace"
@@ -59,6 +60,7 @@ class Orchestrator:
         self._packages: list[str] = []
         self._last_issues: list[dict] = []
         self._last_snapshot: str | None = None
+        self.resume_from = Path(resume_from) if resume_from else None
         self._events = (self.run_dir / "events.jsonl").open("a", encoding="utf-8")
 
     # ------------------------------------------------------------ events
@@ -81,8 +83,12 @@ class Orchestrator:
     def run(self, idea: str) -> bool:
         self.idea = idea
         try:
-            self._phase_design(idea, self._load_lessons(idea))
-            self._phase_tests()
+            if self.resume_from:
+                self._resume_design()
+                self._resume_tests()
+            else:
+                self._phase_design(idea, self._load_lessons(idea))
+                self._phase_tests()
             self._phase_implement()
             self._write_fixtures()
             self._git_init()
@@ -170,6 +176,32 @@ class Orchestrator:
         return "\n\n".join(parts)
 
     # ------------------------------------------------------------ phases
+
+    def _resume_design(self) -> None:
+        design_path = self.resume_from / "design.json"
+        if not design_path.exists():
+            raise RunAborted(f"--resume: no design.json in {self.resume_from}")
+        self.design = json.loads(design_path.read_text(encoding="utf-8"))
+        # design.json을 새 run_dir에도 복사 (REPORT 생성에 필요)
+        (self.run_dir / "design.json").write_text(
+            design_path.read_text(encoding="utf-8"), encoding="utf-8")
+        self.log("design-resumed", from_dir=str(self.resume_from),
+                 files=[f["path"] for f in self.design["files"]])
+        self._say(f"[RESUME] design loaded from {self.resume_from.name} "
+                  f"({len(self.design['files'])} files)")
+
+    def _resume_tests(self) -> None:
+        if self.skip_exec:
+            return
+        src = self.resume_from / "workspace" / TEST_FILE
+        if src.exists():
+            (self.workspace / TEST_FILE).write_text(
+                src.read_text(encoding="utf-8"), encoding="utf-8")
+            self.log("tests-resumed", from_dir=str(self.resume_from))
+            self._say(f"[RESUME] {TEST_FILE} copied from previous run")
+        else:
+            self._say(f"[RESUME] no {TEST_FILE} in previous run - regenerating")
+            self._phase_tests()
 
     def _phase_design(self, idea: str, lesson_texts: list[str] | None = None) -> None:
         self._say("[PHASE] design (31B)")
@@ -320,6 +352,11 @@ class Orchestrator:
             self._fix_files({target: exec_issues})
 
     def _phase_critique_loop(self) -> None:
+        # 만점이면 비평 자체를 건너뜀 — 통과 빌드를 깎을 이유가 없다
+        if self.scoreboard and all(r["passed"] for r in self.scoreboard):
+            self._say("[SKIP] critique skipped - perfect scoreboard")
+            self.log("critique-skipped-perfect")
+            return
         for round_no in range(1, self.critique_rounds + 1):
             self._check_time()
             self._say(f"[PHASE] critique round {round_no}/{self.critique_rounds} (31B)")
@@ -609,10 +646,17 @@ class Orchestrator:
                 critiques += f"- **{f.get('path')}**\n"
                 for i in f.get("issues", []):
                     critiques += f"  - {i}\n"
+        tokens = getattr(self.llm, "tokens", {})
+        tok_line = ""
+        if tokens and any(tokens.values()):
+            tok_line = (f"- Tokens: input {tokens.get('input', 0):,} / "
+                        f"output {tokens.get('output', 0):,} / "
+                        f"thinking {tokens.get('thinking', 0):,}\n")
         report = (f"# Generator run report\n\n"
                   f"- Status: **{status}**\n"
                   f"- Idea: {idea}\n"
-                  f"- API calls used: {getattr(self.llm, 'call_count', '?')}\n\n"
+                  f"- API calls used: {getattr(self.llm, 'call_count', '?')}\n"
+                  f"{tok_line}\n"
                   f"{design_part}\n{run_part}\n{score_part}"
                   f"## Critique history\n{critiques or '(none - passed without revision)'}\n\n"
                   f"## Last execution log\n```\n{self.last_exec_log}\n```\n")
@@ -631,6 +675,9 @@ def main() -> int:
     parser.add_argument("--max-minutes", type=int, default=DEFAULT_MAX_MINUTES)
     parser.add_argument("--no-retry", action="store_true",
                         help="do not auto-retry once after a failed run")
+    parser.add_argument("--resume", metavar="RUN_DIR",
+                        help="reuse design.json + test_acceptance.py from a "
+                             "previous run dir, skip to implementation phase")
     args = parser.parse_args()
 
     skip_exec = args.skip_exec
@@ -638,17 +685,23 @@ def main() -> int:
         print("[WARN] Docker is not available - execution gate will be skipped")
         skip_exec = True
 
+    resume_from = Path(args.resume) if args.resume else None
+    if resume_from and not resume_from.exists():
+        print(f"[ERROR] --resume dir not found: {resume_from}")
+        return 1
+
     from llm import LLMClient
     llm = LLMClient(max_calls=args.max_calls)
 
     run_dir = PROJECT_ROOT / "runs" / datetime.now().strftime("%Y%m%d-%H%M%S")
     print(f"[START] run dir: {run_dir}")
     orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
-                        skip_exec=skip_exec, max_minutes=args.max_minutes)
+                        skip_exec=skip_exec, max_minutes=args.max_minutes,
+                        resume_from=resume_from)
     ok = orch.run(args.idea)
 
-    # 실패 시 1회 자동 재도전: 방금 기록된 오답노트 교훈을 들고 처음부터 다시
-    if not ok and not args.no_retry and llm.call_count + 8 <= args.max_calls:
+    # 실패 시 1회 자동 재도전 (resume 모드에서는 건너뜀 — 특정 설계를 재사용 중)
+    if not ok and not args.no_retry and not resume_from and llm.call_count + 8 <= args.max_calls:
         print("[RETRY] first attempt failed - retrying once with recorded lessons")
         run_dir = PROJECT_ROOT / "runs" / (
             datetime.now().strftime("%Y%m%d-%H%M%S") + "-retry")

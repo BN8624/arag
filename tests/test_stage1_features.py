@@ -136,26 +136,33 @@ def test_salvage_delivers_last_passing_build(tmp_path):
 
 
 def test_scoreboard_regression_rolls_back(tmp_path, monkeypatch):
-    """수정본이 게이트는 통과해도 채점표가 후퇴하면 rollback."""
+    """수정본이 게이트는 통과해도 채점표가 후퇴하면 rollback.
+    초기 빌드는 2기준 중 1개만 통과(불완전) → 비평 실행 →
+    수정 후 0개로 후퇴 → rollback → 복원본 1/2 재확인."""
     import orchestrator as om
     monkeypatch.setattr(om, "run_exec_gate", lambda *a, **k: ([], "ok"))
 
-    def score(passed):
-        return [{"criterion": "c1", "command": "x", "passed": passed,
-                 "detail": "ok" if passed else "regressed", "output_tail": ""}]
+    def score(c1, c2):
+        return [
+            {"criterion": "c1", "command": "x", "passed": c1,
+             "detail": "ok" if c1 else "fail", "output_tail": ""},
+            {"criterion": "c2", "command": "y", "passed": c2,
+             "detail": "ok" if c2 else "fail", "output_tail": ""},
+        ]
 
-    scores = iter([score(True),    # 최초 빌드: 1/1
-                   score(False),   # 비평 수정 후: 0/1 -> 후퇴
-                   score(True)])   # rollback 후 재채점: 1/1
+    scores = iter([score(True, False),   # 최초 빌드: 1/2 (불완전 → 비평 실행)
+                   score(False, False),  # 비평 수정 후: 0/2 → 후퇴
+                   score(True, False)])  # rollback 후 재채점: 1/2 복원
     monkeypatch.setattr(om, "run_criteria_checks", lambda *a, **k: next(scores))
 
     revised = GOOD_MAIN.replace("usage: python main.py add <text>", "USAGE???")
     critique = json.dumps({"verdict": "revise",
                            "files": [{"path": "main.py", "issues": ["x"]}]})
     design = make_design()
-    design["criteria_checks"] = [{"criterion": "c1",
-                                  "command": "python main.py add x",
-                                  "expect_substring": "x"}]
+    design["criteria_checks"] = [
+        {"criterion": "c1", "command": "python main.py add x", "expect_substring": "x"},
+        {"criterion": "c2", "command": "python main.py list",  "expect_substring": "x"},
+    ]
     llm = MockLLM(
         # 설계 -> 테스트 출제 실패 2회(건너뜀) -> 비평 1회
         critic=[json.dumps(design), "no code here", "still no code",
