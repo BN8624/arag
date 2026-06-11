@@ -1,135 +1,100 @@
-# Progress: 생성기 1차 스프린트 완료 + 2차 스프린트(1·2단계) 완료 + D-2 목표 달성
+# Progress: 2차 스프린트 완료 + 자가개선 인프라(0층·2층) + 대시보드
 
-## 현황 요약 (2026-06-11 갱신)
-- **상태**: 2차 스프린트 D-2(외부 API 앱 지원) 목표 달성. 테스트 75개+ 통과
-- **D-2 검증 완료**: pypdf + openpyxl + mock 모드가 한 런에서 동작 확인
-  → "PDF 청구서 텍스트 추출 → AI API(mock) → xlsx 저장" 아이디어로 OK 달성
-- **오늘 추가 수정**:
-  - 토큰 카운트 구현 (REPORT.md에 input/output/thinking 표시)
-  - 만점 빌드 비평 스킵 (3/3 PASS 시 critique 단계 자체 생략)
-  - 31B 테스트 버그 수정 (존재하지 않는 파일 경로 → pytest.raises 또는 tmp_path 강제)
-  - click 테스트 버그 수정 (main() 직접 호출 → CliRunner 강제)
-  - prompts.py 화이트리스트 동기화 (gates.py에는 있었으나 HARD_RULES에 빠진 openpyxl·pypdf·Pillow 추가)
-  - gemma-4-26b 복구 확인 후 .env 원복
+## 현황 요약 (2026-06-11 갱신, 4차 세션)
+- **상태**: 테스트 109개 통과. 어려운 주제(5축 복합) 엔드투엔드 OK
+- **남은 버그 전부 해소**: `expect_exit_code`·`--resume` 모두 구현 확인 + 실전 검증 통과
+- **대시보드 가동 중**: 시작프로그램 등록 완료, 테일스케일 IP로 폰 접속
 
-## 남은 버그
-- **4번째 기준 오판정**: API 키 없을 때 exit 1이 정답인 기준을 검증이 FAIL로 봄.
-  `criteria_checks`에 `expect_exit_code` 필드 추가 또는 설계 규칙 수정 필요.
+## 바로 다음 작업 (우선순위 순)
 
-## 바로 다음 작업
-
-1. **4번째 기준 버그 수정** — criteria_checks에 "오류 종료가 정답인 기준" 지원
-2. **`--resume <run_dir>` 기능** — 이전 실패 런의 design.json + test_acceptance.py 재사용,
-   구현 단계부터 재시작 (비용 절감 + 빠른 재도전)
+1. **1층: `--improve <run_dir> [피드백]` 모드**
+   - 성공 런 + 사용자 피드백을 새 입력으로 재설계/표적수정
+   - 개선 검증: 기존 기준 전부 유지(회귀 방지) AND 새 기준 통과 수 증가
+   - 개선 없음 감지: 점수 정체·diff 미미 시 즉시 종료 (+LGTM 출구)
+2. **3층: 자동 아이디어 출제기 + 배치 모드** (깃허브 키 필요)
+   - 깃허브 스타순 메타데이터 수집(무료) → topic 버킷 추첨 → 자카드 중복제거
+     → 뽑힌 것만 README 요약 (임베딩 불필요 — 메타데이터 버킷이 다양성 보장)
+   - 난이도 5축(상태/외부연동/입력/모듈수/기능폭) × 레벨 1~5,
+     index.json 성적 기반 적응형 조절 — **타깃: 자가수정 1~2회 구간**
+     (전부 첫 트 통과 = lessons 0개, 전부 폭사 = lessons 노이즈)
+   - 배치 루프는 회차 사이마다 STOP_AFTER_RUN 플래그 확인
+   - 재발률 집계 끼워넣기: 주입된 lesson keyword와 같은 실패 유형 재발 추적
+3. **오답노트 A/B 검증** (선택, 쿼터 여유 있는 날): `--no-lessons` 플래그로 같은 주제 비교 런
 
 ---
 
-## 구현 완료된 신기능
+## 4차 세션에서 구현한 것 (2026-06-11)
 
-### 1. 수용기준 채점표 (Acceptance Criteria Scoreboard)
-**해결한 문제**: 비평가가 추측으로 리뷰하던 문제 → 증거 기반 리뷰로 전환
+### 모델별 비용 추적
+- `llm.py`: 역할별(26B/31B) 토큰 분리 추적 + `cost_usd()` (오픈라우터 유료 단가 환산)
+- 단가: 26B $0.06/$0.33, 31B $0.12/$0.36 (입력/출력 per 1M, thinking은 출력 과금)
+- REPORT.md에 모델별 토큰·비용 + 합계 표기
 
-**구현 내용**
-- `docker_gate.py::run_criteria_checks()`: 설계 단계에서 정의한 각 수용기준마다 CLI 커맨드 실행
-- 각 기준별 PASS/FAIL 채점표 생성
-- 채점표를 비평가 입력에 포함시켜 "이 기준이 정말 깨졌는가"를 실행 증거로 판단 가능
+### 0층: 런 인덱스 (`run_index.py`)
+- `runs/index.json`: 런마다 성패·채점표·자가수정 횟수·비평 바퀴·콜·토큰·비용·실패 keyword
+- improve(과거 런 조회)·적응형 난이도(최근 성적)·재발률(keyword 집계)의 토대
 
-### 2. 오답노트 (Failure Lessons)
-**해결한 문제**: 초기 설계 실수가 반복되던 문제 → 실패→개선→재도전 사이클
+### 2층: 비평노트 (`critique_notes.py`)
+- 오답노트와 분담: 오답노트="뭐가 깨지나"→설계(31B) 주입 / 비평노트="뭐가 코드를 좋게 하나"→구현(26B) 주입
+- **수확 조건: rollback 안 되고 살아남은 비평만** (기존 rollback이 공짜 품질 필터)
+- 키워드 겹침+빈도 점수화, 3회 이상 반복 지적은 주제 무관 주입(보편 규칙)
+- `frequent_candidates()`: HARD_RULES 승격 후보 조회
+- 실전 첫 수확 4건 완료
 
-**구현 내용**
-- `lessons.py`: 실패 이력 기록 → 31B에게 의뢰 → keyword 추출
-- `orchestrator.py::_load_lessons()`: 저장된 lessons 로드
-- `prompts.py::design_prompt()`: 유사 주제 과거 실패 교훈을 설계 단계에 주입
+### 테스트 책임 경로 (31B 테스트 자가수리)
+- 실패 원인: 31B가 쓴 test_acceptance.py 자체의 버그(CliRunner 환각 인자 등)일 때
+  26B가 멀쩡한 코드만 고치다 예산 소진하던 문제
+- pytest 에러의 마지막 프레임이 테스트 파일/라이브러리 내부 + TypeError류
+  (AssertionError 제외, 프로젝트 파일 에러 있으면 제외)면 → 31B에게 테스트 수리 1회
+- tests_prompt 규칙 추가: `CliRunner()` 인자 금지, click 안 쓰면 click.testing 금지
 
-### 3. 자동 재시도 (Auto-Retry with Lessons)
-**해결한 문제**: 막힌 전체 프로젝트를 버리고 다시 시작해야 하던 문제
+### 몽키패치 게이트 (gates.py `monkeypatch`)
+- 26B가 깨진 테스트에 맞추려 `json.load = patched`, `processor.process_expenses = ...`
+  같은 변조를 실제로 함 (두 런에서 관측) → import한 모듈(외부+로컬) 속성 대입 탐지
+- `sys`만 예외 (stdout 인코딩 래핑은 정당)
 
-**구현 내용**
-- `orchestrator.py::main()`: 1차 실패 시 lessons 수집 + 자동 재도전
-- 재도전 시 3개 lessons 주입 → 새 설계 → 새 구현 → 게이트 재통과
-
-### 4. 외부패키지 화이트리스트 + && 체인 커맨드
-- `gates.py::ALLOWED_PACKAGES`: requests, rich, click, tabulate, yaml, dateutil,
-  tqdm, colorama, jinja2, markdown, openpyxl, pypdf, Pillow
-- `docker_gate.py::install_packages()`: pip install 통합
-- `design_validator.py`: && 체인 각 단계 python 시작 검증
-
-### 5. 외부 API 모킹 검증 패턴 (D-2)
-- 31B가 설계 때 가짜 API 응답(fixture) 출제
-- 게이트는 mock 모드로 전체 파이프라인 자동 검증 (네트워크 차단 유지)
-- 정적 게이트에 API 키 하드코딩 탐지 추가
-
-### 6. 만점 비평 스킵
-- `orchestrator.py::_phase_critique_loop()`: 채점표 전항목 PASS 시 critique 단계 생략
-- 비평 바퀴를 돌려 통과 빌드를 깎는 낭비 방지
-
-### 7. 토큰 카운트
-- `llm.py`: `usage_metadata` 파싱, `self.tokens` 누적
-- `orchestrator.py::_write_report()`: REPORT.md에 input/output/thinking 토큰 요약
-
-### 8. 테스트 품질 규칙 강화 (prompts.py)
-- 존재하지 않는 파일 경로 → pytest.raises 또는 tmp_path 강제
-- click 사용 시 CliRunner 강제 (main() 직접 호출 금지)
+### 대시보드 (`dashboard.py`)
+- 콜 0, 읽기 전용 + 조작 2개. stdlib만 사용. `python dashboard.py` → 0.0.0.0:8400
+- 테일스케일 IP로 폰 접속. 5초 자동 갱신
+- 표시: 현재 런 RUNNING/idle + 이벤트 실시간 꼬리 + 런 이력 표(성패·점수·비용) + 누적 비용
+- **작업 시작 버튼**: 아이디어 입력 → orchestrator 백그라운드 기동 (중복 시작 차단)
+- **종료 예약 버튼**: STOP_AFTER_RUN 플래그 토글 — orchestrator가 회차 끝에 확인,
+  자동 재도전도 안 잡음. 수동 시작 시 자동 해제. 배치 모드도 이 플래그를 쓰면 됨
+- **시작프로그램 등록**: `%APPDATA%\...\Startup\arag-dashboard.vbs` (작업 스케줄러는
+  관리자 권한 거부 → 시작프로그램 폴더 방식. pythonw로 창 없이 기동)
 
 ---
 
 ## 검증 현황
 
-### 유닛 테스트
-- **75개+ 통과** (test_gates, test_new_features, test_stage1_features, test_stage2_mocking, test_orchestrator_mock, test_schema, test_design_validator)
+### 유닛 테스트: 109개 통과
 
-### 엔드투엔드 검증
-| 주제 | 결과 | 채점표 | 특이사항 |
-|------|------|--------|---------|
-| 온도 변환 CLI | ✅ | - | 초기 검증 |
-| 계산식 파서 | ✅ | - | 초기 검증 |
-| 가계부 CLI | ✅ | - | 초기 검증 |
-| 마크다운 표 생성기 | ✅ (4차) | 4/4 | 3회 실패 후 lessons 주입으로 성공 |
-| 환율 변환 CLI | ✅ (salvage) | 3/3 | 핑퐁 감지 + salvage |
-| **pypdf+openpyxl+mock (D-2)** | **✅** | **3/4** | pytest 7/7, LGTM 1라운드 조기 종료 |
+### 엔드투엔드 (어려운 주제: 경비 정산 CLI — 5축 복합)
+| 시도 | 결과 | 진단 |
+|------|------|------|
+| 1차 (수정 전) | FAIL | 31B 테스트가 click API 환각 → 26B가 멀쩡한 코드 고치다 소진. 26B가 json.load 몽키패치 시도 |
+| 2차 (수정 후) 1차 | FAIL | 계약 불일치 (모듈 함수를 클래스 메서드로 구현) — 새 유형 |
+| 2차 (수정 후) retry | **OK 4/5** | 자가수정 4회 → 게이트 통과 → 비평 1라운드 수정 생존 → LGTM 조기 종료 |
 
-**D-2 런 상세** (runs/20260611-174511-retry)
-- API calls: 18 / Tokens: input 51K / output 12K / thinking 63K
-- extractor.py → pypdf 사용 ✅
-- exporter.py → openpyxl 사용 ✅
-- 4번째 기준만 FAIL (exit 1 오판정 버그 — 코드는 맞음)
+- **expect_exit_code 실전 검증**: "키 없이 live = exit 1" 기준 PASS (지난 세션 버그 수정 확인)
+- 유일한 FAIL: 정책 미정의 카테고리 기본값이 Approved 아닌 Hold (의미적 엣지)
+- 비용: 성공 런 $0.078 (26B $0.065 + 31B $0.013 — 26B thinking 145K가 비용의 83%)
 
 ---
 
-## 향후 로드맵 (우선순위 순)
+## 합의된 설계 방향 (이번 세션 논의)
 
-### 즉시
-1. **4번째 기준 오판정 버그** — criteria_checks `expect_exit_code` 지원
-2. **`--resume <run_dir>`** — 실패 런 재사용 (설계+테스트 건너뛰기)
-
-### A. 프로덕션급 격상 (결과물 퀄리티)
-- README 자동 생성 ✅ (이미 구현됨)
-- 패키징 (pyproject.toml) — API 0콜, 기계적 생성
-
-### B. 산출물 형태 확장
-1. 라이브러리 (낮음)
-2. 웹 API 서버 (중간)
-3. GUI tkinter (중간) — 바이브코더에게 체감 가치 최대
-
-### C. 토큰카운트 ✅ (완료)
-
-### D-2. 외부 API 앱 지원 ✅ (완료)
-
-### E. 보류
-- Discord 봇 상태 전송
-- 밤샘 배치 모드 (아이디어 큐 순차 실행)
-
----
+- **오답노트 효과 측정**: 강한 증거=A/B 런, 공짜 증거=재발률(배치가 쌓일수록 정밀)
+- **난이도는 주제가 아니라 요구사항의 속성** — 주제(버킷 추첨)와 난이도(5축 레벨)를 분리 출제
+- **개선 루프의 종료 조건이 핵심**: 채점표가 한번 만점이면 잴 게 없음 → improve 모드는
+  기존 기준 유지 + 새 기준 추가로 "개선"을 숫자로 정의
+- 비평노트 고빈도 패턴은 HARD_RULES 승격 → 프롬프트에 박히면 그 비평은 영구 소멸(콜 0 해결)
 
 ## 기록
-
-- **1차 완료**: 2026-06-11
-- **2차 D-2 완료**: 2026-06-11
-- **테스트 coverage**: 75개+ ✓
-- **총 API 콜 (오늘)**: ~130 (sop 검증 런 포함)
-- **주요 교훈**:
+- 1차 완료: 2026-06-11 / 2차 D-2 완료: 2026-06-11 / 자가개선 0·2층 완료: 2026-06-11
+- 주요 교훈 (누적):
   - prompts.py HARD_RULES와 gates.py 화이트리스트는 항상 동기화
-  - click 테스트는 CliRunner로만 (standalone_mode=False → None 반환 함정)
-  - 26B thinking 토큰이 31B보다 훨씬 많음 (추론 비중 높은 구조)
+  - click 테스트는 CliRunner로만 + CliRunner는 인자 없이 (환각 인자 실관측)
+  - 26B는 테스트를 못 고치게 하면 코드를 몽키패치해서라도 끼워맞춘다 → 게이트 필요
+  - 26B thinking 토큰이 비용의 대부분 — 프롬프트 단순화가 곧 비용 절감
   - gemma-4-26b 500 오류 시 gemini-3.1-flash-lite로 임시 대체 가능

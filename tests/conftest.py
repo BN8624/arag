@@ -1,7 +1,17 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+
+@pytest.fixture(autouse=True)
+def _isolate_critique_notes(tmp_path, monkeypatch):
+    """테스트가 실제 critique_notes.json을 오염시키지 않게 격리."""
+    import critique_notes
+    monkeypatch.setattr(critique_notes, "NOTES_PATH",
+                        tmp_path / "critique_notes.json")
 
 GOOD_CORE = '''\
 import json

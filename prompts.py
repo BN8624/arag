@@ -156,20 +156,26 @@ after, no markdown fences):
 
 
 def implement_prompt(design: dict, file_path: str,
-                     written: dict[str, str]) -> str:
+                     written: dict[str, str],
+                     notes: list[str] | None = None) -> str:
     spec = next(f for f in design["files"] if f["path"] == file_path)
     context = ""
     if written:
         parts = [f"--- {name} ---\n{content}" for name, content in written.items()]
         context = ("\nFiles already implemented (import from these exactly "
                    "as they are written):\n\n" + "\n\n".join(parts) + "\n")
+    notes_part = ""
+    if notes:
+        joined = "\n".join(f"- {n}" for n in notes)
+        notes_part = (f"\nA reviewer repeatedly flagged these problems in past "
+                      f"projects. Pre-empt them in your code:\n{joined}\n")
     return f"""You are implementing ONE file of a multi-file Python CLI project.
 
 PROJECT DESIGN:
 {json.dumps(design, ensure_ascii=False, indent=2)}
 
 {HARD_RULES}
-{context}
+{notes_part}{context}
 Now write the COMPLETE content of `{file_path}`.
 
 Contract for this file (you must define these exactly):
@@ -348,6 +354,12 @@ Rules:
   NOT by calling main() directly. CliRunner.invoke() returns a Result object;
   check result.exit_code (0 = success). Never assert that main() returns 0 —
   click functions return None in standalone_mode=False, not an integer.
+- Construct CliRunner with NO arguments: `CliRunner()`. It accepts no path or
+  working-directory arguments — for filesystem isolation use
+  `runner.isolated_filesystem()` or pass tmp_path-based paths as CLI arguments.
+- runner.invoke() only works on @click.command/@click.group objects. If the
+  design does NOT use click (e.g. argparse), do NOT import click.testing —
+  call the designed functions directly instead.
 - Cover the acceptance criteria that are testable at function level, plus
   edge cases (empty input, invalid values) ONLY where the design contract
   makes the expected behavior unambiguous. When the contract does not specify
@@ -355,6 +367,38 @@ Rules:
 - Write 5-12 focused test functions.
 
 Respond with exactly one Python code block containing the complete test file."""
+
+
+def tests_fix_prompt(design: dict, test_code: str, pytest_log: str) -> str:
+    return f"""You are the examiner for a small multi-file Python CLI project.
+The pytest file YOU wrote earlier crashes because of bugs in the TEST CODE
+itself (wrong library usage), not because the implementation is wrong.
+
+PROJECT DESIGN:
+{json.dumps(design, ensure_ascii=False, indent=2)}
+
+YOUR CURRENT TEST FILE (test_acceptance.py):
+```python
+{test_code}
+```
+
+PYTEST OUTPUT (the errors come from the test code or the testing library,
+not from the project modules):
+{pytest_log}
+
+Fix ONLY the broken test code. Keep what each test verifies (the contract)
+unchanged - do not weaken or delete assertions about designed behavior.
+Common causes to check:
+- CliRunner takes NO constructor arguments. Use `CliRunner()`; for filesystem
+  isolation use `runner.isolated_filesystem()` or tmp_path-based CLI arguments.
+- runner.invoke() only works on @click.command/@click.group objects, never on
+  plain functions. If the entrypoint is not a click command, call the designed
+  functions directly instead.
+- Never invent keyword arguments or helpers that the libraries or the design
+  do not provide.
+
+Respond with exactly one Python code block containing the complete corrected
+test file."""
 
 
 def readme_prompt(design: dict) -> str:

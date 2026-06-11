@@ -14,6 +14,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 ENV_PATH = PROJECT_ROOT / ".env"
+# 종료 예약 플래그: 이 파일이 있으면 진행 중인 회차까지만 돌고 새 작업을 안 잡는다
+# (대시보드 버튼이 만들고, orchestrator 자동재시도·배치 루프가 확인)
+STOP_FILE = PROJECT_ROOT / "STOP_AFTER_RUN"
 PLACEHOLDER = "your-api-key-here"
 
 # 모델 ID 기본값. check_api.py로 실제 사용 가능한 ID를 확인한 뒤

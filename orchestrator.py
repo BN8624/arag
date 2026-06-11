@@ -16,7 +16,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from config import PROJECT_ROOT, force_utf8_stdout
+import critique_notes
+import run_index
+from config import PROJECT_ROOT, STOP_FILE, force_utf8_stdout
 from design_validator import implementation_order, validate_design
 from docker_gate import (docker_available, install_packages,
                          run_criteria_checks, run_exec_gate, run_pytest)
@@ -25,7 +27,8 @@ from lessons import find_relevant, record_lesson
 from llm import CallBudgetExceeded
 from prompts import (critique_prompt, design_prompt, extract_code,
                      extract_markdown, fix_prompt, implement_prompt,
-                     readme_prompt, revise_prompt, tests_prompt)
+                     readme_prompt, revise_prompt, tests_fix_prompt,
+                     tests_prompt)
 from schema import extract_json, parse_design
 
 K_MAX_FIX = 3          # 층마다 자가수정 상한
@@ -60,6 +63,10 @@ class Orchestrator:
         self._packages: list[str] = []
         self._last_issues: list[dict] = []
         self._last_snapshot: str | None = None
+        self.fix_count: dict[str, int] = {"static": 0, "exec": 0}
+        self._tests_regen_left = 1  # 테스트 자체 버그 시 31B 재생성 허용 횟수
+        self.critique_rounds_used = 0
+        self._failure_keywords: list[str] = []
         self.resume_from = Path(resume_from) if resume_from else None
         self._events = (self.run_dir / "events.jsonl").open("a", encoding="utf-8")
 
@@ -149,10 +156,21 @@ class Orchestrator:
         except Exception:  # noqa: BLE001 - 오답노트 문제로 회차를 막지 않는다
             return []
 
+    def _load_notes(self) -> list[str]:
+        try:
+            found = critique_notes.find_relevant(self.idea)
+            if found:
+                self.log("critique-notes-injected", count=len(found), notes=found)
+                self._say(f"[NOTE] {len(found)} critique note(s) injected")
+            return found
+        except Exception:  # noqa: BLE001 - 비평노트 문제로 회차를 막지 않는다
+            return []
+
     def _record_failure(self, idea: str, reason: str) -> None:
         try:
             entry = record_lesson(self.llm, idea, self._failure_summary(reason))
             if entry:
+                self._failure_keywords = entry["keywords"]
                 self.log("lesson-recorded", lesson=entry["lesson"],
                          keywords=entry["keywords"])
                 self._say("[NOTE] failure lesson recorded to lessons.json")
@@ -229,6 +247,59 @@ class Orchestrator:
                       f"{len(errs)} errors")
         raise RunAborted(f"design failed after {DESIGN_ATTEMPTS} attempts: {errors}")
 
+    def _tests_look_broken(self, log: str) -> bool:
+        """pytest 실패의 책임이 테스트 코드 자체인지 판별 (보수적).
+
+        에러 직전 프레임이 테스트 파일이나 라이브러리 내부(/deps/)이고,
+        프로젝트 파일에서 터진 에러가 하나도 없을 때만 True.
+        AssertionError는 코드가 계약을 못 맞춘 것이므로 제외.
+        """
+        if TEST_FILE not in log:
+            return False
+        proj_files = {f["path"] for f in (self.design or {}).get("files", [])}
+        frame_re = re.compile(r"^(\S+?\.py):\d+: in ")
+        err_re = re.compile(r"^E\s+(\w+(?:Error|Exception))\b")
+        last_frame: str | None = None
+        test_bug = proj_bug = False
+        for line in log.splitlines():
+            m = frame_re.match(line.strip())
+            if m:
+                last_frame = m.group(1)
+                continue
+            e = err_re.match(line.strip())
+            if not e or last_frame is None:
+                continue
+            err_name = e.group(1)
+            frame_name = Path(last_frame).name
+            if err_name == "AssertionError" or frame_name in proj_files:
+                proj_bug = True
+            elif frame_name == TEST_FILE or "/deps/" in last_frame.replace("\\", "/"):
+                if err_name in ("TypeError", "AttributeError", "KeyError",
+                                "NameError", "ImportError"):
+                    test_bug = True
+        return test_bug and not proj_bug
+
+    def _regenerate_tests(self) -> None:
+        """31B에게 (자기가 낸) 테스트의 수리를 요청. 실패하면 기존 테스트 유지."""
+        import ast as ast_mod
+        test_path = self.workspace / TEST_FILE
+        current = test_path.read_text(encoding="utf-8")
+        tail = "\n".join(self.last_exec_log.strip().splitlines()[-40:])
+        text = self.llm.generate("critic",
+                                 tests_fix_prompt(self.design, current, tail))
+        code = extract_code(text)
+        if code is None:
+            self.log("tests-regen-no-code")
+            return
+        try:
+            ast_mod.parse(code)
+        except SyntaxError:
+            self.log("tests-regen-syntax-error")
+            return
+        test_path.write_text(code, encoding="utf-8")
+        self.log("tests-regen-written", chars=len(code))
+        self._say(f"  [OK] rewrote {TEST_FILE}")
+
     def _phase_tests(self) -> None:
         """31B가 설계 계약 기반 pytest 출제. 실패해도 회차는 계속 (테스트 없이 진행)."""
         if self.skip_exec:
@@ -255,17 +326,20 @@ class Orchestrator:
 
     def _phase_implement(self) -> None:
         self._say("[PHASE] implement (26B)")
+        notes = self._load_notes()
         order = implementation_order(self.design)
         written: dict[str, str] = {}
         for path in order:
             self._check_time()
             text = self.llm.generate("generator",
-                                     implement_prompt(self.design, path, written))
+                                     implement_prompt(self.design, path, written,
+                                                      notes=notes))
             code = extract_code(text)
             if code is None:
                 # 한 번만 재요청
                 text = self.llm.generate("generator",
-                                         implement_prompt(self.design, path, written))
+                                         implement_prompt(self.design, path, written,
+                                                          notes=notes))
                 code = extract_code(text)
                 if code is None:
                     raise RunAborted(f"implementer returned no code block for {path}")
@@ -311,6 +385,7 @@ class Orchestrator:
                     self._say("[STUCK] static gate: fix budget exhausted")
                     return False
                 static_left -= 1
+                self.fix_count["static"] += 1
                 self._say(f"  [GATE] static: {len(issues)} issues "
                           f"-> self-fix ({static_left} left)")
                 self.log("static-issues", context=context, issues=issues)
@@ -334,6 +409,17 @@ class Orchestrator:
                 self._say("  [GATE] static + exec passed")
                 return True
             self._last_issues = exec_issues
+            if (self._tests_regen_left > 0
+                    and (self.workspace / TEST_FILE).exists()
+                    and self._tests_look_broken(self.last_exec_log)):
+                # 실패 원인이 테스트 코드 자체 -> 26B 예산을 태우지 말고
+                # 출제자(31B)에게 테스트 수리를 1회 요청
+                self._tests_regen_left -= 1
+                self._say("  [GATE] pytest errors come from the test file itself "
+                          "-> 31B repairs tests")
+                self.log("tests-regen", context=context)
+                self._regenerate_tests()
+                continue
             sig = frozenset(i["message"] for i in exec_issues)
             if sig in seen_exec:
                 self.log("no-progress", layer="exec", context=context)
@@ -345,6 +431,7 @@ class Orchestrator:
                 self._say("[STUCK] exec gate: fix budget exhausted")
                 return False
             exec_left -= 1
+            self.fix_count["exec"] += 1
             target = self._blame_file(self.last_exec_log)
             self._say(f"  [GATE] exec failed -> self-fix {target} ({exec_left} left)")
             self.log("exec-issues", context=context, target=target,
@@ -360,6 +447,7 @@ class Orchestrator:
         for round_no in range(1, self.critique_rounds + 1):
             self._check_time()
             self._say(f"[PHASE] critique round {round_no}/{self.critique_rounds} (31B)")
+            self.critique_rounds_used = round_no
             verdict = self._get_critique()
             if verdict is None:
                 self._say("  [SKIP] critique unparseable twice - keeping current build")
@@ -397,6 +485,10 @@ class Orchestrator:
                         pass
                     return
                 self._snapshot(f"critique-round-{round_no}-pass")
+                # 수정이 게이트·채점표를 통과해 살아남음 = 검증된 비평 -> 비평노트 수확
+                n = critique_notes.record_notes(self.idea, flagged)
+                if n:
+                    self.log("critique-notes-recorded", count=n)
             else:
                 self._say("  [ROLLBACK] revision broke the gates - "
                           "restoring last good snapshot")
@@ -652,6 +744,20 @@ class Orchestrator:
             tok_line = (f"- Tokens: input {tokens.get('input', 0):,} / "
                         f"output {tokens.get('output', 0):,} / "
                         f"thinking {tokens.get('thinking', 0):,}\n")
+            by_role = getattr(self.llm, "tokens_by_role", None)
+            cost_fn = getattr(self.llm, "cost_usd", None)
+            if by_role and cost_fn:
+                costs = cost_fn()
+                for role, label in (("generator", "26B"), ("critic", "31B")):
+                    t = by_role.get(role, {})
+                    if any(t.values()):
+                        tok_line += (
+                            f"  - {label} ({role}): input {t.get('input', 0):,} / "
+                            f"output {t.get('output', 0):,} / "
+                            f"thinking {t.get('thinking', 0):,} "
+                            f"-> ${costs.get(role, 0):.4f}\n")
+                tok_line += (f"- Cost (OpenRouter paid equivalent): "
+                             f"**${costs.get('total', 0):.4f}**\n")
         report = (f"# Generator run report\n\n"
                   f"- Status: **{status}**\n"
                   f"- Idea: {idea}\n"
@@ -661,6 +767,30 @@ class Orchestrator:
                   f"## Critique history\n{critiques or '(none - passed without revision)'}\n\n"
                   f"## Last execution log\n```\n{self.last_exec_log}\n```\n")
         (self.run_dir / "REPORT.md").write_text(report, encoding="utf-8")
+        self._record_index(idea, status)
+
+    def _record_index(self, idea: str, status: str) -> None:
+        """runs/index.json에 런 한 줄 요약 누적 (콜 0, 실패해도 무시)."""
+        cost_fn = getattr(self.llm, "cost_usd", None)
+        costs = cost_fn() if cost_fn else {}
+        entry = {
+            "run": self.run_dir.name,
+            "t": datetime.now().isoformat(timespec="seconds"),
+            "idea": idea,
+            "status": status,
+            "ok": status.startswith("OK"),
+            "score": {"passed": self._score_passed(),
+                      "total": len(self.scoreboard) if self.scoreboard else None},
+            "calls": getattr(self.llm, "call_count", None),
+            "tokens": dict(getattr(self.llm, "tokens", {}) or {}),
+            "cost_usd": round(costs.get("total", 0), 6) if costs else None,
+            "fixes": dict(self.fix_count),
+            "critique_rounds": self.critique_rounds_used,
+            "packages": list(self._packages),
+            "failure_keywords": list(self._failure_keywords),
+        }
+        if run_index.record_run(self.run_dir, entry):
+            self.log("index-recorded", run=entry["run"], status=status)
 
 
 def main() -> int:
@@ -699,6 +829,11 @@ def main() -> int:
                         skip_exec=skip_exec, max_minutes=args.max_minutes,
                         resume_from=resume_from)
     ok = orch.run(args.idea)
+
+    # 종료 예약: 플래그가 있으면 이번 회차로 끝 (재도전도 안 잡는다)
+    if STOP_FILE.exists():
+        print("[STOP] stop-after-run flag found - no retry, exiting")
+        return 0 if ok else 1
 
     # 실패 시 1회 자동 재도전 (resume 모드에서는 건너뜀 — 특정 설계를 재사용 중)
     if not ok and not args.no_retry and not resume_from and llm.call_count + 8 <= args.max_calls:

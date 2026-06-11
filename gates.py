@@ -14,6 +14,7 @@
   - missing-dependency  : 설계가 기대한 import 간선이 실제 코드에 없음
   - contract-missing    : 설계 계약의 함수/클래스가 파일에 없음
   - contract-mismatch   : 계약과 인자 개수 불일치
+  - monkeypatch         : import한 모듈의 속성에 대입 (json.load = ... 류 변조)
 
 원칙: 명백한 것만 잡는다. 동적 기법(eval/exec/globals/star import)이 보이면
 해당 파일의 미정의 이름 검사는 건너뛴다 (과하게 빡빡하면 멀쩡한 코드를 막는다).
@@ -106,6 +107,7 @@ def run_static_gate(workdir: Path, design: dict | None = None) -> list[dict]:
 def _check_file(name, tree, local_modules, defined, edges) -> list[dict]:
     issues: list[dict] = []
     import_aliases: dict[str, tuple[str, int]] = {}  # 바인딩명 -> (로컬모듈 파일, 줄)
+    module_bindings: set[str] = set()  # 비-로컬 모듈 바인딩명 (몽키패치 탐지용)
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -115,10 +117,13 @@ def _check_file(name, tree, local_modules, defined, edges) -> list[dict]:
                 if top in local_modules:
                     edges.add(local_modules[top])
                     import_aliases[bound] = (local_modules[top], node.lineno)
-                elif not _is_stdlib(top) and top not in ALLOWED_PACKAGES:
-                    issues.append(issue(name, node.lineno, "non-stdlib-import",
-                                        f"'{alias.name}' is not in the standard library "
-                                        "or the allowed package whitelist"))
+                    module_bindings.add(bound)  # 로컬 모듈 패치도 금지
+                else:
+                    module_bindings.add(bound)
+                    if not _is_stdlib(top) and top not in ALLOWED_PACKAGES:
+                        issues.append(issue(name, node.lineno, "non-stdlib-import",
+                                            f"'{alias.name}' is not in the standard library "
+                                            "or the allowed package whitelist"))
                 if not _name_used(tree, bound, node):
                     issues.append(issue(name, node.lineno, "unused-import",
                                         f"'{bound}' is imported but never used"))
@@ -159,6 +164,33 @@ def _check_file(name, tree, local_modules, defined, edges) -> list[dict]:
     issues.extend(_check_stubs(name, tree))
     issues.extend(_check_undefined(name, tree))
     issues.extend(_check_secrets(name, tree))
+    issues.extend(_check_monkeypatch(name, tree, module_bindings))
+    return issues
+
+
+# sys.stdout = ... 류 인코딩 래핑은 정당한 패턴이라 sys만 예외
+_MONKEYPATCH_EXEMPT = {"sys"}
+
+
+def _check_monkeypatch(name, tree, module_bindings) -> list[dict]:
+    """import한 모듈의 속성에 대입 탐지 (json.load = patched 류).
+
+    깨진 테스트에 코드를 끼워맞추려는 퇴행 패턴 — 실제 런에서 관측됨.
+    """
+    issues = []
+    targets_of = (ast.Assign, ast.AugAssign, ast.AnnAssign)
+    for node in ast.walk(tree):
+        if not isinstance(node, targets_of):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for t in targets:
+            if (isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name)
+                    and t.value.id in module_bindings
+                    and t.value.id not in _MONKEYPATCH_EXEMPT):
+                issues.append(issue(
+                    name, node.lineno, "monkeypatch",
+                    f"assigning to {t.value.id}.{t.attr} - monkeypatching an "
+                    "imported module is forbidden (fix the code, not the library)"))
     return issues
 
 

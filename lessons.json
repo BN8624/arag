@@ -104,5 +104,179 @@
       "python"
     ],
     "lesson": "Avoid creating thin wrapper modules that only import other services; consolidate business logic into a single service class to ensure all dependencies are actively used."
+  },
+  {
+    "t": "2026-06-11T08:37:41",
+    "idea": "PDF 파일에서 텍스트를 추출하고, 모의 AI API 응답 JSON을 사용해 청구서 항목을 구조화한 뒤, 결과를 엑셀 파일로 저장하고 README와 pyproject.toml을 포함하는 멀티파일 Python CLI 도구",
+    "keywords": [
+      "pdf-extraction",
+      "mock-api",
+      "python-cli",
+      "llm-generation",
+      "modular-design"
+    ],
+    "lesson": "Decompose the system into small, independent modules with minimal inter-dependencies to reduce the prompt complexity and context size required for each generation step."
+  },
+  {
+    "t": "2026-06-11T08:44:06",
+    "idea": "PDF 파일에서 텍스트를 추출하고, 모의 AI API 응답 JSON을 사용해 청구서 항목을 구조화한 뒤, 결과를 엑셀 파일로 저장하고 README와 pyproject.toml을 포함하는 멀티파일 Python CLI 도구",
+    "keywords": [
+      "llm-api",
+      "pipeline-resilience",
+      "error-handling",
+      "fallback-strategy"
+    ],
+    "lesson": "Integrate a fallback mechanism to an alternative LLM provider to ensure pipeline continuity when the primary API returns persistent 500 internal server errors."
+  },
+  {
+    "t": "2026-06-11T08:59:34",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "llm",
+      "api-resilience",
+      "failover",
+      "pipeline",
+      "automation"
+    ],
+    "lesson": "Implement a multi-model failover strategy in the generation pipeline to ensure that transient 500 Internal errors from a primary LLM provider do not crash the entire process."
+  },
+  {
+    "t": "2026-06-11T09:05:44",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "pdf-parsing",
+      "cli-tool",
+      "api-mocking",
+      "modular-design"
+    ],
+    "lesson": "Decompose multi-file tool requirements into smaller, decoupled modules with explicit interface definitions to reduce the complexity and token load of individual code generation requests."
+  },
+  {
+    "t": "2026-06-11T11:38:22",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "ai api",
+      "pdf parsing",
+      "error handling",
+      "mocking",
+      "resilience"
+    ],
+    "lesson": "Implement exponential backoff retries and a graceful fallback to mock mode in the AI client to prevent application failure during external API 5xx server errors."
+  },
+  {
+    "t": "2026-06-11T11:44:14",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "llm-api",
+      "modular-design",
+      "code-generation",
+      "prompt-optimization"
+    ],
+    "lesson": "Decompose the project design into the smallest possible independent modules to keep individual generation prompts concise and reduce the likelihood of API internal server errors."
+  },
+  {
+    "t": "2026-06-11T13:51:16",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "pypdf",
+      "pdf processing",
+      "test data",
+      "mocking",
+      "file format"
+    ],
+    "lesson": "Ensure that mock PDF files used in tests are created with a valid PDF minimal structure (header and EOF marker) rather than empty or random bytes to avoid stream parsing errors."
+  },
+  {
+    "t": "2026-06-11T13:55:55",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "mock mode",
+      "api client",
+      "credential validation",
+      "conditional logic",
+      "cli tool"
+    ],
+    "lesson": "Ensure that mock-mode flags or parameters are evaluated before validating mandatory credentials for live API calls to avoid blocking bypass logic with guard clauses."
+  },
+  {
+    "t": "2026-06-11T14:05:44",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "file handling",
+      "exception propagation",
+      "error handling",
+      "pytest",
+      "file-not-found"
+    ],
+    "lesson": "Ensure file-loading utility functions propagate standard exceptions like FileNotFoundError to the caller instead of swallowing them with try-except blocks or returning default values."
+  },
+  {
+    "t": "2026-06-11T16:24:49",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "pypdf",
+      "pdf extraction",
+      "test data generation",
+      "sample files"
+    ],
+    "lesson": "When generating synthetic PDF files for testing, use a standard-compliant library like reportlab instead of raw byte manipulation to ensure the resulting file is not malformed and can be parsed by the extraction tool."
+  },
+  {
+    "t": "2026-06-11T16:50:06",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "mock mode",
+      "credential validation",
+      "api key",
+      "conditional logic"
+    ],
+    "lesson": "Prioritize the check for mock or fallback flags over credential validation to ensure the tool functions without an API key when in mock mode."
+  },
+  {
+    "t": "2026-06-11T17:45:11",
+    "idea": "pypdf로 PDF 청구서 텍스트를 추출하고, --mock JSON 응답 파일로 외부 AI API 결과를 대체해 항목명·수량·단가·합계를 파싱하며, openpyxl로 결과를 xlsx 파일에 저장하는 멀티파일 Python CLI 도구. 실제 API 키는 환경변수나 CLI 인자로만 받고, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "pdf-parsing",
+      "mock-api",
+      "cli-tool",
+      "end-to-end-test",
+      "file-dependencies"
+    ],
+    "lesson": "When designing CLI tests that rely on mock files, ensure the setup command generates all necessary mock input files (e.g., the JSON mock response) before the execution command runs."
+  },
+  {
+    "t": "2026-06-11T19:33:33",
+    "idea": "회사 경비 정산 CLI 도구: 직원들이 제출한 여러 CSV 경비 내역을 읽어 항목별로 검증(날짜 형식, 금액 범위, 필수 필드)하고, 외부 환율 API(mock JSON 응답 파일로 대체 가능)로 외화 경비를 원화로 환산하며, 정책 규칙 JSON 파일(한도 초과, 금지 항목)에 따라 승인/반려/보류로 분류한 뒤, 결과를 openpyxl로 부서별 시트가 있는 xlsx 정산 리포트로 저장하고 반려 사유 요약을 출력한다. 실제 API 키는 환경변수로만 받고, 키 없이 live 모드 실행 시 명확한 에러 메시지와 함께 exit 1로 종료해야 하며, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "cli",
+      "policy-validation",
+      "data-processing",
+      "configuration-management"
+    ],
+    "lesson": "Implement a default policy fallback or explicit validation for missing configuration keys to prevent valid records from being incorrectly classified as 'Pending' or 'Rejected' when a specific category key is absent from the policy file."
+  },
+  {
+    "t": "2026-06-11T20:02:55",
+    "idea": "회사 경비 정산 CLI 도구: 직원들이 제출한 여러 CSV 경비 내역을 읽어 항목별로 검증(날짜 형식, 금액 범위, 필수 필드)하고, 외부 환율 API(mock JSON 응답 파일로 대체 가능)로 외화 경비를 원화로 환산하며, 정책 규칙 JSON 파일(한도 초과, 금지 항목)에 따라 승인/반려/보류로 분류한 뒤, 결과를 openpyxl로 부서별 시트가 있는 xlsx 정산 리포트로 저장하고 반려 사유 요약을 출력한다. 실제 API 키는 환경변수로만 받고, 키 없이 live 모드 실행 시 명확한 에러 메시지와 함께 exit 1로 종료해야 하며, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "cli",
+      "openpyxl",
+      "data processing",
+      "validation",
+      "reporting"
+    ],
+    "lesson": "Avoid assuming standard Python collection behaviors (like len()) for specialized library objects (e.g., use .max_row for openpyxl Worksheets) and enforce a strict data schema between processing and reporting modules to ensure consistent field mapping."
+  },
+  {
+    "t": "2026-06-11T20:47:54",
+    "idea": "회사 경비 정산 CLI 도구: 직원들이 제출한 여러 CSV 경비 내역을 읽어 항목별로 검증(날짜 형식, 금액 범위, 필수 필드)하고, 외부 환율 API(mock JSON 응답 파일로 대체 가능)로 외화 경비를 원화로 환산하며, 정책 규칙 JSON 파일(한도 초과, 금지 항목)에 따라 승인/반려/보류로 분류한 뒤, 결과를 openpyxl로 부서별 시트가 있는 xlsx 정산 리포트로 저장하고 반려 사유 요약을 출력한다. 실제 API 키는 환경변수로만 받고, 키 없이 live 모드 실행 시 명확한 에러 메시지와 함께 exit 1로 종료해야 하며, mock 모드에서는 키 없이 동작해야 한다",
+    "keywords": [
+      "cli",
+      "api-integration",
+      "contract-validation",
+      "data-processing",
+      "interface-design"
+    ],
+    "lesson": "Explicitly define the full method signature, including all required parameters, in the design contract to ensure implementation consistency across API clients and service wrappers."
   }
 ]

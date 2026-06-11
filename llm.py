@@ -15,6 +15,13 @@ import time
 from config import get_api_key, get_model
 
 MIN_INTERVAL_SEC = 4.0
+
+# 오픈라우터 유료 단가 (USD / 1M tokens, 2026-06 기준). thinking은 출력으로 과금.
+# 실제 사용은 AI Studio 무료지만, "유료였다면 얼마"를 REPORT에 환산 표기한다.
+OPENROUTER_PRICES = {
+    "generator": {"input": 0.06, "output": 0.33},   # gemma-4-26b-a4b
+    "critic":    {"input": 0.12, "output": 0.36},   # gemma-4-31b
+}
 MAX_RETRIES = 4
 BACKOFF_RPM_SEC = 20.0   # RPM 초과: 20→40→80→160s
 BACKOFF_500_SEC = 5.0    # 서버 에러: 5→10→20→40s
@@ -67,6 +74,23 @@ class LLMClient:
         self.call_count = 0
         self.max_calls = max_calls
         self.tokens: dict[str, int] = {"input": 0, "output": 0, "thinking": 0}
+        self.tokens_by_role: dict[str, dict[str, int]] = {
+            "generator": {"input": 0, "output": 0, "thinking": 0},
+            "critic": {"input": 0, "output": 0, "thinking": 0},
+        }
+
+    def cost_usd(self) -> dict[str, float]:
+        """오픈라우터 유료 단가 환산 비용(USD). 역할별 + 합계."""
+        costs: dict[str, float] = {}
+        for role, toks in self.tokens_by_role.items():
+            price = OPENROUTER_PRICES.get(role)
+            if not price:
+                continue
+            costs[role] = (toks["input"] * price["input"]
+                           + (toks["output"] + toks["thinking"]) * price["output"]
+                           ) / 1_000_000
+        costs["total"] = sum(costs.values())
+        return costs
 
     def _wait_interval(self) -> None:
         elapsed = time.monotonic() - self._last_call_at
@@ -98,9 +122,14 @@ class LLMClient:
                 self.call_count += 1
                 usage = getattr(resp, "usage_metadata", None)
                 if usage:
-                    self.tokens["input"] += getattr(usage, "prompt_token_count", 0) or 0
-                    self.tokens["output"] += getattr(usage, "candidates_token_count", 0) or 0
-                    self.tokens["thinking"] += getattr(usage, "thoughts_token_count", 0) or 0
+                    by_role = self.tokens_by_role.setdefault(
+                        role, {"input": 0, "output": 0, "thinking": 0})
+                    for key, attr in (("input", "prompt_token_count"),
+                                      ("output", "candidates_token_count"),
+                                      ("thinking", "thoughts_token_count")):
+                        n = getattr(usage, attr, 0) or 0
+                        self.tokens[key] += n
+                        by_role[key] += n
                 text = getattr(resp, "text", None)
                 if not text or not text.strip():
                     empty_count += 1

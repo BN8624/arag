@@ -1,0 +1,127 @@
+"""dashboard 테스트 (서버 없이 조회·토글 로직만)."""
+
+import json
+import time
+
+import pytest
+
+import dashboard
+import run_index
+
+
+@pytest.fixture(autouse=True)
+def _isolate_stop_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "STOP_FILE", tmp_path / "STOP_AFTER_RUN")
+
+
+def _mk_run(runs_dir, name, events=(), report=False, design=None):
+    d = runs_dir / name
+    d.mkdir(parents=True)
+    if events:
+        lines = [json.dumps(e) for e in events]
+        (d / "events.jsonl").write_text("\n".join(lines), encoding="utf-8")
+    if report:
+        (d / "REPORT.md").write_text("# report", encoding="utf-8")
+    if design:
+        (d / "design.json").write_text(json.dumps(design), encoding="utf-8")
+    return d
+
+
+def test_empty_runs_dir(tmp_path):
+    s = dashboard.build_status(tmp_path / "runs")
+    assert s["live"] is None
+    assert s["history"] == []
+    assert s["total_cost_usd"] == 0
+
+
+def test_live_run_detected(tmp_path):
+    runs = tmp_path / "runs"
+    _mk_run(runs, "20260611-1",
+            events=[{"t": "2026-06-11T19:33:33", "event": "design-accepted",
+                     "files": ["a.py", "b.py"]}],
+            design={"description": "expense tool"})
+    s = dashboard.build_status(runs)
+    assert s["live"]["run"] == "20260611-1"
+    assert s["live"]["running"] is True  # 방금 만든 파일 = LIVE_THRESHOLD 안
+    assert s["live"]["description"] == "expense tool"
+    assert s["live"]["last_event"] == "design-accepted"
+    assert any("design-accepted" in line for line in s["live"]["events_tail"])
+
+
+def test_latest_run_wins(tmp_path):
+    runs = tmp_path / "runs"
+    _mk_run(runs, "20260610-1", events=[{"t": "x", "event": "aborted"}])
+    _mk_run(runs, "20260611-2", events=[{"t": "x", "event": "scoreboard",
+                                         "passed": 3, "total": 4}])
+    s = dashboard.build_status(runs)
+    assert s["live"]["run"] == "20260611-2"
+
+
+def test_history_from_index(tmp_path):
+    runs = tmp_path / "runs"
+    d = _mk_run(runs, "20260611-1", events=[{"t": "x", "event": "aborted"}])
+    run_index.record_run(d, {"run": "20260611-1", "ok": True,
+                             "cost_usd": 0.031})
+    run_index.record_run(d, {"run": "20260611-2", "ok": False,
+                             "cost_usd": 0.052})
+    s = dashboard.build_status(runs)
+    assert [e["run"] for e in s["history"]] == ["20260611-2", "20260611-1"]
+    assert s["total_cost_usd"] == 0.083
+
+
+def test_stale_run_not_running(tmp_path, monkeypatch):
+    runs = tmp_path / "runs"
+    _mk_run(runs, "20260611-1", events=[{"t": "x", "event": "aborted"}])
+    monkeypatch.setattr(time, "time",
+                        lambda: time.mktime(time.localtime()) + 9999)
+    s = dashboard.build_status(runs)
+    assert s["live"]["running"] is False
+
+
+def test_toggle_stop_roundtrip(tmp_path):
+    assert dashboard.STOP_FILE.exists() is False
+    assert dashboard.toggle_stop() is True
+    assert dashboard.STOP_FILE.exists() is True
+    assert dashboard.build_status(tmp_path / "runs")["stop_after"] is True
+    assert dashboard.toggle_stop() is False
+    assert dashboard.STOP_FILE.exists() is False
+
+
+def test_launch_rejects_empty_idea():
+    ok, msg = dashboard.launch_run("   ")
+    assert ok is False
+    assert "empty" in msg
+
+
+def test_launch_rejects_while_running(monkeypatch):
+    monkeypatch.setattr(dashboard, "build_status",
+                        lambda: {"live": {"run": "r1", "running": True},
+                                 "history": [], "stop_after": False})
+    ok, msg = dashboard.launch_run("new idea")
+    assert ok is False
+    assert "already running" in msg
+
+
+def test_launch_clears_stop_flag(tmp_path, monkeypatch):
+    dashboard.STOP_FILE.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(dashboard, "build_status",
+                        lambda: {"live": None, "history": [],
+                                 "stop_after": True})
+    launched = {}
+    monkeypatch.setattr(dashboard.subprocess, "Popen",
+                        lambda *a, **kw: launched.setdefault("args", a))
+    monkeypatch.setattr(dashboard, "RUNS_DIR", tmp_path / "runs")
+    ok, msg = dashboard.launch_run("new idea")
+    assert ok is True
+    assert dashboard.STOP_FILE.exists() is False  # 수동 시작 = 예약 해제
+    assert "new idea" in launched["args"][0]
+
+
+def test_corrupt_events_skipped(tmp_path):
+    runs = tmp_path / "runs"
+    d = runs / "20260611-1"
+    d.mkdir(parents=True)
+    (d / "events.jsonl").write_text(
+        '{"t": "x", "event": "ok-line"}\n{broken json\n', encoding="utf-8")
+    s = dashboard.build_status(runs)
+    assert s["live"]["last_event"] == "ok-line"
