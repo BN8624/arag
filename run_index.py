@@ -15,9 +15,25 @@ improve 모드(과거 런 조회), 적응형 난이도(최근 성적), 재발률
 """
 
 import json
+import re
 from pathlib import Path
 
 MAX_ENTRIES = 1000  # 파일 비대 방지
+
+# 어떤 실패에든 나오는 범용 단어 — 재발 판정에서 제외 (가짜 겹침 방지)
+GENERIC_KEYWORD_TOKENS = {"cli", "tool", "python", "command", "line"}
+
+
+def _keyword_tokens(keywords) -> set[str]:
+    """키워드 목록 → 정규화된 토큰 집합.
+
+    'data-processing'과 'data processing', 'cli tool'과 'cli'처럼 표기만 다른
+    키워드가 어긋나지 않게 단어 단위로 쪼개 비교한다.
+    """
+    tokens: set[str] = set()
+    for k in keywords or []:
+        tokens |= set(re.findall(r"[0-9a-zA-Z가-힣]{2,}", str(k).lower()))
+    return tokens - GENERIC_KEYWORD_TOKENS
 
 
 def index_path(runs_dir: Path) -> Path:
@@ -46,8 +62,8 @@ def recurrence_stats(entries: list[dict]) -> dict:
     for e in injected:
         if e.get("ok"):
             continue
-        failure = {str(k).lower() for k in e.get("failure_keywords") or []}
-        inject = {str(k).lower() for k in e.get("lessons_injected") or []}
+        failure = _keyword_tokens(e.get("failure_keywords"))
+        inject = _keyword_tokens(e.get("lessons_injected"))
         if failure & inject:
             recurred += 1
     rate = round(recurred / len(injected), 3) if injected else None

@@ -364,6 +364,14 @@ Rules:
   edge cases (empty input, invalid values) ONLY where the design contract
   makes the expected behavior unambiguous. When the contract does not specify
   a behavior, do not test it.
+- NEVER assert equality against the ENTIRE stdout or a whole multi-line
+  block. Assert on individual substrings or single lines instead - layout
+  and ordering are implementation freedom unless the contract pins them.
+- Compare numbers NUMERICALLY, never as strings: parse the value and use
+  float(x) == pytest.approx(expected). String comparisons like "1.0" vs "1"
+  are formatting accidents, not contract violations.
+- If the contract does not pin an exact output format, assert that the key
+  VALUES appear, not how they are formatted.
 - Write 5-12 focused test functions.
 
 Respond with exactly one Python code block containing the complete test file."""
@@ -396,9 +404,43 @@ Common causes to check:
   functions directly instead.
 - Never invent keyword arguments or helpers that the libraries or the design
   do not provide.
+- If an ARBITER VERDICT appears in the output above, follow its instruction
+  even when it relaxes an over-specified assertion (e.g. exact string
+  formatting the design contract never promised).
 
 Respond with exactly one Python code block containing the complete corrected
 test file."""
+
+
+def arbitrate_prompt(design: dict, test_code: str, pytest_log: str) -> str:
+    """같은 단언 실패가 반복될 때: 시험지가 과한가, 코드가 계약 위반인가 (31B 판정)."""
+    return f"""You are the examiner for a small multi-file Python CLI project.
+One of YOUR acceptance tests keeps failing with an AssertionError even after
+several implementation fixes. The implementer is stuck. Decide which side
+violates the DESIGN CONTRACT: the test's expectation, or the implementation.
+
+PROJECT DESIGN (the only authority):
+{json.dumps(design, ensure_ascii=False, indent=2)}
+
+YOUR TEST FILE (test_acceptance.py):
+```python
+{test_code}
+```
+
+PYTEST OUTPUT (tail):
+{pytest_log}
+
+Judging rules:
+- The design contract is the ONLY authority.
+- If the disputed detail (exact number formatting, exact line layout, exact
+  wording) is NOT specified by the contract, the TEST over-specifies it -
+  blame "test".
+- If the implementation clearly violates what the contract states (wrong
+  value, wrong classification, missing behavior), blame "code".
+
+Respond with a single JSON object (no prose, no fences):
+{{"blame": "test" or "code",
+  "instruction": "one or two sentences: exactly what to change and why"}}"""
 
 
 def improve_prompt(design: dict, files: dict[str, str], feedback: str,

@@ -1,6 +1,8 @@
 {
-  "level": 2,
+  "level": 1,
   "used_repos": [
-    "sakurity/securelogin"
+    "sakurity/securelogin",
+    "wakatime/legacy-python-cli",
+    "GothenburgBitFactory/timewarrior"
   ]
 }

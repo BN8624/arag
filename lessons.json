@@ -289,5 +289,58 @@
       "module design"
     ],
     "lesson": "Explicitly specify the required class structure and method signatures in the design contract for any module handling external API interactions or mock data."
+  },
+  {
+    "t": "2026-06-12T00:08:22",
+    "idea": "회사 경비 정산 CLI 도구: 직원들이 제출한 여러 CSV 경비 내역을 읽어 필수 필드, 날짜 형식, 음수 금액, 한도 초과를 검증하고, 외부 환율 API를 mock JSON 응답 파일로 대체해 외화 금액을 원화로 환산하며, 정책 규칙 JSON에 따라 Approved/Hold/Rejected로 분류한 뒤, openpyxl로 부서별 시트가 있는 xlsx 리포트를 생성한다. mock 모드에서는 API 키 없이 동작해야 하고, live 모드에서 EXCHANGE_API_KEY가 없으면 명확한 메시지와 exit 1로 종료해야 한다. 반려 사유 요약과 Approved/Hold/Rejected 개수 요약을 콘솔에 출력한다.",
+    "keywords": [
+      "cli",
+      "expense-settlement",
+      "exit-codes",
+      "environment-variables",
+      "business-validation"
+    ],
+    "lesson": "Ensure mandatory environment variables for 'live' mode are validated at startup and trigger an explicit non-zero exit code (e.g., sys.exit(1)) to prevent false-positive success signals."
+  },
+  {
+    "t": "2026-06-12T00:31:27",
+    "idea": "개발 시간 기록이 담긴 JSON 파일을 읽어 프로젝트별 총 작업 시간을 계산하고 요약 리포트를 출력하는 CLI 도구입니다. 사용자는 파일 경로를 인자로 전달하며, 도구는 파일 내의 각 항목에서 소요 시간을 합산하여 프로젝트별 합계를 텍스트 형식으로 출력합니다. 별도의 데이터베이스 없이 입력 파일의 데이터를 즉시 처리하여 결과만 보여줍니다.",
+    "keywords": [
+      "cli tool",
+      "json parsing",
+      "report generation",
+      "number formatting"
+    ],
+    "lesson": "Explicitly define numeric precision (e.g., using '.1f' format specifiers) for all aggregated totals in text reports to ensure consistent output and avoid mismatches between integer and float string representations."
+  },
+  {
+    "t": "2026-06-12T01:12:36",
+    "idea": "시간 기록 로그 파일(작업명, 시작 시간, 종료 시간)을 입력받아 각 작업별 총 소요 시간을 계산하고 요약 리포트를 출력하는 CLI 도구입니다. 사용자는 `--file` 인자로 로그 파일 경로를 지정하며, 프로그램은 이를 파싱하여 카테고리별 총 합산 시간을 계산해 텍스트 표 형태로 출력합니다. 별도의 상태 저장 없이 입력된 파일의 데이터를 기반으로 즉시 결과를 생성하는 순수 변환 도구입니다.",
+    "keywords": [
+      "cli",
+      "log-parsing",
+      "data-transformation",
+      "header-handling"
+    ],
+    "lesson": "When parsing structured log or CSV files, explicitly handle or skip header rows to prevent metadata from being processed as data records."
+  },
+  {
+    "t": "2026-06-12T01:50:23",
+    "idea": "시간 기록 로그 파일(작업명, 시작 시간, 종료 시간)을 입력받아 각 작업별 총 소요 시간을 계산하고 요약 리포트를 출력하는 CLI 도구입니다. 사용자는 `--file` 인자로 로그 파일 경로를 지정하며, 프로그램은 이를 파싱하여 카테고리별 총 합산 시간을 계산해 텍스트 표 형태로 출력합니다. 별도의 상태 저장 없이 입력된 파일의 데이터를 기반으로 즉시 결과를 생성하는 순수 변환 도구입니다.",
+    "keywords": [
+      "cli",
+      "parsing",
+      "data transformation",
+      "module architecture"
+    ],
+    "lesson": "Implement all core logic within its designated module and call it via standard interfaces; avoid monkeypatching or overriding functions of imported modules at runtime."
+  },
+  {
+    "t": "2026-06-12T02:09:49",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
   }
 ]

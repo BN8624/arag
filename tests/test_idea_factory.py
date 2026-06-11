@@ -198,14 +198,21 @@ def test_generate_idea_no_candidate(monkeypatch):
 
 # ------------------------------------------------------------ 배치 루프
 
+def _batch(tmp_path, n, **kw):
+    """빈 runs 디렉토리 기준의 배치 (실제 runs/ index를 안 본다)."""
+    kw.setdefault("stop_file", tmp_path / "STOP")
+    kw.setdefault("runs_dir", tmp_path / "runs")
+    return batch.run_batch(n, **kw)
+
+
 def test_batch_runs_all_rounds(tmp_path):
     ideas = iter(["아이디어1", "아이디어2", "아이디어3"])
     ran = []
-    result = batch.run_batch(
-        3, runner=lambda idea: (ran.append(idea), 0)[1],
-        idea_gen=lambda: {"idea": next(ideas), "repo": "r", "level": 2},
-        stop_file=tmp_path / "STOP")
-    assert result == {"requested": 3, "done": 3, "ok": 3, "stopped_by": None}
+    result = _batch(
+        tmp_path, 3, runner=lambda args: (ran.append(args[0]), 0)[1],
+        idea_gen=lambda: {"idea": next(ideas), "repo": "r", "level": 2})
+    assert result == {"requested": 3, "done": 3, "ok": 3, "improves": 0,
+                      "stopped_by": None}
     assert ran == ["아이디어1", "아이디어2", "아이디어3"]
 
 
@@ -213,13 +220,13 @@ def test_batch_respects_stop_flag(tmp_path):
     stop = tmp_path / "STOP"
     calls = {"n": 0}
 
-    def runner(idea):
+    def runner(args):
         calls["n"] += 1
         stop.write_text("now", encoding="utf-8")  # 1회차 끝에 종료예약
         return 0
 
-    result = batch.run_batch(
-        5, runner=runner,
+    result = _batch(
+        tmp_path, 5, runner=runner,
         idea_gen=lambda: {"idea": "아이디어", "repo": "r", "level": 2},
         stop_file=stop)
     assert calls["n"] == 1
@@ -227,10 +234,9 @@ def test_batch_respects_stop_flag(tmp_path):
 
 
 def test_batch_stops_after_consecutive_failures(tmp_path):
-    result = batch.run_batch(
-        10, runner=lambda idea: 1,
-        idea_gen=lambda: {"idea": "아이디어", "repo": "r", "level": 2},
-        stop_file=tmp_path / "STOP")
+    result = _batch(
+        tmp_path, 10, runner=lambda args: 1,
+        idea_gen=lambda: {"idea": "아이디어", "repo": "r", "level": 2})
     assert result["done"] == batch.MAX_CONSECUTIVE_FAILURES
     assert result["ok"] == 0
     assert result["stopped_by"] == "consecutive-failures"
@@ -240,18 +246,117 @@ def test_batch_idea_gen_failure_counts(tmp_path):
     def bad_gen():
         raise RuntimeError("network down")
 
-    result = batch.run_batch(10, runner=lambda idea: 0, idea_gen=bad_gen,
-                             stop_file=tmp_path / "STOP")
+    result = _batch(tmp_path, 10, runner=lambda args: 0, idea_gen=bad_gen)
     assert result["done"] == 0
     assert result["stopped_by"] == "consecutive-failures"
 
 
 def test_batch_caps_rounds(tmp_path):
-    result = batch.run_batch(
-        999, runner=lambda idea: 0,
-        idea_gen=lambda: {"idea": "아이디어", "repo": "r", "level": 2},
-        stop_file=tmp_path / "STOP")
+    result = _batch(
+        tmp_path, 999, runner=lambda args: 0,
+        idea_gen=lambda: {"idea": "아이디어", "repo": "r", "level": 2})
     assert result["requested"] == batch.MAX_RUNS
+
+
+# ------------------------------------------------------------ 배치 improve 통합
+
+def _write_index(runs_dir, entries, mkdirs=True):
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    (runs_dir / "index.json").write_text(
+        json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+    if mkdirs:
+        for e in entries:
+            (runs_dir / e["run"]).mkdir(exist_ok=True)
+
+
+def test_find_improve_target_picks_partial_ok(tmp_path):
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "idea": "아이디어1",
+         "failed_criteria": ["기준 A"], "score": {"passed": 4, "total": 5}},
+        {"run": "r2", "ok": False, "failed_criteria": ["기준 B"]},
+    ])
+    run, idea, feedback = batch.find_improve_target(runs)
+    assert run == "r1" and idea == "아이디어1"
+    assert "기준 A" in feedback
+
+
+def test_find_improve_target_skips_already_improved(tmp_path):
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "idea": "아이디어1",
+         "failed_criteria": ["기준 A"]},
+        # r1은 이미 improve 시도됨 (성패 무관) + improve 런 자체도 대상 아님
+        {"run": "r2", "ok": True, "improved_from": "r1",
+         "failed_criteria": ["기준 C"]},
+    ])
+    assert batch.find_improve_target(runs) is None
+
+
+def test_find_review_target_perfect_unreviewed_only(tmp_path):
+    from reviewer import review_marker
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "idea": "아이디어1",
+         "score": {"passed": 3, "total": 3}},
+        {"run": "r2", "ok": True, "idea": "아이디어2",
+         "score": {"passed": 4, "total": 5}},  # 만점 아님
+    ])
+    assert batch.find_review_target(runs) == ("r1", "아이디어1")
+    review_marker(runs / "r1").write_text("{}", encoding="utf-8")
+    assert batch.find_review_target(runs) is None  # 총평은 런당 1회
+
+
+def test_batch_improve_round_uses_failed_criteria(tmp_path):
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "idea": "아이디어1",
+         "failed_criteria": ["기준 A"]},
+    ])
+    cmds = []
+    result = _batch(tmp_path, 1, runner=lambda args: (cmds.append(args), 0)[1],
+                    idea_gen=lambda: (_ for _ in ()).throw(AssertionError))
+    assert result["improves"] == 1 and result["ok"] == 1
+    args = cmds[0]
+    assert args[0] == "--improve" and args[1].endswith("r1")
+    assert args[2] == "--feedback" and "기준 A" in args[3]
+    assert args[4] == "아이디어1"
+
+
+def test_batch_review_round_improves_on_feedback(tmp_path):
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "idea": "아이디어1",
+         "score": {"passed": 3, "total": 3}},
+    ])
+    cmds = []
+    result = _batch(
+        tmp_path, 1, runner=lambda args: (cmds.append(args), 0)[1],
+        reviewer_fn=lambda run_dir, idea: "출력에 합계 요약을 추가하라",
+        idea_gen=lambda: (_ for _ in ()).throw(AssertionError))
+    assert result["improves"] == 1
+    assert cmds[0][0] == "--improve" and "합계 요약" in cmds[0][3]
+
+
+def test_batch_review_nochange_falls_through_to_new_idea(tmp_path):
+    from reviewer import review_marker
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "idea": "아이디어1",
+         "score": {"passed": 3, "total": 3}},
+    ])
+
+    def nochange_reviewer(run_dir, idea):
+        review_marker(run_dir).write_text("{}", encoding="utf-8")
+        return None
+
+    cmds = []
+    result = _batch(
+        tmp_path, 1, runner=lambda args: (cmds.append(args), 0)[1],
+        reviewer_fn=nochange_reviewer,
+        idea_gen=lambda: {"idea": "새 아이디어", "repo": "r", "level": 2})
+    assert result["improves"] == 0 and result["done"] == 1
+    assert cmds[0] == ["새 아이디어"]  # 같은 회차에서 신규 생산으로 진행
 
 
 # ------------------------------------------------------------ 대시보드 자동 모드
@@ -301,19 +406,26 @@ def test_recurrence_stats_empty():
 
 def test_recurrence_stats_counts_overlap():
     entries = [
-        # 주입 + 실패 + keyword 겹침 = 재발
-        {"ok": False, "lessons_injected": ["csv", "cli"],
-         "failure_keywords": ["cli", "parsing"]},
+        # 주입 + 실패 + keyword 겹침 = 재발 (표기 다른 'csv parsing'/'csv-parsing'도 매칭)
+        {"ok": False, "lessons_injected": ["csv parsing"],
+         "failure_keywords": ["csv-parsing"]},
         # 주입 + 성공 = 재발 아님
         {"ok": True, "lessons_injected": ["csv"], "failure_keywords": []},
         # 주입 + 실패지만 keyword 안 겹침 = 다른 유형 실패
         {"ok": False, "lessons_injected": ["csv"],
          "failure_keywords": ["docker"]},
         # 주입 없음 = 모수에서 제외
-        {"ok": False, "failure_keywords": ["cli"]},
+        {"ok": False, "failure_keywords": ["csv"]},
     ]
     stats = run_index.recurrence_stats(entries)
     assert stats == {"injected_runs": 3, "recurred": 1, "rate": 0.333}
+
+
+def test_recurrence_ignores_generic_keywords():
+    # 'cli'/'tool' 같은 범용 단어만 겹치는 건 재발로 안 친다
+    entries = [{"ok": False, "lessons_injected": ["cli tool"],
+                "failure_keywords": ["cli"]}]
+    assert run_index.recurrence_stats(entries)["recurred"] == 0
 
 
 def test_find_relevant_entries_returns_keywords(tmp_path):

@@ -61,6 +61,7 @@ _EVENT_TEXT = {
     "tests-regen-written": "[31B] 시험지 수리 완료",
     "tests-regen-no-code": "[31B] 시험지 수리 실패 - 기존 시험지 유지",
     "tests-regen-syntax-error": "[31B] 수리본에 오타 - 기존 시험지 유지",
+    "arbitration-unparseable": "[31B] 중재 판정문을 못 읽음 - 중재 무산",
     "critique-skipped-perfect": "검수 만점 - 품질심사 생략하고 바로 출하",
     "critique-lgtm": "[31B] 품질심사 합격(LGTM) - 조기 출하",
     "critique-unparseable": "[31B] 심사평을 못 읽음 - 현재 빌드 유지",
@@ -118,6 +119,13 @@ def _humanize(e: dict) -> str:
         text = f"검수(시운전): 실패 -> [26B] {e.get('target', '?')} 수리"
     elif kind == "scoreboard":
         text = f"최종 검수 점수: {e.get('passed', '?')}/{e.get('total', '?')}"
+    elif kind == "partial-pass":
+        pct = round(float(e.get("rate", 0)) * 100)
+        text = f"부분 합격 출하 ({pct}% 통과) - 남은 기준은 개선 대상으로"
+    elif kind == "arbitration":
+        text = ("[31B] 중재: 시험지가 과했다 -> 시험지 수정"
+                if e.get("blame") == "test"
+                else "[31B] 중재: 코드가 계약 위반 -> 표적 수리")
     elif kind == "packages-installed":
         text = "자재 입고: " + ", ".join(e.get("packages", []))
     elif kind == "lessons-injected":

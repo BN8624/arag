@@ -25,13 +25,14 @@ from docker_gate import (docker_available, install_packages,
 from gates import external_imports, format_issues, run_static_gate
 from lessons import find_relevant_entries, record_lesson
 from llm import CallBudgetExceeded
-from prompts import (critique_prompt, design_prompt, extract_code,
-                     extract_markdown, fix_prompt, implement_prompt,
-                     improve_prompt, readme_prompt, revise_prompt,
-                     tests_fix_prompt, tests_prompt)
+from prompts import (arbitrate_prompt, critique_prompt, design_prompt,
+                     extract_code, extract_markdown, fix_prompt,
+                     implement_prompt, improve_prompt, readme_prompt,
+                     revise_prompt, tests_fix_prompt, tests_prompt)
 from schema import extract_json, parse_design
 
 K_MAX_FIX = 3          # 층마다 자가수정 상한
+PARTIAL_PASS_RATE = 0.8  # 부분 합격 출하: 성공 신호 통과 + pytest 통과율 하한
 DESIGN_ATTEMPTS = 3    # 설계 1회 + 재설계 2회
 DEFAULT_ROUNDS = 2     # 비평-개선 바퀴
 DEFAULT_MAX_CALLS = 60
@@ -66,6 +67,8 @@ class Orchestrator:
         self._last_snapshot: str | None = None
         self.fix_count: dict[str, int] = {"static": 0, "exec": 0}
         self._tests_regen_left = 1  # 테스트 자체 버그 시 31B 재생성 허용 횟수
+        self._arbitration_left = 1  # 단언 실패 반복 시 31B 중재 허용 횟수
+        self.partial_pass = False   # 마지막 게이트가 부분 합격이었나
         self.critique_rounds_used = 0
         self._failure_keywords: list[str] = []
         self._injected_lesson_keywords: list[str] = []
@@ -121,7 +124,9 @@ class Orchestrator:
             self._phase_critique_loop()
             self._write_readme()
             self._write_pyproject()
-            self._write_report(idea, status="OK")
+            status = ("OK (partial - some acceptance tests still failing)"
+                      if self.partial_pass else "OK")
+            self._write_report(idea, status=status)
             self._say(f"[OK] run complete: {self.workspace}")
             return True
         except (RunAborted, CallBudgetExceeded) as err:
@@ -453,12 +458,16 @@ class Orchestrator:
                     test_bug = True
         return test_bug and not proj_bug
 
-    def _regenerate_tests(self) -> None:
+    def _regenerate_tests(self, arbiter_note: str = "") -> None:
         """31B에게 (자기가 낸) 테스트의 수리를 요청. 실패하면 기존 테스트 유지."""
         import ast as ast_mod
         test_path = self.workspace / TEST_FILE
         current = test_path.read_text(encoding="utf-8")
         tail = "\n".join(self.last_exec_log.strip().splitlines()[-40:])
+        if arbiter_note:
+            tail += (f"\n\nARBITER VERDICT: {arbiter_note}\n"
+                     "Follow this instruction even if it relaxes an "
+                     "over-specified assertion.")
         text = self.llm.generate("critic",
                                  tests_fix_prompt(self.design, current, tail))
         code = extract_code(text)
@@ -577,11 +586,14 @@ class Orchestrator:
                                                   self.design["success_signal"],
                                                   deps_dir=deps_dir)
             self.last_exec_log = log_text
+            pytest_only = False  # 성공 신호는 통과, pytest만 실패한 상태인가
             if not exec_issues and (self.workspace / TEST_FILE).exists():
                 exec_issues, pytest_log = run_pytest(self.workspace,
                                                      deps_dir=deps_dir)
                 self.last_exec_log = log_text + "\n\n" + pytest_log
+                pytest_only = bool(exec_issues)
             if not exec_issues:
+                self.partial_pass = False
                 self._say("  [GATE] static + exec passed")
                 return True
             self._last_issues = exec_issues
@@ -597,15 +609,32 @@ class Orchestrator:
                 self._regenerate_tests()
                 continue
             sig = frozenset(i["message"] for i in exec_issues)
-            if sig in seen_exec:
-                self.log("no-progress", layer="exec", context=context)
-                self._say("[STUCK] exec gate: error state repeated")
+            if sig in seen_exec or exec_left == 0:
+                # 막혔다. 포기 전에 두 가지 출구를 순서대로 시도:
+                # 1) 단언 실패 반복이면 31B 중재 (시험이 과한가, 코드가 위반인가)
+                if (self._arbitration_left > 0 and pytest_only
+                        and "AssertionError" in self.last_exec_log
+                        and self._arbitrate(exec_issues)):
+                    seen_exec.clear()
+                    continue
+                # 2) 성공 신호 통과 + pytest 통과율이 충분하면 부분 합격 출하
+                #    (89% 완성품을 통째로 버리지 않는다 - 남은 기준은 채점표에
+                #     FAIL로 남아 비평·improve의 표적이 됨)
+                rate = self._pytest_pass_rate()
+                if pytest_only and rate is not None and rate >= PARTIAL_PASS_RATE:
+                    self.partial_pass = True
+                    self.log("partial-pass", rate=round(rate, 2), context=context)
+                    self._say(f"  [GATE] partial pass: success signal OK, "
+                              f"pytest {rate:.0%} - shipping with open criteria")
+                    return True
+                if sig in seen_exec:
+                    self.log("no-progress", layer="exec", context=context)
+                    self._say("[STUCK] exec gate: error state repeated")
+                else:
+                    self.log("budget-exhausted", layer="exec", context=context)
+                    self._say("[STUCK] exec gate: fix budget exhausted")
                 return False
             seen_exec.add(sig)
-            if exec_left == 0:
-                self.log("budget-exhausted", layer="exec", context=context)
-                self._say("[STUCK] exec gate: fix budget exhausted")
-                return False
             exec_left -= 1
             self.fix_count["exec"] += 1
             target = self._blame_file(self.last_exec_log)
@@ -613,6 +642,54 @@ class Orchestrator:
             self.log("exec-issues", context=context, target=target,
                      issues=[i["message"] for i in exec_issues])
             self._fix_files({target: exec_issues})
+
+    def _pytest_pass_rate(self) -> float | None:
+        """마지막 실행 로그의 pytest 요약에서 통과율. 요약이 없으면 None."""
+        passed = re.findall(r"(\d+) passed", self.last_exec_log)
+        failed = re.findall(r"(\d+) failed", self.last_exec_log)
+        if not passed and not failed:
+            return None
+        n_pass = int(passed[-1]) if passed else 0
+        n_fail = int(failed[-1]) if failed else 0
+        total = n_pass + n_fail
+        return n_pass / total if total else None
+
+    def _arbitrate(self, exec_issues: list[dict]) -> bool:
+        """단언 실패 반복 시 31B 중재 1콜: 시험이 과한가, 코드가 계약 위반인가.
+
+        중재가 실제 행동(시험 수리 또는 표적 수정)으로 이어졌으면 True.
+        """
+        self._arbitration_left -= 1
+        try:
+            test_code = (self.workspace / TEST_FILE).read_text(encoding="utf-8")
+            tail = "\n".join(self.last_exec_log.strip().splitlines()[-40:])
+            text = self.llm.generate("critic",
+                                     arbitrate_prompt(self.design, test_code, tail))
+            raw = extract_json(text)
+            verdict = json.loads(raw) if raw else None
+        except (json.JSONDecodeError, OSError):
+            verdict = None
+        if not isinstance(verdict, dict):
+            self.log("arbitration-unparseable")
+            return False
+        blame = str(verdict.get("blame", "")).strip().lower()
+        instruction = str(verdict.get("instruction", "")).strip()
+        self.log("arbitration", blame=blame, instruction=instruction)
+        if blame == "test":
+            self._say("  [ARBITER] test over-specifies the contract "
+                      "-> 31B fixes the test")
+            self._regenerate_tests(arbiter_note=instruction)
+            return True
+        if blame == "code" and instruction:
+            self._say("  [ARBITER] code violates the contract -> targeted fix")
+            target = self._blame_file(self.last_exec_log)
+            issues = list(exec_issues) + [{"file": target, "line": 0,
+                                           "kind": "arbiter",
+                                           "message": f"ARBITER: {instruction}"}]
+            self.fix_count["exec"] += 1
+            self._fix_files({target: issues})
+            return True
+        return False
 
     def _phase_critique_loop(self) -> None:
         # 만점이면 비평 자체를 건너뜀 — 통과 빌드를 깎을 이유가 없다
@@ -975,6 +1052,10 @@ class Orchestrator:
         }
         if self._injected_lesson_keywords:
             entry["lessons_injected"] = list(self._injected_lesson_keywords)
+        if self.scoreboard:
+            # 배치의 자동 improve가 "뭘 고칠지"를 공짜로 알 수 있게 (피드백 원료)
+            entry["failed_criteria"] = [r["criterion"] for r in self.scoreboard
+                                        if not r["passed"]]
         if self.improve_from:
             entry["improved_from"] = self.improve_from.name
             entry["improvement"] = self._improvement_verdict()

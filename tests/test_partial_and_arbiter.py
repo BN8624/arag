@@ -1,0 +1,246 @@
+"""부분 합격 출하 + 31B 계약 중재 + 사용자 시점 총평 테스트 (콜 0, Docker 불필요).
+
+실행 게이트 함수들을 orchestrator 네임스페이스에서 모킹해 게이트 분기만 검증한다.
+"""
+
+import json
+
+import pytest
+from conftest import GOOD_CORE, GOOD_MAIN, make_design
+from test_orchestrator_mock import MockLLM, fenced
+
+import orchestrator as om
+import reviewer
+import run_index
+
+TEST_CODE = "def test_ok():\n    assert True\n"
+
+# 단언 실패 없는 pytest 실패 로그 (중재 비대상 -> 곧장 부분 합격 경로)
+LOG_PLAIN = """$ python -m pytest -q test_acceptance.py
+(exit 1)
+F........
+some failure detail without the magic word
+1 failed, 8 passed in 0.5s"""
+
+# 단언 실패 로그 (중재 대상)
+LOG_ASSERT = """$ python -m pytest -q test_acceptance.py
+(exit 1)
+test_acceptance.py:10: in test_total_format
+E   AssertionError: assert '1' == '1.0'
+1 failed, 8 passed in 0.5s"""
+
+PYTEST_ISSUE = {"file": "(run)", "line": 0, "kind": "exec-fail",
+                "message": "pytest failed (exit 1)"}
+
+
+def _design_with_checks() -> dict:
+    design = make_design()
+    design["criteria_checks"] = [
+        {"criterion": "c1", "command": "python main.py add x",
+         "expect_substring": "x"},
+        {"criterion": "c2", "command": "python main.py add y",
+         "expect_substring": "y"},
+    ]
+    return design
+
+
+def _mock_gates(monkeypatch, pytest_fn, criteria_results):
+    monkeypatch.setattr(om, "run_static_gate", lambda ws, design: [])
+    monkeypatch.setattr(om, "external_imports", lambda ws: set())
+    monkeypatch.setattr(om, "install_packages",
+                        lambda deps, pkgs: (True, ""))
+    monkeypatch.setattr(om, "run_exec_gate",
+                        lambda ws, sig, deps_dir=None: ([], "signal ok"))
+    monkeypatch.setattr(om, "run_pytest", pytest_fn)
+    monkeypatch.setattr(om, "run_criteria_checks",
+                        lambda ws, checks, deps_dir=None: criteria_results)
+
+
+def _events(run_dir):
+    lines = (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines if line.strip()]
+
+
+# ------------------------------------------------------------ 부분 합격 출하
+
+def test_partial_pass_ships_with_open_criteria(tmp_path, monkeypatch):
+    """성공 신호 OK + pytest 8/9 -> ABORT 대신 부분 합격으로 출하."""
+    _mock_gates(monkeypatch,
+                lambda ws, deps_dir=None: ([dict(PYTEST_ISSUE)], LOG_PLAIN),
+                [{"criterion": "c1", "passed": True, "detail": "",
+                  "output_tail": ""},
+                 {"criterion": "c2", "passed": False, "detail": "missing",
+                  "output_tail": ""}])
+    llm = MockLLM(
+        critic=[json.dumps(_design_with_checks()), fenced(TEST_CODE), "LGTM"],
+        generator=[fenced(GOOD_CORE), fenced(GOOD_MAIN), fenced(GOOD_MAIN),
+                   "# readme"],
+    )
+    run_dir = tmp_path / "runs" / "run1"
+    orch = om.Orchestrator(llm, run_dir)
+    assert orch.run("tiny todo cli") is True
+    assert orch.partial_pass is True
+
+    kinds = [e["event"] for e in _events(run_dir)]
+    assert "partial-pass" in kinds
+    assert "aborted" not in kinds
+
+    entry = run_index.load_index(tmp_path / "runs")[0]
+    assert entry["ok"] is True
+    assert entry["status"].startswith("OK (partial")
+    # 떨어진 기준이 index에 남아 배치의 자동 improve 표적이 된다
+    assert entry["failed_criteria"] == ["c2"]
+
+
+def test_partial_pass_requires_threshold(tmp_path, monkeypatch):
+    """통과율이 낮으면 (5/9 = 56%) 부분 합격 없이 그대로 ABORT."""
+    log = LOG_PLAIN.replace("1 failed, 8 passed", "4 failed, 5 passed")
+    _mock_gates(monkeypatch,
+                lambda ws, deps_dir=None: ([dict(PYTEST_ISSUE)], log), [])
+    llm = MockLLM(
+        critic=[json.dumps(_design_with_checks()), fenced(TEST_CODE),
+                json.dumps({"keywords": ["x"], "lesson": "y"})],  # 오답노트 1콜
+        generator=[fenced(GOOD_CORE), fenced(GOOD_MAIN), fenced(GOOD_MAIN)],
+    )
+    run_dir = tmp_path / "runs" / "run1"
+    orch = om.Orchestrator(llm, run_dir)
+    assert orch.run("tiny todo cli") is False
+    assert "aborted" in [e["event"] for e in _events(run_dir)]
+
+
+# ------------------------------------------------------------ 31B 계약 중재
+
+def test_arbitration_blame_test_repairs_tests(tmp_path, monkeypatch):
+    """단언 실패 반복 -> 31B 중재 'test 과잉' -> 시험지 수리 -> 그래도 안 되면 부분 합격."""
+    _mock_gates(monkeypatch,
+                lambda ws, deps_dir=None: ([dict(PYTEST_ISSUE)], LOG_ASSERT),
+                [{"criterion": "c1", "passed": True, "detail": "",
+                  "output_tail": ""}])
+    arb = json.dumps({"blame": "test",
+                      "instruction": "compare numbers with float(), not strings"})
+    llm = MockLLM(
+        critic=[json.dumps(_design_with_checks()), fenced(TEST_CODE),
+                arb, fenced(TEST_CODE)],
+        generator=[fenced(GOOD_CORE), fenced(GOOD_MAIN),
+                   fenced(GOOD_MAIN), fenced(GOOD_MAIN), "# readme"],
+    )
+    run_dir = tmp_path / "runs" / "run1"
+    orch = om.Orchestrator(llm, run_dir)
+    assert orch.run("tiny todo cli") is True  # 부분 합격으로 생환
+
+    events = _events(run_dir)
+    arb_events = [e for e in events if e["event"] == "arbitration"]
+    assert arb_events and arb_events[0]["blame"] == "test"
+    kinds = [e["event"] for e in events]
+    assert "tests-regen-written" in kinds
+    assert "partial-pass" in kinds
+
+
+def test_arbitration_blame_code_targeted_fix(tmp_path, monkeypatch):
+    """중재 'code 위반' -> 지시 포함 표적 수정 -> 게이트 완전 통과."""
+    calls = {"n": 0}
+
+    def flaky_pytest(ws, deps_dir=None):
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            return [dict(PYTEST_ISSUE)], LOG_ASSERT
+        return [], "9 passed in 0.4s"
+
+    _mock_gates(monkeypatch, flaky_pytest,
+                [{"criterion": "c1", "passed": True, "detail": "",
+                  "output_tail": ""}])
+    arb = json.dumps({"blame": "code",
+                      "instruction": "undefined categories must default to Hold"})
+    llm = MockLLM(
+        critic=[json.dumps(_design_with_checks()), fenced(TEST_CODE), arb],
+        generator=[fenced(GOOD_CORE), fenced(GOOD_MAIN),
+                   fenced(GOOD_MAIN), fenced(GOOD_MAIN), "# readme"],
+    )
+    run_dir = tmp_path / "runs" / "run1"
+    orch = om.Orchestrator(llm, run_dir)
+    assert orch.run("tiny todo cli") is True
+    assert orch.partial_pass is False  # 완전 통과
+
+    events = _events(run_dir)
+    arb_events = [e for e in events if e["event"] == "arbitration"]
+    assert arb_events and arb_events[0]["blame"] == "code"
+    entry = run_index.load_index(tmp_path / "runs")[0]
+    assert entry["status"] == "OK"
+    assert entry["fixes"]["exec"] == 2  # 일반 수리 1 + 중재 수리 1
+
+
+# ------------------------------------------------------------ 통과율 파서
+
+def test_pytest_pass_rate(tmp_path):
+    orch = om.Orchestrator(MockLLM([], []), tmp_path / "r", skip_exec=True)
+    orch.last_exec_log = "no summary here"
+    assert orch._pytest_pass_rate() is None
+    orch.last_exec_log = "2 failed, 6 passed in 1s"
+    assert orch._pytest_pass_rate() == pytest.approx(0.75)
+    orch.last_exec_log = "9 passed in 0.2s"
+    assert orch._pytest_pass_rate() == 1.0
+    orch.last_exec_log = "3 failed in 0.2s"
+    assert orch._pytest_pass_rate() == 0.0
+
+
+# ------------------------------------------------------------ 출제 규칙 강화
+
+def test_tests_prompt_forbids_exact_output_match():
+    from prompts import arbitrate_prompt, tests_prompt
+    p = tests_prompt(make_design())
+    assert "ENTIRE stdout" in p
+    assert "pytest.approx" in p
+    d = make_design()
+    a = arbitrate_prompt(d, TEST_CODE, LOG_ASSERT)
+    assert '"blame"' in a and "over-specifies" in a
+
+
+# ------------------------------------------------------------ 사용자 시점 총평
+
+class FakeCritic:
+    def __init__(self, replies):
+        self.replies = list(replies)
+
+    def generate(self, role, prompt, temperature=None):
+        assert role == "critic"
+        self.prompt = prompt
+        return self.replies.pop(0)
+
+
+def _mk_run_dir(tmp_path):
+    run_dir = tmp_path / "runs" / "r1"
+    (run_dir / "workspace").mkdir(parents=True)
+    (run_dir / "workspace" / "README.md").write_text("# tool\nusage...",
+                                                     encoding="utf-8")
+    (run_dir / "design.json").write_text(
+        json.dumps({"acceptance_criteria": ["adds an item"]}),
+        encoding="utf-8")
+    return run_dir
+
+
+def test_user_review_suggest(tmp_path):
+    run_dir = _mk_run_dir(tmp_path)
+    llm = FakeCritic([json.dumps({"verdict": "SUGGEST",
+                                  "feedback": "합계 요약 출력을 추가하라"})])
+    fb = reviewer.user_review(llm, run_dir, "todo cli")
+    assert fb == "합계 요약 출력을 추가하라"
+    marker = json.loads(reviewer.review_marker(run_dir).read_text(encoding="utf-8"))
+    assert marker["verdict"] == "SUGGEST"
+    # 블랙박스 원칙: 프롬프트에 README는 있어도 소스 코드는 없다
+    assert "# tool" in llm.prompt
+    assert "NOT seen the source code" in llm.prompt
+
+
+def test_user_review_nochange(tmp_path):
+    run_dir = _mk_run_dir(tmp_path)
+    llm = FakeCritic([json.dumps({"verdict": "NOCHANGE", "feedback": ""})])
+    assert reviewer.user_review(llm, run_dir, "todo cli") is None
+    assert reviewer.review_marker(run_dir).exists()  # NOCHANGE도 마커 기록
+
+
+def test_user_review_unparseable_treated_as_nochange(tmp_path):
+    run_dir = _mk_run_dir(tmp_path)
+    llm = FakeCritic(["garbage", "more garbage"])
+    assert reviewer.user_review(llm, run_dir, "todo cli") is None
+    marker = json.loads(reviewer.review_marker(run_dir).read_text(encoding="utf-8"))
+    assert marker["verdict"] == "NOCHANGE"
