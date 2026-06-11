@@ -27,8 +27,8 @@ from lessons import find_relevant, record_lesson
 from llm import CallBudgetExceeded
 from prompts import (critique_prompt, design_prompt, extract_code,
                      extract_markdown, fix_prompt, implement_prompt,
-                     readme_prompt, revise_prompt, tests_fix_prompt,
-                     tests_prompt)
+                     improve_prompt, readme_prompt, revise_prompt,
+                     tests_fix_prompt, tests_prompt)
 from schema import extract_json, parse_design
 
 K_MAX_FIX = 3          # 층마다 자가수정 상한
@@ -46,7 +46,8 @@ class RunAborted(Exception):
 class Orchestrator:
     def __init__(self, llm, run_dir: Path, critique_rounds: int = DEFAULT_ROUNDS,
                  skip_exec: bool = False, max_minutes: int = DEFAULT_MAX_MINUTES,
-                 resume_from: Path | None = None):
+                 resume_from: Path | None = None,
+                 improve_from: Path | None = None, feedback: str = ""):
         self.llm = llm
         self.run_dir = Path(run_dir)
         self.workspace = self.run_dir / "workspace"
@@ -68,6 +69,10 @@ class Orchestrator:
         self.critique_rounds_used = 0
         self._failure_keywords: list[str] = []
         self.resume_from = Path(resume_from) if resume_from else None
+        self.improve_from = Path(improve_from) if improve_from else None
+        self.feedback = feedback
+        self._prev_score: int | None = None   # improve: 직전 런의 통과 수
+        self._old_commands: set[str] = set()  # improve: 기존 기준의 커맨드
         self._events = (self.run_dir / "events.jsonl").open("a", encoding="utf-8")
 
     # ------------------------------------------------------------ events
@@ -90,13 +95,21 @@ class Orchestrator:
     def run(self, idea: str) -> bool:
         self.idea = idea
         try:
-            if self.resume_from:
+            if self.improve_from:
+                if not self._phase_improve():
+                    # 31B가 NOCHANGE - 개선 없이 원본 그대로가 답
+                    self._write_report(idea, status="OK (NOCHANGE - nothing "
+                                                    "worth improving)")
+                    self._say("[OK] 31B says NOCHANGE - original kept")
+                    return True
+            elif self.resume_from:
                 self._resume_design()
                 self._resume_tests()
             else:
                 self._phase_design(idea, self._load_lessons(idea))
                 self._phase_tests()
-            self._phase_implement()
+            if not self.improve_from:
+                self._phase_implement()
             self._write_fixtures()
             self._git_init()
             ok = self._pass_gates(context="initial build")
@@ -195,6 +208,160 @@ class Orchestrator:
 
     # ------------------------------------------------------------ phases
 
+    # ------------------------------------------------------------ improve
+
+    def _phase_improve(self) -> bool:
+        """이전 성공 런을 개선. False = NOCHANGE (개선할 게 없음)."""
+        prev = self.improve_from
+        design_path = prev / "design.json"
+        if not design_path.exists():
+            raise RunAborted(f"--improve: no design.json in {prev}")
+        old_design = json.loads(design_path.read_text(encoding="utf-8"))
+        prev_ws = prev / "workspace"
+        if not prev_ws.exists():
+            raise RunAborted(f"--improve: no workspace in {prev}")
+
+        # 이전 결과물 전체 복사 (코드 + 테스트 + fixture)
+        for f in sorted(prev_ws.iterdir()):
+            if f.is_file():
+                (self.workspace / f.name).write_bytes(f.read_bytes())
+        self._prev_score = self._prev_passed(prev)
+        self._old_commands = {str(c.get("criterion", "")) or str(c.get("command", ""))
+                              for c in old_design.get("criteria_checks") or []}
+        self._say(f"[PHASE] improve from {prev.name} (31B) - "
+                  f"previous score {self._prev_score}")
+        self.log("phase", name="improve", from_run=prev.name,
+                 prev_score=self._prev_score)
+
+        prompt = improve_prompt(old_design, self._read_files(), self.feedback,
+                                self._prev_scoreboard_text(prev))
+        plan = None
+        for _ in range(2):
+            text = self.llm.generate("critic", prompt).strip()
+            if re.match(r"^NOCHANGE\b", text):
+                self.log("improve-nochange")
+                return False
+            raw = extract_json(text)
+            if not raw:
+                continue
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            design = parsed.get("design")
+            if not isinstance(design, dict):
+                continue
+            design = self._merge_old_criteria(old_design, design)
+            errs = validate_design(design)
+            if errs:
+                self.log("improve-design-rejected", errors=errs)
+                continue
+            plan = parsed
+            self.design = design
+            break
+        if plan is None:
+            raise RunAborted("--improve: 31B returned no usable plan")
+
+        (self.run_dir / "design.json").write_text(
+            json.dumps(self.design, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        self.log("improve-plan", files=[c.get("path")
+                                        for c in plan.get("changes", [])])
+
+        # 변경 계획 적용: 기존 파일은 표적 수정, 새 파일은 구현
+        self._say("[PHASE] apply improvement changes (26B)")
+        self.log("phase", name="implement")
+        for change in plan.get("changes", []):
+            self._check_time()
+            path = str(change.get("path", "")).strip()
+            instructions = [str(i) for i in change.get("instructions", [])]
+            if not path or path == TEST_FILE:
+                continue
+            if (self.workspace / path).exists():
+                self._revise_file(path, instructions)
+            else:
+                text = self.llm.generate(
+                    "generator",
+                    implement_prompt(self.design, path, self._read_files()))
+                code = extract_code(text)
+                if code is not None:
+                    (self.workspace / path).write_text(code, encoding="utf-8")
+                    self.log("file-written", file=path, chars=len(code))
+                    self._say(f"  [OK] wrote {path}")
+        return True
+
+    @staticmethod
+    def _merge_old_criteria(old: dict, new: dict) -> dict:
+        """기존 기준은 회귀 방지선 — 31B가 빼먹었으면 강제로 되살린다."""
+        for key in ("acceptance_criteria", "criteria_checks"):
+            old_items = old.get(key) or []
+            new_items = list(new.get(key) or [])
+            seen = {json.dumps(i, sort_keys=True, ensure_ascii=False)
+                    for i in new_items}
+            restored = [i for i in old_items
+                        if json.dumps(i, sort_keys=True,
+                                      ensure_ascii=False) not in seen]
+            new[key] = restored + new_items
+        return new
+
+    @staticmethod
+    def _prev_passed(prev: Path) -> int | None:
+        """이전 런의 마지막 채점표 통과 수 (events.jsonl에서)."""
+        path = prev / "events.jsonl"
+        if not path.exists():
+            return None
+        passed = None
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if e.get("event") == "scoreboard":
+                passed = e.get("passed")
+        return passed
+
+    @staticmethod
+    def _prev_scoreboard_text(prev: Path) -> str:
+        path = prev / "events.jsonl"
+        if not path.exists():
+            return "(not available)"
+        results = None
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if e.get("event") == "scoreboard":
+                results = e.get("results")
+        if not results:
+            return "(not available)"
+        return "\n".join(
+            f"{'[PASS]' if r.get('passed') else '[FAIL]'} {r.get('criterion')}"
+            + ("" if r.get("passed") else f" - {r.get('detail', '')}")
+            for r in results)
+
+    def _improvement_verdict(self) -> str | None:
+        """improve 모드 결과 판정 문자열 (REPORT용). 일반 런이면 None."""
+        if not self.improve_from or not self.scoreboard:
+            return None
+        old = [r for r in self.scoreboard
+               if r.get("criterion") in self._old_commands]
+        new = [r for r in self.scoreboard
+               if r.get("criterion") not in self._old_commands]
+        old_passed = sum(1 for r in old if r["passed"])
+        new_passed = sum(1 for r in new if r["passed"])
+        regressed = (self._prev_score is not None
+                     and old_passed < self._prev_score)
+        improved = (not regressed
+                    and (new_passed > 0 or
+                         (self._prev_score is not None
+                          and old_passed > self._prev_score)))
+        tag = ("REGRESSED" if regressed
+               else "IMPROVED" if improved else "NO-GAIN")
+        return (f"{tag} - old criteria {old_passed}/{len(old)} "
+                f"(was {self._prev_score}), new criteria "
+                f"{new_passed}/{len(new)}")
+
     def _resume_design(self) -> None:
         design_path = self.resume_from / "design.json"
         if not design_path.exists():
@@ -223,6 +390,7 @@ class Orchestrator:
 
     def _phase_design(self, idea: str, lesson_texts: list[str] | None = None) -> None:
         self._say("[PHASE] design (31B)")
+        self.log("phase", name="design")
         errors: list[str] = []
         for attempt in range(DESIGN_ATTEMPTS):
             self._check_time()
@@ -305,6 +473,7 @@ class Orchestrator:
         if self.skip_exec:
             return  # 실행 게이트가 없으면 pytest를 돌릴 곳도 없다
         self._say("[PHASE] write acceptance tests (31B)")
+        self.log("phase", name="tests")
         import ast as ast_mod
         for attempt in range(2):
             self._check_time()
@@ -326,6 +495,7 @@ class Orchestrator:
 
     def _phase_implement(self) -> None:
         self._say("[PHASE] implement (26B)")
+        self.log("phase", name="implement")
         notes = self._load_notes()
         order = implementation_order(self.design)
         written: dict[str, str] = {}
@@ -447,6 +617,8 @@ class Orchestrator:
         for round_no in range(1, self.critique_rounds + 1):
             self._check_time()
             self._say(f"[PHASE] critique round {round_no}/{self.critique_rounds} (31B)")
+            self.log("phase", name="critique", round=round_no,
+                     total=self.critique_rounds)
             self.critique_rounds_used = round_no
             verdict = self._get_critique()
             if verdict is None:
@@ -758,8 +930,14 @@ class Orchestrator:
                             f"-> ${costs.get(role, 0):.4f}\n")
                 tok_line += (f"- Cost (OpenRouter paid equivalent): "
                              f"**${costs.get('total', 0):.4f}**\n")
+        improve_line = ""
+        verdict = self._improvement_verdict()
+        if verdict:
+            improve_line = (f"- Improved from: {self.improve_from.name}\n"
+                            f"- Improvement: **{verdict}**\n")
         report = (f"# Generator run report\n\n"
                   f"- Status: **{status}**\n"
+                  f"{improve_line}"
                   f"- Idea: {idea}\n"
                   f"- API calls used: {getattr(self.llm, 'call_count', '?')}\n"
                   f"{tok_line}\n"
@@ -789,6 +967,9 @@ class Orchestrator:
             "packages": list(self._packages),
             "failure_keywords": list(self._failure_keywords),
         }
+        if self.improve_from:
+            entry["improved_from"] = self.improve_from.name
+            entry["improvement"] = self._improvement_verdict()
         if run_index.record_run(self.run_dir, entry):
             self.log("index-recorded", run=entry["run"], status=status)
 
@@ -808,7 +989,17 @@ def main() -> int:
     parser.add_argument("--resume", metavar="RUN_DIR",
                         help="reuse design.json + test_acceptance.py from a "
                              "previous run dir, skip to implementation phase")
+    parser.add_argument("--improve", metavar="RUN_DIR",
+                        help="improve a previous successful run: keep its "
+                             "criteria as the regression bar, add stricter "
+                             "ones, apply targeted changes")
+    parser.add_argument("--feedback", default="",
+                        help="user feedback for --improve (what to fix/add)")
     args = parser.parse_args()
+
+    if args.improve and args.resume:
+        print("[ERROR] --improve and --resume are mutually exclusive")
+        return 1
 
     skip_exec = args.skip_exec
     if not skip_exec and not docker_available():
@@ -819,6 +1010,10 @@ def main() -> int:
     if resume_from and not resume_from.exists():
         print(f"[ERROR] --resume dir not found: {resume_from}")
         return 1
+    improve_from = Path(args.improve) if args.improve else None
+    if improve_from and not improve_from.exists():
+        print(f"[ERROR] --improve dir not found: {improve_from}")
+        return 1
 
     from llm import LLMClient
     llm = LLMClient(max_calls=args.max_calls)
@@ -827,7 +1022,8 @@ def main() -> int:
     print(f"[START] run dir: {run_dir}")
     orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
                         skip_exec=skip_exec, max_minutes=args.max_minutes,
-                        resume_from=resume_from)
+                        resume_from=resume_from, improve_from=improve_from,
+                        feedback=args.feedback)
     ok = orch.run(args.idea)
 
     # 종료 예약: 플래그가 있으면 이번 회차로 끝 (재도전도 안 잡는다)
@@ -836,7 +1032,8 @@ def main() -> int:
         return 0 if ok else 1
 
     # 실패 시 1회 자동 재도전 (resume 모드에서는 건너뜀 — 특정 설계를 재사용 중)
-    if not ok and not args.no_retry and not resume_from and llm.call_count + 8 <= args.max_calls:
+    if (not ok and not args.no_retry and not resume_from and not improve_from
+            and llm.call_count + 8 <= args.max_calls):
         print("[RETRY] first attempt failed - retrying once with recorded lessons")
         run_dir = PROJECT_ROOT / "runs" / (
             datetime.now().strftime("%Y%m%d-%H%M%S") + "-retry")

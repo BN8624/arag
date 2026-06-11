@@ -45,7 +45,8 @@ def test_live_run_detected(tmp_path):
     assert s["live"]["running"] is True  # 방금 만든 파일 = LIVE_THRESHOLD 안
     assert s["live"]["description"] == "expense tool"
     assert s["live"]["last_event"] == "design-accepted"
-    assert any("design-accepted" in line for line in s["live"]["events_tail"])
+    assert any("설계도 승인" in line and "2개" in line
+               for line in s["live"]["events_tail"])
 
 
 def test_latest_run_wins(tmp_path):
@@ -115,6 +116,29 @@ def test_launch_clears_stop_flag(tmp_path, monkeypatch):
     assert ok is True
     assert dashboard.STOP_FILE.exists() is False  # 수동 시작 = 예약 해제
     assert "new idea" in launched["args"][0]
+
+
+def test_humanize_korean_factory_lines():
+    cases = [
+        ({"t": "2026-06-11T19:00:01", "event": "phase", "name": "design"},
+         "[31B] 설계 시작"),
+        ({"t": "x", "event": "phase", "name": "critique", "round": 1, "total": 2},
+         "품질심사 1/2라운드"),
+        ({"t": "x", "event": "file-written", "file": "main.py"},
+         "[26B] 부품 제작: main.py"),
+        ({"t": "x", "event": "exec-issues", "target": "main.py"},
+         "[26B] main.py 수리"),
+        ({"t": "x", "event": "scoreboard", "passed": 4, "total": 5}, "4/5"),
+        ({"t": "x", "event": "critique-lgtm"}, "LGTM"),
+        ({"t": "x", "event": "aborted", "reason": "stuck"}, "라인 정지"),
+    ]
+    for event, expected in cases:
+        assert expected in dashboard._humanize(event)
+
+
+def test_humanize_unknown_event_falls_back_to_raw():
+    assert "some-new-event" in dashboard._humanize(
+        {"t": "x", "event": "some-new-event"})
 
 
 def test_corrupt_events_skipped(tmp_path):

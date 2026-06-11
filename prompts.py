@@ -401,6 +401,47 @@ Respond with exactly one Python code block containing the complete corrected
 test file."""
 
 
+def improve_prompt(design: dict, files: dict[str, str], feedback: str,
+                   scoreboard_text: str) -> str:
+    parts = [f"--- {name} ---\n{content}" for name, content in files.items()]
+    feedback_part = ""
+    if feedback.strip():
+        feedback_part = f"\nUSER FEEDBACK (the most important input):\n{feedback}\n"
+    return f"""You are the architect reviewing a WORKING prototype that already
+passed all automated gates. Decide how to make it meaningfully better.
+
+ORIGINAL DESIGN:
+{json.dumps(design, ensure_ascii=False, indent=2)}
+
+CURRENT CODE:
+{chr(10).join(parts)}
+
+LAST ACCEPTANCE RESULTS:
+{scoreboard_text}
+{feedback_part}
+{HARD_RULES}
+
+Your job:
+1. If there is genuinely nothing worth improving (and no user feedback to
+   address), respond with exactly: NOCHANGE
+2. Otherwise produce an UPGRADED design plus a minimal change plan.
+
+Upgrade rules (violations are rejected automatically):
+- KEEP every existing entry of "acceptance_criteria" and "criteria_checks"
+  unchanged - they are the regression bar. APPEND 1-3 new, stricter criteria
+  (each with an executable check) that capture the improvement. If the user
+  feedback names a problem, at least one new criterion must verify the fix.
+- Keep the existing file layout where possible. Prefer changing few files.
+  You may add a new file only if the improvement clearly needs one.
+- "changes": list every file that must be modified or created, with concrete
+  instructions the implementer can follow without guessing.
+
+Respond with a single JSON object (no prose, no fences):
+{{"design": {{...the full updated design, same schema as the original...}},
+  "changes": [{{"path": "main.py",
+               "instructions": ["specific change 1", "specific change 2"]}}]}}"""
+
+
 def readme_prompt(design: dict) -> str:
     sig = design.get("success_signal", {})
     checks = design.get("criteria_checks") or []

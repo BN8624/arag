@@ -51,24 +51,88 @@ def _read_events(run_dir: Path) -> list[dict]:
     return events
 
 
+# 정적 문구 (이벤트 -> 한 줄 한국어). 동적 값이 필요한 건 _humanize의 if가 처리.
+_EVENT_TEXT = {
+    "tests": "[31B] 검수 시험지 출제 중",
+    "tests-written": "[31B] 검수 시험지 완성",
+    "tests-skipped": "검수 시험지 생략 (실행 게이트 없음)",
+    "tests-syntax-error": "[31B] 시험지에 오타 -> 다시 출제",
+    "tests-regen": "시험지 자체가 불량 -> [31B] 재작성 요청",
+    "tests-regen-written": "[31B] 시험지 수리 완료",
+    "tests-regen-no-code": "[31B] 시험지 수리 실패 - 기존 시험지 유지",
+    "tests-regen-syntax-error": "[31B] 수리본에 오타 - 기존 시험지 유지",
+    "critique-skipped-perfect": "검수 만점 - 품질심사 생략하고 바로 출하",
+    "critique-lgtm": "[31B] 품질심사 합격(LGTM) - 조기 출하",
+    "critique-unparseable": "[31B] 심사평을 못 읽음 - 현재 빌드 유지",
+    "rollback": "수리하다 라인이 깨짐 -> 직전 합격품으로 복원",
+    "score-regression": "수리 후 점수 하락 -> 직전 합격품으로 복원",
+    "salvaged": "도중 중단 - 마지막 합격품으로 출하",
+    "lesson-recorded": "오답노트에 실패 원인 기록",
+    "pip-install-failed": "자재(패키지) 입고 실패",
+    "no-progress": "같은 불량 반복 - 라인 정지",
+    "budget-exhausted": "수리 한도 소진 - 라인 정지",
+    "snapshot": "합격품 스냅샷 저장",
+    "readme-written": "사용설명서(README) 작성 완료",
+    "readme-skipped": "사용설명서 생략",
+    "pyproject-written": "포장(pyproject.toml) 완료",
+    "pyproject-skipped": "포장 생략",
+    "index-recorded": "생산 장부에 기록",
+    "design-resumed": "이전 설계도 재사용 (resume)",
+    "tests-resumed": "이전 시험지 재사용 (resume)",
+    "fix-no-code": "[26B] 수리 응답에 코드 없음",
+    "revise-no-code": "[26B] 수정 응답에 코드 없음",
+}
+
+_PHASE_TEXT = {
+    "design": "[31B] 설계 시작",
+    "tests": "[31B] 검수 시험지 출제 시작",
+    "implement": "[26B] 제작 시작",
+}
+
+
 def _humanize(e: dict) -> str:
     kind = e.get("event", "?")
     t = str(e.get("t", ""))[11:19]  # HH:MM:SS
-    extras = {k: v for k, v in e.items() if k not in ("event", "t")}
-    detail = ""
-    if "file" in extras:
-        detail = str(extras["file"])
-    elif "files" in extras:
-        detail = f"{len(extras['files'])} files"
-    elif "passed" in extras and "total" in extras:
-        detail = f"{extras['passed']}/{extras['total']}"
-    elif "count" in extras:
-        detail = f"x{extras['count']}"
-    elif "issues" in extras and isinstance(extras["issues"], list):
-        detail = f"{len(extras['issues'])} issues"
-    elif "reason" in extras:
-        detail = str(extras["reason"])[:80]
-    return f"{t}  {kind}  {detail}".rstrip()
+    n = e.get("count", 0)
+    if kind == "phase":
+        name = e.get("name", "")
+        if name == "critique":
+            text = f"[31B] 품질심사 {e.get('round', '?')}/{e.get('total', '?')}라운드 시작"
+        else:
+            text = _PHASE_TEXT.get(name, f"단계 시작: {name}")
+    elif kind == "design-accepted":
+        text = f"[31B] 설계도 승인 - 부품 {len(e.get('files', []))}개"
+    elif kind == "design-rejected":
+        text = f"[31B] 설계도 반려 ({e.get('attempt', '?')}차) -> 재설계"
+    elif kind == "file-written":
+        text = f"[26B] 부품 제작: {e.get('file', '?')}"
+    elif kind == "file-fixed":
+        text = f"[26B] 부품 수리: {e.get('file', '?')}"
+    elif kind == "file-revised":
+        text = f"[26B] 심사 지적 반영: {e.get('file', '?')}"
+    elif kind == "fixture-written":
+        text = f"모의 자재 배치: {e.get('file', '?')}"
+    elif kind == "static-issues":
+        text = f"검수(도면 대조): 불량 {len(e.get('issues', []))}건 -> [26B] 수리"
+    elif kind == "exec-issues":
+        text = f"검수(시운전): 실패 -> [26B] {e.get('target', '?')} 수리"
+    elif kind == "scoreboard":
+        text = f"최종 검수 점수: {e.get('passed', '?')}/{e.get('total', '?')}"
+    elif kind == "packages-installed":
+        text = "자재 입고: " + ", ".join(e.get("packages", []))
+    elif kind == "lessons-injected":
+        text = f"오답노트 {n}건 설계실에 전달"
+    elif kind == "critique-notes-injected":
+        text = f"비평노트 {n}건 작업대에 전달"
+    elif kind == "critique-notes-recorded":
+        text = f"비평노트 {n}건 수확"
+    elif kind == "aborted":
+        text = f"라인 정지: {str(e.get('reason', ''))[:60]}"
+    elif kind == "error":
+        text = f"공장 사고: {str(e.get('reason', ''))[:60]}"
+    else:
+        text = _EVENT_TEXT.get(kind, kind)
+    return f"{t}  {text}"
 
 
 def _latest_run_dir() -> Path | None:
