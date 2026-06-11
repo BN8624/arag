@@ -30,7 +30,7 @@ from run_index import load_index
 RUNS_DIR = PROJECT_ROOT / "runs"
 DEFAULT_RUNS = 3
 MAX_RUNS = 20
-MAX_CONSECUTIVE_FAILURES = 2
+MAX_CONSECUTIVE_FAILURES = 3  # 회차당 내부 재도전 1회 포함 = 빌드 6연속 실패 시 정지
 
 
 def _default_runner(args: list[str]) -> int:
