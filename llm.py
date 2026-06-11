@@ -94,6 +94,13 @@ def _is_transient(err: Exception) -> bool:
         return True
     if bool(re.search(r"\b(500|502|503|504)\b", str(err))):
         return True
+    # SDK가 소켓 에러를 자기 예외로 감싸면 isinstance에 안 걸린다 —
+    # 메시지 패턴으로도 잡는다 (WinError 10054 즉사 실관측, 2026-06-12 배치)
+    msg = str(err).lower()
+    if any(k in msg for k in ("winerror 10054", "connection reset",
+                              "connection aborted", "connection refused",
+                              "timed out", "deadline exceeded")):
+        return True
     return isinstance(err, (ConnectionError, TimeoutError, socket.error,
                             OSError))
 

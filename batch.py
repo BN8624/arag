@@ -12,7 +12,8 @@ improve 폭주 방지:
   - 총평은 런당 1회 (auto_review.json 마커, NOCHANGE여도 기록)
 
 회차 사이마다 STOP_AFTER_RUN 플래그 확인 (대시보드 종료예약 버튼이 만듦).
-자동 중단: STOP 플래그 / 일일 쿼터(RPD) 소진 / 연속 실패 2회.
+자동 중단: STOP 플래그 / 일일 쿼터(RPD) 소진 / 연속 실패 3회 /
+인프라 장애(API 5xx·네트워크) 연속 2회 (첫 번은 15분 대기 후 재개).
 
 사용법:
     python batch.py --runs 3
@@ -21,6 +22,7 @@ improve 폭주 방지:
 import argparse
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -32,6 +34,25 @@ RUNS_DIR = PROJECT_ROOT / "runs"
 DEFAULT_RUNS = 3
 MAX_RUNS = 20
 MAX_CONSECUTIVE_FAILURES = 3  # 회차당 내부 재도전 1회 포함 = 빌드 6연속 실패 시 정지
+# 인프라 장애(API 5xx 연쇄·네트워크 절단)는 모델 실력과 무관 — 회차를 태우지 말고
+# 한 번 길게 기다렸다가 재개, 그래도 죽으면 정지 (새벽 07시 500 연쇄로 3회차 소진 실관측)
+INFRA_WAIT_SEC = 900
+MAX_INFRA_STRIKES = 2
+_INFRA_MARKERS = ("api call failed", "winerror", "connection reset",
+                  "connection aborted")
+
+
+def _looks_infra(text: str) -> bool:
+    """실패 사유가 인프라 장애(API/네트워크)로 보이는가."""
+    t = str(text).lower()
+    return any(k in t for k in _INFRA_MARKERS)
+
+
+def _last_status_since(runs_dir: Path, since_iso: str) -> str:
+    """이번 회차가 기록한 마지막 런의 status (인프라 장애 분류용)."""
+    entries = [e for e in load_index(runs_dir)
+               if str(e.get("t", "")) >= since_iso]
+    return str(entries[-1].get("status", "")) if entries else ""
 
 
 def _default_runner(args: list[str]) -> int:
@@ -110,14 +131,38 @@ def summary_lines(entries: list[dict], since_iso: str) -> list[str]:
 def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
               idea_gen=None, reviewer_fn=None,
               stop_file: Path = STOP_FILE,
-              runs_dir: Path | None = None) -> dict:
+              runs_dir: Path | None = None,
+              sleep_fn=time.sleep) -> dict:
     """배치 루프. 결과 요약 dict 반환 (테스트 가능하도록 의존성 주입)."""
     runs_dir = Path(runs_dir) if runs_dir else RUNS_DIR
     started_at = datetime.now().isoformat(timespec="seconds")
     n_runs = max(1, min(int(n_runs), MAX_RUNS))
     done = ok = improves = 0
     consecutive_failures = 0
+    infra_strikes = 0
     stopped_by = None
+
+    def _handle_failure(reason: str) -> str | None:
+        """실패 1건 처리. 배치를 멈춰야 하면 중단 사유를 반환.
+
+        인프라 장애는 모델 실패와 분리: 첫 번은 길게 기다렸다 재개,
+        연속 두 번이면 정지 (회차·콜을 장애에 태우지 않는다).
+        """
+        nonlocal consecutive_failures, infra_strikes
+        if _looks_infra(reason):
+            infra_strikes += 1
+            if infra_strikes >= MAX_INFRA_STRIKES:
+                print("[BATCH] infra errors persist - stopping")
+                return "infra-outage"
+            print(f"[BATCH] infra error (API/network) - waiting "
+                  f"{INFRA_WAIT_SEC // 60} min before the next round")
+            sleep_fn(INFRA_WAIT_SEC)
+            return None
+        consecutive_failures += 1
+        if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+            print("[BATCH] consecutive failures - stopping")
+            return "consecutive-failures"
+        return None
 
     def _quota_guard(fn):
         """일일 쿼터 소진을 구분해서 배치 전체를 멈춘다."""
@@ -139,18 +184,18 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
             run, idea, feedback = target
             print(f"[BATCH] round {round_no}/{n_runs}: improving {run} "
                   "(feedback = failed criteria, 0 calls)")
+            round_start = datetime.now().isoformat(timespec="seconds")
             code = runner(["--improve", str(Path(runs_dir) / run),
                            "--feedback", feedback, idea])
             done += 1
             improves += 1
             if code == 0:
                 ok += 1
-                consecutive_failures = 0
+                consecutive_failures = infra_strikes = 0
             else:
-                consecutive_failures += 1
-                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                    print("[BATCH] consecutive failures - stopping")
-                    stopped_by = "consecutive-failures"
+                stopped_by = _handle_failure(
+                    _last_status_since(runs_dir, round_start))
+                if stopped_by:
                     break
             continue
 
@@ -173,18 +218,18 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
                     break
             if feedback:
                 print(f"[BATCH] reviewer suggests improvements -> improve {run}")
+                round_start = datetime.now().isoformat(timespec="seconds")
                 code = runner(["--improve", str(Path(runs_dir) / run),
                                "--feedback", feedback, idea])
                 done += 1
                 improves += 1
                 if code == 0:
                     ok += 1
-                    consecutive_failures = 0
+                    consecutive_failures = infra_strikes = 0
                 else:
-                    consecutive_failures += 1
-                    if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                        print("[BATCH] consecutive failures - stopping")
-                        stopped_by = "consecutive-failures"
+                    stopped_by = _handle_failure(
+                        _last_status_since(runs_dir, round_start))
+                    if stopped_by:
                         break
                 continue
             print("[BATCH] reviewer says NOCHANGE - moving on to a new idea")
@@ -205,10 +250,8 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
                     break
         except Exception as err:  # noqa: BLE001 - 출제 실패는 회차 실패로 집계
             print(f"[BATCH] idea generation failed: {err}")
-            consecutive_failures += 1
-            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                print("[BATCH] consecutive failures - stopping")
-                stopped_by = "consecutive-failures"
+            stopped_by = _handle_failure(str(err))
+            if stopped_by:
                 break
             continue
 
@@ -218,16 +261,16 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
         if out.get("level") is not None:
             # 출제 레벨을 index에 남겨 난이도 변화가 전후 비교를 오염시키는지 추적
             cmd += ["--level", str(out["level"])]
+        round_start = datetime.now().isoformat(timespec="seconds")
         code = runner(cmd)
         done += 1
         if code == 0:
             ok += 1
-            consecutive_failures = 0
+            consecutive_failures = infra_strikes = 0
         else:
-            consecutive_failures += 1
-            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                print("[BATCH] consecutive failures - stopping")
-                stopped_by = "consecutive-failures"
+            stopped_by = _handle_failure(
+                _last_status_since(runs_dir, round_start))
+            if stopped_by:
                 break
 
     print(f"[BATCH] finished: {ok}/{done} runs ok, {improves} improve round(s)"

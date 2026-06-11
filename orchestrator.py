@@ -252,7 +252,11 @@ class Orchestrator:
         self.log("phase", name="improve", from_run=prev.name,
                  prev_score=self._prev_score)
 
-        prompt = improve_prompt(old_design, self._read_files(), self.feedback,
+        # 다이어트: 시험지는 빼고 보낸다 — 기준·체크는 설계 JSON에 이미 있고,
+        # 31B의 변경 계획은 시험지를 수정 대상으로 삼지 않는다 (~5K자 절약)
+        code_files = {n: c for n, c in self._read_files().items()
+                      if n != TEST_FILE}
+        prompt = improve_prompt(old_design, code_files, self.feedback,
                                 self._prev_scoreboard_text(prev))
         plan = None
         for _ in range(2):
@@ -289,8 +293,16 @@ class Orchestrator:
             design = self._merge_old_criteria(old_design, design)
             errs = validate_design(design)
             if errs:
-                self.log("improve-design-rejected", errors=errs)
-                continue
+                # 에러가 "새로 추가한 채점 커맨드"에만 있으면 그 기준만 떨구고
+                # 진행 (31B가 echo 리다이렉션 등을 반복해 통째로 ABORT되던 것 방지)
+                salvaged = self._salvage_new_checks(old_design, design, errs)
+                if salvaged is None or validate_design(salvaged[0]):
+                    self.log("improve-design-rejected", errors=errs)
+                    continue
+                design, dropped = salvaged
+                self.log("improve-criteria-salvaged", dropped=dropped)
+                self._say(f"  [WARN] dropped {len(dropped)} invalid new "
+                          "criteria - keeping the rest of the plan")
             plan = parsed
             self.design = design
             break
@@ -324,6 +336,45 @@ class Orchestrator:
                     self.log("file-written", file=path, chars=len(code))
                     self._say(f"  [OK] wrote {path}")
         return True
+
+    @staticmethod
+    def _salvage_new_checks(old: dict, design: dict,
+                            errs: list[str]) -> tuple[dict, list[str]] | None:
+        """검증 에러가 '신규 채점 커맨드'에만 있으면 그 기준만 떨군 설계를 반환.
+
+        기존 기준은 이미 검증을 통과했던 것이라 건드리지 않는다. 에러에
+        criteria_checks 외 항목이 섞여 있거나 기존 기준이 걸렸으면 구제 불가(None).
+        반환: (수정된 설계, 떨군 기준 이름들)
+        """
+        idxs: set[int] = set()
+        for e in errs:
+            m = re.match(r"criteria_checks\[(\d+)\]", str(e))
+            if not m:
+                return None
+            idxs.add(int(m.group(1)))
+        checks = list(design.get("criteria_checks") or [])
+        old_set = {json.dumps(c, sort_keys=True, ensure_ascii=False)
+                   for c in old.get("criteria_checks") or []}
+        dropped: list[dict] = []
+        for i in idxs:
+            if i >= len(checks):
+                return None
+            if json.dumps(checks[i], sort_keys=True,
+                          ensure_ascii=False) in old_set:
+                return None  # 기존 기준이 걸렸다 → 구제 대상 아님
+            dropped.append(checks[i])
+        design = dict(design)
+        design["criteria_checks"] = [c for j, c in enumerate(checks)
+                                     if j not in idxs]
+        # 떨군 체크와 짝인 신규 수용기준도 제거 (기존 수용기준은 보존)
+        dropped_crit = {str(c.get("criterion", "")) for c in dropped}
+        old_acc = {str(a) for a in old.get("acceptance_criteria") or []}
+        design["acceptance_criteria"] = [
+            a for a in design.get("acceptance_criteria") or []
+            if not (str(a) in dropped_crit and str(a) not in old_acc)]
+        names = [str(c.get("criterion") or c.get("command", ""))
+                 for c in dropped]
+        return design, names
 
     @staticmethod
     def _merge_old_criteria(old: dict, new: dict) -> dict:

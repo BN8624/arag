@@ -106,6 +106,79 @@ def test_improve_restores_dropped_criteria(tmp_path):
     assert len(saved["criteria_checks"]) == 3
 
 
+def test_improve_salvages_invalid_new_checks(tmp_path):
+    """신규 기준의 커맨드가 검증에 걸리면 그 기준만 떨구고 진행 (ABORT 방지).
+
+    실관측(2026-06-12 배치): 31B가 echo 리다이렉션을 쓴 채점 커맨드를 재시도에서도
+    반복해 improve가 통째로 ABORT — 멀쩡한 나머지 계획까지 버려졌다.
+    """
+    prev = _make_prev_run(tmp_path)
+    bad = _improved_design()
+    bad["acceptance_criteria"] = bad["acceptance_criteria"] + [
+        "broken input file is rejected"]
+    bad["criteria_checks"] = bad["criteria_checks"] + [
+        {"criterion": "broken input file is rejected",
+         "command": "echo '{' > bad.json && python main.py bad.json",
+         "expect_substring": "error", "expect_exit_code": 1}]
+    plan = json.dumps({
+        "design": bad,
+        "changes": [{"path": "main.py", "instructions": ["x"]}]})
+    llm = MockLLM(critic=[plan, "LGTM"], generator=[fenced(GOOD_MAIN)])
+    orch = Orchestrator(llm, tmp_path / "runs" / "imp", skip_exec=True,
+                        improve_from=prev)
+    assert orch.run("tiny todo cli") is True  # ABORT가 아니라 진행
+    saved = json.loads((tmp_path / "runs" / "imp" / "design.json")
+                       .read_text(encoding="utf-8"))
+    commands = [c["command"] for c in saved["criteria_checks"]]
+    assert all("echo" not in c for c in commands)  # 불량 기준만 제거
+    assert len(saved["criteria_checks"]) == 3      # 기존 2 + 유효 신규 1
+    assert "broken input file is rejected" not in saved["acceptance_criteria"]
+    events = (tmp_path / "runs" / "imp" / "events.jsonl").read_text(
+        encoding="utf-8")
+    assert "improve-criteria-salvaged" in events
+
+
+def test_salvage_refuses_when_old_criteria_flagged(tmp_path):
+    """기존 기준(원본 그대로)이 검증에 걸리면 구제하지 않는다.
+
+    merge가 원본을 이미 되살린 상태이므로, 검증에 걸린 항목이 원본과
+    동일하다 = 떨구면 회귀 방지선이 사라진다 → 통째로 재요청 경로로.
+    """
+    old = _base_design()
+    same = json.loads(json.dumps(old))  # 기존 기준 그대로
+    errs = ["criteria_checks[0].command: every '&&' step must start "
+            "with 'python ': 'python main.py'"]
+    assert Orchestrator._salvage_new_checks(old, same, errs) is None
+
+
+def test_salvage_refuses_non_check_errors():
+    """채점 커맨드 외 에러가 섞여 있으면 구제 불가."""
+    old = _base_design()
+    design = _improved_design()
+    errs = ["criteria_checks[2].command: ...", "entrypoint 'x.py' is not in 'files'"]
+    assert Orchestrator._salvage_new_checks(old, design, errs) is None
+
+
+def test_improve_prompt_excludes_test_file(tmp_path):
+    """다이어트: improve 비평 입력에 시험지(test_acceptance.py)는 안 들어간다."""
+    prev = _make_prev_run(tmp_path)
+    (prev / "workspace" / "test_acceptance.py").write_text(
+        "def test_marker_sentinel():\n    assert True\n", encoding="utf-8")
+    captured = {}
+
+    class SpyLLM(MockLLM):
+        def generate(self, role, prompt, temperature=None):
+            captured.setdefault(role, []).append(prompt)
+            return super().generate(role, prompt, temperature)
+
+    llm = SpyLLM(critic=["NOCHANGE"], generator=[])
+    orch = Orchestrator(llm, tmp_path / "runs" / "imp", skip_exec=True,
+                        improve_from=prev)
+    assert orch.run("tiny todo cli") is True
+    assert "test_marker_sentinel" not in captured["critic"][0]
+    assert "core.py" in captured["critic"][0]  # 코드 파일은 들어감
+
+
 def test_improve_new_file_implemented(tmp_path):
     """변경 계획에 새 파일이 있으면 구현 프롬프트로 생성."""
     prev = _make_prev_run(tmp_path)

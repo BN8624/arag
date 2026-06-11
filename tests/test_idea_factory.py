@@ -258,6 +258,57 @@ def test_batch_idea_gen_failure_counts(tmp_path):
     assert result["stopped_by"] == "consecutive-failures"
 
 
+def test_batch_infra_idea_failure_waits_then_stops(tmp_path):
+    """출제 콜이 인프라 장애로 죽으면: 1회 대기 후 재개, 연속 2회면 정지."""
+    sleeps = []
+
+    def infra_gen():
+        raise RuntimeError("API call failed after 4 retries: 500 INTERNAL")
+
+    result = _batch(tmp_path, 10, runner=lambda args: 0, idea_gen=infra_gen,
+                    sleep_fn=sleeps.append)
+    assert result["stopped_by"] == "infra-outage"
+    assert sleeps == [batch.INFRA_WAIT_SEC]  # 첫 장애는 대기, 두 번째에 정지
+    assert result["done"] == 0  # 장애에 회차를 태우지 않음
+
+
+def test_batch_infra_runner_failure_classified_from_index(tmp_path):
+    """런이 ERROR(500 연쇄)로 죽으면 index status로 인프라를 분류한다."""
+    from datetime import datetime
+    runs = tmp_path / "runs"
+    sleeps = []
+
+    def runner(args):
+        _write_index(runs, [
+            {"run": "rX", "t": datetime.now().isoformat(timespec="seconds"),
+             "ok": False,
+             "status": "ERROR: API call failed after 4 retries: 500 INTERNAL"}])
+        return 1
+
+    result = _batch(tmp_path, 10, runner=runner,
+                    idea_gen=lambda: {"idea": "아이디어", "repo": "r", "level": 1},
+                    sleep_fn=sleeps.append)
+    assert result["stopped_by"] == "infra-outage"
+    assert len(sleeps) == 1
+
+
+def test_batch_non_infra_failure_uses_consecutive_limit(tmp_path):
+    """일반 실패(모델 실력)는 기존 연속실패 한도를 그대로 탄다."""
+    sleeps = []
+    result = _batch(tmp_path, 10, runner=lambda args: 1,
+                    idea_gen=lambda: {"idea": "아이디어", "repo": "r", "level": 2},
+                    sleep_fn=sleeps.append)
+    assert result["stopped_by"] == "consecutive-failures"
+    assert sleeps == []  # 인프라 대기 미발동
+
+
+def test_looks_infra():
+    assert batch._looks_infra("ERROR: API call failed after 4 retries: 500")
+    assert batch._looks_infra("[WinError 10054] 연결이 끊겼습니다")
+    assert not batch._looks_infra("ABORTED: gates not passed after self-fix budget")
+    assert not batch._looks_infra("")
+
+
 def test_batch_caps_rounds(tmp_path):
     result = _batch(
         tmp_path, 999, runner=lambda args: 0,

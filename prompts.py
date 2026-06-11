@@ -483,6 +483,10 @@ Upgrade rules (violations are rejected automatically):
   unchanged - they are the regression bar. APPEND 1-3 new, stricter criteria
   (each with an executable check) that capture the improvement. If the user
   feedback names a problem, at least one new criterion must verify the fix.
+- Every new check "command" must consist ONLY of steps starting with
+  `python ` (joined by '&&'). NO shell redirection (>, >>), echo, pipes, rm.
+  If a check needs a fixture file (e.g. a broken input), create it inside a
+  python step: python -c "open('bad.json','w').write('{{')" && python main.py bad.json
 - Keep the existing file layout where possible. Prefer changing few files.
   You may add a new file only if the improvement clearly needs one.
 - "changes": list every file that must be modified or created, with concrete
