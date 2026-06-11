@@ -214,7 +214,11 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
 
         print(f"[BATCH] idea (repo {out.get('repo', '?')}, "
               f"level {out.get('level', '?')}): {out['idea']}")
-        code = runner([out["idea"]])
+        cmd = [out["idea"]]
+        if out.get("level") is not None:
+            # 출제 레벨을 index에 남겨 난이도 변화가 전후 비교를 오염시키는지 추적
+            cmd += ["--level", str(out["level"])]
+        code = runner(cmd)
         done += 1
         if code == 0:
             ok += 1

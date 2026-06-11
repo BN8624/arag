@@ -49,7 +49,8 @@ class Orchestrator:
     def __init__(self, llm, run_dir: Path, critique_rounds: int = DEFAULT_ROUNDS,
                  skip_exec: bool = False, max_minutes: int = DEFAULT_MAX_MINUTES,
                  resume_from: Path | None = None,
-                 improve_from: Path | None = None, feedback: str = ""):
+                 improve_from: Path | None = None, feedback: str = "",
+                 level: int | None = None):
         self.llm = llm
         self.run_dir = Path(run_dir)
         self.workspace = self.run_dir / "workspace"
@@ -77,6 +78,7 @@ class Orchestrator:
         self.resume_from = Path(resume_from) if resume_from else None
         self.improve_from = Path(improve_from) if improve_from else None
         self.feedback = feedback
+        self.level = level  # 출제 난이도 (배치 출제기가 전달, 전후 비교 분석용)
         self._prev_score: int | None = None   # improve: 직전 런의 통과 수
         self._old_commands: set[str] = set()  # improve: 기존 기준의 커맨드
         self._events = (self.run_dir / "events.jsonl").open("a", encoding="utf-8")
@@ -1089,6 +1091,8 @@ class Orchestrator:
             "packages": list(self._packages),
             "failure_keywords": list(self._failure_keywords),
         }
+        if self.level is not None:
+            entry["level"] = self.level
         if self._injected_lesson_keywords:
             entry["lessons_injected"] = list(self._injected_lesson_keywords)
         if self.scoreboard:
@@ -1135,6 +1139,9 @@ def main() -> int:
                              "ones, apply targeted changes")
     parser.add_argument("--feedback", default="",
                         help="user feedback for --improve (what to fix/add)")
+    parser.add_argument("--level", type=int, default=None,
+                        help="idea difficulty level from the batch generator "
+                             "(recorded in the index for before/after analysis)")
     parser.add_argument("--replay", metavar="RUN_DIR",
                         help="replay recorded LLM responses from a previous "
                              "run dir (llm_calls.jsonl) - no API calls. "
@@ -1177,7 +1184,7 @@ def main() -> int:
     orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
                         skip_exec=skip_exec, max_minutes=args.max_minutes,
                         resume_from=resume_from, improve_from=improve_from,
-                        feedback=args.feedback)
+                        feedback=args.feedback, level=args.level)
     ok = orch.run(args.idea)
 
     # 종료 예약: 플래그가 있으면 이번 회차로 끝 (재도전도 안 잡는다)
@@ -1205,7 +1212,7 @@ def main() -> int:
         print(f"[START] run dir: {run_dir}")
         orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
                             skip_exec=skip_exec, max_minutes=args.max_minutes,
-                            resume_from=retry_resume)
+                            resume_from=retry_resume, level=args.level)
         ok = orch.run(args.idea)
 
     print(f"[INFO] API calls used: {llm.call_count}")

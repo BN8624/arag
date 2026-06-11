@@ -216,6 +216,13 @@ def test_batch_runs_all_rounds(tmp_path):
     assert ran == ["아이디어1", "아이디어2", "아이디어3"]
 
 
+def test_batch_omits_level_arg_when_missing(tmp_path):
+    cmds = []
+    _batch(tmp_path, 1, runner=lambda args: (cmds.append(args), 0)[1],
+           idea_gen=lambda: {"idea": "아이디어", "repo": "r"})
+    assert cmds[0] == ["아이디어"]  # level 없으면 --level을 붙이지 않음
+
+
 def test_batch_respects_stop_flag(tmp_path):
     stop = tmp_path / "STOP"
     calls = {"n": 0}
@@ -372,7 +379,8 @@ def test_batch_review_nochange_falls_through_to_new_idea(tmp_path):
         reviewer_fn=nochange_reviewer,
         idea_gen=lambda: {"idea": "새 아이디어", "repo": "r", "level": 2})
     assert result["improves"] == 0 and result["done"] == 1
-    assert cmds[0] == ["새 아이디어"]  # 같은 회차에서 신규 생산으로 진행
+    # 같은 회차에서 신규 생산으로 진행 + 출제 레벨이 orchestrator로 전달됨
+    assert cmds[0] == ["새 아이디어", "--level", "2"]
 
 
 # ------------------------------------------------------------ 대시보드 자동 모드
