@@ -22,5 +22,23 @@
     "idea": "회사 경비 정산 CLI 도구: 직원들이 제출한 여러 CSV 경비 내역을 읽어 항목별로 검증(날짜 형식, 금액 범위, 필수 필드)하고, 외부 환율 API(mock JSON 응답 파일로 대체 가능)로 외화 경비를 원화로 환산하며, 정책 규칙 JSON 파일(한도 초과, 금지 항목)에 따라 승인/반려/보류로 분류한 뒤, 결과를 openpyxl로 부서별 시트가 있는 xlsx 정산 리포트로 저장하고 반려 사유 요약을 출력한다. 실제 API 키는 환경변수로만 받고, 키 없이 live 모드 실행 시 명확한 에러 메시지와 함께 exit 1로 종료해야 하며, mock 모드에서는 키 없이 동작해야 한다",
     "path": "main.py",
     "issue": "Remove the monkeypatching of processor.process_expenses. Logic fixes should be implemented directly in processor.py to ensure the module is genuinely functional and maintainable."
+  },
+  {
+    "t": "2026-06-12T03:53:30",
+    "idea": "작업 시간 기록이 담긴 JSON 파일을 입력받아 카테고리별 총 소요 시간을 계산하여 출력하는 CLI 도구입니다. 입력 파일의 각 항목은 작업 이름, 카테고리, 소요 시간(분)을 포함해야 하며, 결과는 텍스트 형태의 요약 보고서로 출력됩니다. 별도의 데이터베이스 없이 파일 읽기와 집계 로직만으로 동작하는 단순 변환 도구입니다.",
+    "path": "main.py",
+    "issue": "The 'generate-sample' command fails the acceptance check because its output does not contain the word 'Category'. Update the success message from 'Sample data created at: {file_path}' to include 'Category' (e.g., 'Sample data created at: {file_path} (Category records included)') to satisfy the test requirement."
+  },
+  {
+    "t": "2026-06-12T04:28:17",
+    "idea": "텍스트 파일의 문자셋과 언어 패턴을 분석하여 지정된 프로필과 일치하는지 검증하는 CLI 도구입니다. 외부 JSON 설정 파일에서 허용되는 문자 범위(스크립트)를 읽어 입력 파일의 텍스트를 검사하고, 일치율을 계산하여 분석 보고서를 출력합니다. 입력 파일은 타 프로그램에서 생성된 텍스트 로그 형식이어야 하며, 모든 설정은 CLI 인자로 전달받습니다.",
+    "path": "analyzer.py",
+    "issue": "The `analyze_text` function only counts unmatched characters but does not identify them. It should track and return the actual set of unique characters that fell outside the allowed ranges to satisfy the acceptance criteria."
+  },
+  {
+    "t": "2026-06-12T04:28:17",
+    "idea": "텍스트 파일의 문자셋과 언어 패턴을 분석하여 지정된 프로필과 일치하는지 검증하는 CLI 도구입니다. 외부 JSON 설정 파일에서 허용되는 문자 범위(스크립트)를 읽어 입력 파일의 텍스트를 검사하고, 일치율을 계산하여 분석 보고서를 출력합니다. 입력 파일은 타 프로그램에서 생성된 텍스트 로그 형식이어야 하며, 모든 설정은 CLI 인자로 전달받습니다.",
+    "path": "reporter.py",
+    "issue": "The `format_report` function only displays the count of unmatched characters. It should be updated to list the specific unmatched characters identified by the analyzer in the final report."
   }
 ]

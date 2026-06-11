@@ -1,9 +1,17 @@
 {
-  "level": 1,
+  "level": 3,
   "used_repos": [
     "sakurity/securelogin",
     "wakatime/legacy-python-cli",
     "GothenburgBitFactory/timewarrior",
-    "anki-geo/ultimate-geography"
+    "anki-geo/ultimate-geography",
+    "citusdata/pg_cron",
+    "Ajatt-Tools/mpvacious",
+    "ever-co/ever-teams",
+    "abadojack/whatlanggo",
+    "utmstack/UTMStack",
+    "gohugoio/hugo",
+    "quantum-elixir/quantum-core",
+    "nikic/PHP-Parser"
   ]
 }

@@ -378,5 +378,57 @@
       "x"
     ],
     "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T02:50:07",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T03:06:00",
+    "idea": "JSON 파일에 정의된 크론(cron) 표현식 기반 작업 목록과 특정 시간 범위를 입력받아, 해당 기간 동안 각 작업이 실행될 정확한 일시를 계산하여 출력하는 CLI 도구입니다. 사용자는 CLI 인자로 조회 시작 및 종료 시간을 설정하며, 도구는 입력 파일의 스케줄 설정을 분석해 실행 예정 시간을 텍스트 리스트 형태로 반환합니다. 별도의 상태 저장 없이 입력된 설정 파일의 내용을 즉석에서 계산하여 출력하는 순수 변환 도구입니다.",
+    "keywords": [
+      "cron",
+      "scheduling",
+      "cli",
+      "time-calculation",
+      "date-parsing"
+    ],
+    "lesson": "Use a robust, industry-standard cron parsing library rather than implementing custom parsing logic or monkeypatching to ensure support for standard cron expressions like wildcards."
+  },
+  {
+    "t": "2026-06-12T03:09:00",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T06:24:58",
+    "idea": "외부 API의 상태를 확인하여 정의된 스케줄에 따라 작업을 실행하는 CLI 기반 작업 관리 도구입니다. `tasks.json` 파일을 통해 작업 주기와 실행 명령을 입력받아 형식을 검증하며, 등록된 작업 목록 파일과 실행 이력 파일을 상호 일관성 있게 유지하여 관리합니다. `add`, `run`, `list`, `purge` 서브커맨드를 통해 작업을 관리하며, 외부 API 호출은 Mock JSON 응답 파일로 대체 가능해야 합니다.",
+    "keywords": [
+      "cli",
+      "task-scheduler",
+      "api-monitoring",
+      "entry-point",
+      "glue-code"
+    ],
+    "lesson": "The design must explicitly define the entry point's structure, including the `if __name__ == '__main__':` block and mandatory import dependencies between the CLI handler and the logic manager to prevent orphaned modules."
+  },
+  {
+    "t": "2026-06-12T07:37:48",
+    "idea": "외부 API의 상태를 확인하여 정의된 스케줄에 따라 작업을 실행하는 CLI 기반 작업 관리 도구입니다. `tasks.json` 파일을 통해 작업 주기와 실행 명령을 입력받아 형식을 검증하며, 등록된 작업 목록 파일과 실행 이력 파일을 상호 일관성 있게 유지하여 관리합니다. `add`, `run`, `list`, `purge` 서브커맨드를 통해 작업을 관리하며, 외부 API 호출은 Mock JSON 응답 파일로 대체 가능해야 합니다.",
+    "keywords": [
+      "cli",
+      "task-scheduler",
+      "api-dependency",
+      "mocking",
+      "execution-loop"
+    ],
+    "lesson": "Ensure dependency checks are explicitly triggered for every individual task within the execution loop to avoid incorrect caching or skipping of status validations."
   }
 ]
