@@ -32,6 +32,40 @@ class CallBudgetExceeded(Exception):
     """회차당 API 콜 상한 초과."""
 
 
+class ReplayExhausted(Exception):
+    """재생할 녹음이 바닥남 (코드가 바뀌어 콜 순서가 달라졌을 때도 발생)."""
+
+
+class ReplayLLM:
+    """녹음(llm_calls.jsonl)을 역할별 순서대로 재생 (콜 0).
+
+    실제 런에서 이상 동작이 났을 때, 같은 응답으로 orchestrator·게이트·rollback
+    경로를 그대로 재현해 회귀를 잡는 용도. API 키·네트워크 불필요.
+    """
+
+    def __init__(self, record_path):
+        import json
+        from pathlib import Path
+
+        self.queues: dict[str, list[str]] = {}
+        for line in Path(record_path).read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            entry = json.loads(line)
+            self.queues.setdefault(entry["role"], []).append(entry["response"])
+        self.call_count = 0
+        self.max_calls = None
+        self.record_path = None  # 재생 중에는 녹음하지 않는다
+        self.tokens: dict[str, int] = {"input": 0, "output": 0, "thinking": 0}
+
+    def generate(self, role: str, prompt: str, temperature: float | None = None) -> str:
+        queue = self.queues.get(role)
+        if not queue:
+            raise ReplayExhausted(f"no recorded response left for role {role!r}")
+        self.call_count += 1
+        return queue.pop(0)
+
+
 class DailyQuotaExceeded(Exception):
     """RPD(일일 한도) 초과 — 오늘은 더 이상 콜 불가."""
 
@@ -73,11 +107,32 @@ class LLMClient:
         self._last_call_at = 0.0
         self.call_count = 0
         self.max_calls = max_calls
+        # 녹음: 경로를 지정하면 콜마다 응답 전문을 jsonl로 기록 (replay 재현용)
+        self.record_path = None
         self.tokens: dict[str, int] = {"input": 0, "output": 0, "thinking": 0}
         self.tokens_by_role: dict[str, dict[str, int]] = {
             "generator": {"input": 0, "output": 0, "thinking": 0},
             "critic": {"input": 0, "output": 0, "thinking": 0},
         }
+
+    def _record(self, role: str, model: str, prompt: str, response: str) -> None:
+        """콜 1건 녹음. 실패해도 콜을 막지 않는다.
+
+        prompt는 크기·머리만 (다이어트 효과 측정용), response는 전문 (replay용).
+        """
+        if not self.record_path:
+            return
+        try:
+            import json
+            from datetime import datetime
+            entry = {"t": datetime.now().isoformat(timespec="seconds"),
+                     "role": role, "model": model,
+                     "prompt_chars": len(prompt), "prompt_head": prompt[:300],
+                     "response": response}
+            with open(self.record_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
 
     def cost_usd(self) -> dict[str, float]:
         """오픈라우터 유료 단가 환산 비용(USD). 역할별 + 합계."""
@@ -131,6 +186,8 @@ class LLMClient:
                         self.tokens[key] += n
                         by_role[key] += n
                 text = getattr(resp, "text", None)
+                if text and text.strip():
+                    self._record(role, model, prompt, text)
                 if not text or not text.strip():
                     empty_count += 1
                     if empty_count > EMPTY_RETRIES:

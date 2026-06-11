@@ -1135,6 +1135,10 @@ def main() -> int:
                              "ones, apply targeted changes")
     parser.add_argument("--feedback", default="",
                         help="user feedback for --improve (what to fix/add)")
+    parser.add_argument("--replay", metavar="RUN_DIR",
+                        help="replay recorded LLM responses from a previous "
+                             "run dir (llm_calls.jsonl) - no API calls. "
+                             "use with --no-retry")
     args = parser.parse_args()
 
     if args.improve and args.resume:
@@ -1155,10 +1159,20 @@ def main() -> int:
         print(f"[ERROR] --improve dir not found: {improve_from}")
         return 1
 
-    from llm import LLMClient
-    llm = LLMClient(max_calls=args.max_calls)
+    if args.replay:
+        from llm import ReplayLLM
+        record = Path(args.replay) / "llm_calls.jsonl"
+        if not record.exists():
+            print(f"[ERROR] no llm_calls.jsonl in {args.replay}")
+            return 1
+        llm = ReplayLLM(record)
+        print(f"[REPLAY] reusing recorded responses from {args.replay}")
+    else:
+        from llm import LLMClient
+        llm = LLMClient(max_calls=args.max_calls)
 
     run_dir = PROJECT_ROOT / "runs" / datetime.now().strftime("%Y%m%d-%H%M%S")
+    llm.record_path = None if args.replay else run_dir / "llm_calls.jsonl"
     print(f"[START] run dir: {run_dir}")
     orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
                         skip_exec=skip_exec, max_minutes=args.max_minutes,
@@ -1187,6 +1201,7 @@ def main() -> int:
                   "recorded lessons")
         run_dir = PROJECT_ROOT / "runs" / (
             datetime.now().strftime("%Y%m%d-%H%M%S") + "-retry")
+        llm.record_path = run_dir / "llm_calls.jsonl"
         print(f"[START] run dir: {run_dir}")
         orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
                             skip_exec=skip_exec, max_minutes=args.max_minutes,

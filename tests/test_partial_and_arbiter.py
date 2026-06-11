@@ -263,6 +263,51 @@ def test_improve_fallback_keeps_old_design(tmp_path):
     assert "aborted" not in kinds
 
 
+# ------------------------------------------------------------ 녹음·재생 (replay)
+
+def test_llm_recording(tmp_path):
+    from llm import LLMClient
+    client = LLMClient.__new__(LLMClient)  # __init__ 우회 (SDK·키 불필요)
+    client.record_path = tmp_path / "llm_calls.jsonl"
+    client._record("critic", "gemma-4-31b-it", "P" * 1000, "the response")
+    client._record("generator", "gemma-4-26b-a4b-it", "q", "second")
+    lines = client.record_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 2
+    first = json.loads(lines[0])
+    assert first["role"] == "critic"
+    assert first["prompt_chars"] == 1000      # 다이어트 효과 측정용
+    assert len(first["prompt_head"]) == 300   # prompt는 머리만
+    assert first["response"] == "the response"  # response는 전문 (재생용)
+
+
+def test_llm_recording_disabled_by_default(tmp_path):
+    from llm import LLMClient
+    client = LLMClient.__new__(LLMClient)
+    client.record_path = None
+    client._record("critic", "m", "p", "r")  # 경로 없으면 조용히 무시
+
+
+def test_replay_llm_replays_in_order(tmp_path):
+    from llm import ReplayExhausted, ReplayLLM
+    record = tmp_path / "llm_calls.jsonl"
+    entries = [
+        {"role": "critic", "response": "design json"},
+        {"role": "generator", "response": "file one"},
+        {"role": "generator", "response": "file two"},
+        {"role": "critic", "response": "LGTM"},
+    ]
+    record.write_text("\n".join(json.dumps(e) for e in entries),
+                      encoding="utf-8")
+    llm = ReplayLLM(record)
+    assert llm.generate("critic", "any prompt") == "design json"
+    assert llm.generate("generator", "x") == "file one"
+    assert llm.generate("generator", "x") == "file two"
+    assert llm.generate("critic", "x") == "LGTM"
+    assert llm.call_count == 4
+    with pytest.raises(ReplayExhausted):
+        llm.generate("critic", "one too many")
+
+
 # ------------------------------------------------------------ 사용자 시점 총평
 
 class FakeCritic:
