@@ -342,5 +342,33 @@
       "x"
     ],
     "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T02:21:59",
+    "idea": "개발 시간 기록이 담긴 JSON 파일을 읽어 프로젝트별 총 작업 시간을 계산하고 요약 리포트를 출력하는 CLI 도구입니다. 사용자는 파일 경로를 인자로 전달하며, 도구는 파일 내의 각 항목에서 소요 시간을 합산하여 프로젝트별 합계를 텍스트 형식으로 출력합니다. 별도의 데이터베이스 없이 입력 파일의 데이터를 즉시 처리하여 결과만 보여줍니다.",
+    "keywords": [
+      "cli",
+      "json",
+      "data-parsing",
+      "input-schema",
+      "automation"
+    ],
+    "lesson": "Explicitly define the expected input data schema or provide a sample JSON structure to ensure the planning agent can specify concrete field-level extraction and processing logic."
+  },
+  {
+    "t": "2026-06-12T02:38:31",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T02:39:00",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
   }
 ]

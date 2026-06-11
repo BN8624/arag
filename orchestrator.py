@@ -34,7 +34,8 @@ from schema import extract_json, parse_design
 K_MAX_FIX = 3          # 층마다 자가수정 상한
 PARTIAL_PASS_RATE = 0.8  # 부분 합격 출하: 성공 신호 통과 + pytest 통과율 하한
 DESIGN_ATTEMPTS = 3    # 설계 1회 + 재설계 2회
-DEFAULT_ROUNDS = 2     # 비평-개선 바퀴
+DEFAULT_ROUNDS = 1     # 비평-개선 바퀴 (반복 다듬기는 1/10 비용인 improve가 담당.
+                       #  부분 합격이면 루프가 자동으로 2바퀴까지 허용)
 DEFAULT_MAX_CALLS = 60
 DEFAULT_MAX_MINUTES = 40
 TEST_FILE = "test_acceptance.py"
@@ -69,6 +70,7 @@ class Orchestrator:
         self._tests_regen_left = 1  # 테스트 자체 버그 시 31B 재생성 허용 횟수
         self._arbitration_left = 1  # 단언 실패 반복 시 31B 중재 허용 횟수
         self.partial_pass = False   # 마지막 게이트가 부분 합격이었나
+        self.infra_error = False    # API 5xx 연속 등 인프라 장애로 죽었나
         self.critique_rounds_used = 0
         self._failure_keywords: list[str] = []
         self._injected_lesson_keywords: list[str] = []
@@ -154,6 +156,10 @@ class Orchestrator:
         except Exception as err:
             import traceback
             tb = traceback.format_exc()
+            # 콜 래퍼가 재시도를 다 쓰고 죽었다 = 인프라 장애.
+            # 같은 장애에 재도전 콜을 더 태우지 않도록 표시한다 (브레이커)
+            if "API call failed after" in str(err):
+                self.infra_error = True
             self.log("error", reason=str(err), traceback=tb)
             self._record_failure(idea, f"{err}\n{tb}")
             self._write_report(idea, status=f"ERROR: {err}")
@@ -254,13 +260,29 @@ class Orchestrator:
                 return False
             raw = extract_json(text)
             if not raw:
+                self.log("improve-plan-reject", reason="no-json",
+                         tail=text[-400:])
                 continue
             try:
                 parsed = json.loads(raw)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as err:
+                self.log("improve-plan-reject", reason=f"bad-json: {err}",
+                         tail=raw[-400:])
                 continue
+            changes = parsed.get("changes")
             design = parsed.get("design")
             if not isinstance(design, dict):
+                # 폴백: 설계 재출력이 깨졌어도 변경 계획만 멀쩡하면 기존 설계로
+                # 진행한다 (새 기준은 못 얻지만 떨어진 기존 기준 회복은 측정됨)
+                if isinstance(changes, list) and changes:
+                    self.log("improve-design-fallback")
+                    self._say("  [WARN] 31B design re-emit unusable - "
+                              "keeping old design, applying changes only")
+                    plan = parsed
+                    self.design = json.loads(json.dumps(old_design))
+                    break
+                self.log("improve-plan-reject", reason="no-design-no-changes",
+                         tail=raw[-400:])
                 continue
             design = self._merge_old_criteria(old_design, design)
             errs = validate_design(design)
@@ -697,11 +719,14 @@ class Orchestrator:
             self._say("[SKIP] critique skipped - perfect scoreboard")
             self.log("critique-skipped-perfect")
             return
-        for round_no in range(1, self.critique_rounds + 1):
+        # 부분 합격은 런 안에서 닫을 마지막 기회를 한 바퀴 더 준다
+        total_rounds = (max(self.critique_rounds, 2) if self.partial_pass
+                        else self.critique_rounds)
+        for round_no in range(1, total_rounds + 1):
             self._check_time()
-            self._say(f"[PHASE] critique round {round_no}/{self.critique_rounds} (31B)")
+            self._say(f"[PHASE] critique round {round_no}/{total_rounds} (31B)")
             self.log("phase", name="critique", round=round_no,
-                     total=self.critique_rounds)
+                     total=total_rounds)
             self.critique_rounds_used = round_no
             verdict = self._get_critique()
             if verdict is None:
@@ -832,23 +857,37 @@ class Orchestrator:
             groups.setdefault(target, []).append(it)
         return groups
 
-    def _fix_files(self, groups: dict[str, list[dict]]) -> None:
+    def _context_files(self, target: str) -> dict[str, str]:
+        """수리·수정 프롬프트용 컨텍스트: 표적 + 직접 의존 + 직접 역의존만.
+
+        프로젝트 전체를 넣으면 26B thinking이 입력 크기를 따라 길어진다(비용 주범).
+        설계의 의존관계 지도로 관련 파일만 추린다.
+        """
         all_files = self._read_files()
+        deps_map = (self.design or {}).get("dependencies", {})
+        keep = {target}
+        keep.update(deps_map.get(target, []))                     # 표적이 부르는 것
+        keep.update(p for p, deps in deps_map.items()
+                    if target in deps)                            # 표적을 부르는 것
+        sliced = {name: code for name, code in all_files.items() if name in keep}
+        return sliced or all_files  # 지도에 없으면 안전하게 전체
+
+    def _fix_files(self, groups: dict[str, list[dict]]) -> None:
         for path, file_issues in groups.items():
             self._check_time()
             text = self.llm.generate("generator", fix_prompt(
-                path, all_files, format_issues(file_issues), self.design))
+                path, self._context_files(path), format_issues(file_issues),
+                self.design))
             code = extract_code(text)
             if code is None:
                 self.log("fix-no-code", file=path)
                 continue
             (self.workspace / path).write_text(code, encoding="utf-8")
-            all_files[path] = code
             self.log("file-fixed", file=path)
 
     def _revise_file(self, path: str, issues: list[str]) -> None:
         text = self.llm.generate("generator", revise_prompt(
-            path, self._read_files(), issues, self.design))
+            path, self._context_files(path), issues, self.design))
         code = extract_code(text)
         if code is None:
             self.log("revise-no-code", file=path)
@@ -1063,6 +1102,18 @@ class Orchestrator:
             self.log("index-recorded", run=entry["run"], status=status)
 
 
+def resume_retry_dir(failed_run_dir: Path) -> Path | None:
+    """실패 런의 설계·시험지가 재사용 가능하면 그 디렉토리, 아니면 None.
+
+    design.json이 있다 = 설계는 검증을 통과하고 그 뒤(구현·게이트)에서 죽었다.
+    그 설계와 시험지를 다시 쓰면 재도전에서 설계 단계 콜(5~7콜)이 절약된다.
+    """
+    failed_run_dir = Path(failed_run_dir)
+    if (failed_run_dir / "design.json").exists():
+        return failed_run_dir
+    return None
+
+
 def main() -> int:
     force_utf8_stdout()
     parser = argparse.ArgumentParser(description="idea -> multi-file Python prototype")
@@ -1121,14 +1172,25 @@ def main() -> int:
         return 0 if ok else 1
 
     # 실패 시 1회 자동 재도전 (resume 모드에서는 건너뜀 — 특정 설계를 재사용 중)
+    # 인프라 장애(5xx 연속)면 재도전 생략 — 같은 장애에 콜을 더 태우지 않는다
     if (not ok and not args.no_retry and not resume_from and not improve_from
+            and not orch.infra_error
             and llm.call_count + 8 <= args.max_calls):
-        print("[RETRY] first attempt failed - retrying once with recorded lessons")
+        # 설계·시험지까지 멀쩡했던 실패면 그걸 재사용 (설계 5~7콜 절약).
+        # 설계 단계에서 죽었으면 처음부터 (오답노트가 새 설계에 주입됨)
+        retry_resume = resume_retry_dir(run_dir)
+        if retry_resume:
+            print("[RETRY] first attempt failed - retrying with its "
+                  "design + tests reused (resume)")
+        else:
+            print("[RETRY] first attempt failed - retrying once with "
+                  "recorded lessons")
         run_dir = PROJECT_ROOT / "runs" / (
             datetime.now().strftime("%Y%m%d-%H%M%S") + "-retry")
         print(f"[START] run dir: {run_dir}")
         orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
-                            skip_exec=skip_exec, max_minutes=args.max_minutes)
+                            skip_exec=skip_exec, max_minutes=args.max_minutes,
+                            resume_from=retry_resume)
         ok = orch.run(args.idea)
 
     print(f"[INFO] API calls used: {llm.call_count}")

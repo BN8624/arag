@@ -3,6 +3,7 @@
   "used_repos": [
     "sakurity/securelogin",
     "wakatime/legacy-python-cli",
-    "GothenburgBitFactory/timewarrior"
+    "GothenburgBitFactory/timewarrior",
+    "anki-geo/ultimate-geography"
   ]
 }

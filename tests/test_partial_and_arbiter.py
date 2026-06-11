@@ -195,6 +195,74 @@ def test_tests_prompt_forbids_exact_output_match():
     assert '"blame"' in a and "over-specifies" in a
 
 
+# ------------------------------------------------------------ 효율 개선 (6차 후반)
+
+def test_implement_prompt_slices_context_to_deps():
+    """구현 프롬프트는 직접 의존 파일만 컨텍스트로 받는다 (thinking 비용 절감)."""
+    from prompts import implement_prompt
+    design = make_design()
+    design["files"].append({"path": "extra.py", "role": "unrelated",
+                            "interfaces": []})
+    design["dependencies"]["extra.py"] = []
+    written = {"core.py": "CORE_CODE_MARKER", "extra.py": "EXTRA_CODE_MARKER"}
+    p = implement_prompt(design, "main.py", written)  # main은 core만 import
+    assert "CORE_CODE_MARKER" in p
+    assert "EXTRA_CODE_MARKER" not in p
+
+
+def test_context_files_target_plus_neighbors(tmp_path):
+    orch = om.Orchestrator(MockLLM([], []), tmp_path / "r", skip_exec=True)
+    design = make_design()
+    design["files"].append({"path": "extra.py", "role": "unrelated",
+                            "interfaces": []})
+    design["dependencies"]["extra.py"] = []
+    orch.design = design
+    for name in ("main.py", "core.py", "extra.py"):
+        (orch.workspace / name).write_text(f"# {name}", encoding="utf-8")
+    ctx = orch._context_files("core.py")  # core를 부르는 main 포함, extra 제외
+    assert set(ctx) == {"core.py", "main.py"}
+    # 지도에 없는 표적은 안전하게 전체 반환
+    assert set(orch._context_files("(run)")) == {"main.py", "core.py", "extra.py"}
+
+
+def test_resume_retry_dir(tmp_path):
+    run = tmp_path / "r1"
+    run.mkdir()
+    assert om.resume_retry_dir(run) is None  # 설계 전에 죽음 -> 처음부터
+    (run / "design.json").write_text("{}", encoding="utf-8")
+    assert om.resume_retry_dir(run) == run   # 설계는 멀쩡 -> 재사용
+
+
+def test_infra_error_flagged(tmp_path):
+    class DownLLM:
+        call_count = 0
+        max_calls = None
+
+        def generate(self, role, prompt, temperature=None):
+            raise RuntimeError("API call failed after 4 retries: 503")
+
+    orch = om.Orchestrator(DownLLM(), tmp_path / "r", skip_exec=True)
+    assert orch.run("idea") is False
+    assert orch.infra_error is True  # main()이 이걸 보고 재도전을 생략
+
+
+def test_improve_fallback_keeps_old_design(tmp_path):
+    """31B가 설계 재출력에 실패해도 changes만 멀쩡하면 기존 설계로 진행."""
+    from test_improve import _make_prev_run
+    prev = _make_prev_run(tmp_path)
+    plan_without_design = json.dumps({
+        "changes": [{"path": "core.py", "instructions": ["add a docstring"]}]})
+    llm = MockLLM(critic=[plan_without_design, "LGTM"],
+                  generator=[fenced(GOOD_CORE)])
+    run_dir = tmp_path / "runs" / "imp1"
+    orch = om.Orchestrator(llm, run_dir, skip_exec=True,
+                           improve_from=prev, feedback="문서화 개선")
+    assert orch.run("todo cli") is True
+    kinds = [e["event"] for e in _events(run_dir)]
+    assert "improve-design-fallback" in kinds
+    assert "aborted" not in kinds
+
+
 # ------------------------------------------------------------ 사용자 시점 총평
 
 class FakeCritic:

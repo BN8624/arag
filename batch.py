@@ -21,6 +21,7 @@ improve 폭주 방지:
 import argparse
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from config import PROJECT_ROOT, STOP_FILE, force_utf8_stdout
@@ -82,12 +83,37 @@ def find_review_target(runs_dir: Path) -> tuple[str, str] | None:
     return None
 
 
+def summary_lines(entries: list[dict], since_iso: str) -> list[str]:
+    """배치 시작 이후의 런들을 아침에 한눈에 읽을 표로 (콜 0)."""
+    rows = [e for e in entries if str(e.get("t", "")) >= since_iso]
+    if not rows:
+        return ["(no runs recorded this batch)"]
+    lines = []
+    total_cost = 0.0
+    n_ok = 0
+    for e in rows:
+        score = e.get("score") or {}
+        sc = (f"{score['passed']}/{score['total']}"
+              if score.get("total") else "-")
+        cost = e.get("cost_usd") or 0
+        total_cost += cost
+        if e.get("ok"):
+            n_ok += 1
+        tag = "improve" if e.get("improved_from") else "new"
+        mark = "OK " if e.get("ok") else "FAIL"
+        lines.append(f"  {mark} {e.get('run', '?'):<24} {tag:<7} score {sc:<5} "
+                     f"${cost:.4f}  {str(e.get('idea', ''))[:40]}")
+    lines.append(f"  total: {n_ok}/{len(rows)} ok, ${total_cost:.4f}")
+    return lines
+
+
 def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
               idea_gen=None, reviewer_fn=None,
               stop_file: Path = STOP_FILE,
               runs_dir: Path | None = None) -> dict:
     """배치 루프. 결과 요약 dict 반환 (테스트 가능하도록 의존성 주입)."""
     runs_dir = Path(runs_dir) if runs_dir else RUNS_DIR
+    started_at = datetime.now().isoformat(timespec="seconds")
     n_runs = max(1, min(int(n_runs), MAX_RUNS))
     done = ok = improves = 0
     consecutive_failures = 0
@@ -202,6 +228,9 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
 
     print(f"[BATCH] finished: {ok}/{done} runs ok, {improves} improve round(s)"
           + (f" (stopped by {stopped_by})" if stopped_by else ""))
+    print("[BATCH] summary:")
+    for line in summary_lines(load_index(runs_dir), started_at):
+        print(line)
     return {"requested": n_runs, "done": done, "ok": ok,
             "improves": improves, "stopped_by": stopped_by}
 

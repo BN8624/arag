@@ -338,6 +338,22 @@ def test_batch_review_round_improves_on_feedback(tmp_path):
     assert cmds[0][0] == "--improve" and "합계 요약" in cmds[0][3]
 
 
+def test_batch_summary_lines():
+    entries = [
+        {"run": "r1", "t": "2026-06-12T03:00:00", "ok": True,
+         "score": {"passed": 3, "total": 3}, "cost_usd": 0.01,
+         "idea": "아이디어"},
+        {"run": "r2", "t": "2026-06-12T04:00:00", "ok": False,
+         "improved_from": "r1", "cost_usd": 0.005, "idea": "아이디어"},
+        {"run": "r0", "t": "2026-06-12T01:00:00", "ok": True},  # 배치 이전 -> 제외
+    ]
+    lines = batch.summary_lines(entries, "2026-06-12T02:30:00")
+    text = "\n".join(lines)
+    assert "r1" in text and "r2" in text and "r0" not in text
+    assert "improve" in text
+    assert "1/2 ok" in text
+
+
 def test_batch_review_nochange_falls_through_to_new_idea(tmp_path):
     from reviewer import review_marker
     runs = tmp_path / "runs"

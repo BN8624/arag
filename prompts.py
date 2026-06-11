@@ -131,6 +131,8 @@ Also produce:
   criterion is that the tool FAILS (e.g. "tool errors when no API key given").
   Checks run in order in the same directory, so an earlier command may create
   state a later one reads.
+  Keep these at CLI level (commands, produced files, exit codes) - internal
+  function behavior and edge cases are covered separately by pytest.
 - "success_signal": ONE command line that exercises a core behavior of the
   idea (not just --help) plus a substring its output must contain. Its final
   step must run the entrypoint, be deterministic, and finish within 30 seconds.
@@ -159,10 +161,15 @@ def implement_prompt(design: dict, file_path: str,
                      written: dict[str, str],
                      notes: list[str] | None = None) -> str:
     spec = next(f for f in design["files"] if f["path"] == file_path)
+    # 컨텍스트 다이어트: 이 파일이 직접 import하는 파일만 보여준다.
+    # (전체를 넣으면 26B thinking이 입력 크기를 따라 길어져 비용의 주범이 됨)
+    deps = design.get("dependencies", {}).get(file_path, [])
+    relevant = {name: code for name, code in written.items() if name in deps}
     context = ""
-    if written:
-        parts = [f"--- {name} ---\n{content}" for name, content in written.items()]
-        context = ("\nFiles already implemented (import from these exactly "
+    if relevant:
+        parts = [f"--- {name} ---\n{content}"
+                 for name, content in relevant.items()]
+        context = ("\nFiles this file imports from (import from these exactly "
                    "as they are written):\n\n" + "\n\n".join(parts) + "\n")
     notes_part = ""
     if notes:
@@ -364,6 +371,9 @@ Rules:
   edge cases (empty input, invalid values) ONLY where the design contract
   makes the expected behavior unambiguous. When the contract does not specify
   a behavior, do not test it.
+- Focus on FUNCTION-LEVEL behavior and edge cases. CLI-level happy paths
+  (full commands, exit codes, produced files) are already verified by
+  separate criteria checks - do not duplicate them here.
 - NEVER assert equality against the ENTIRE stdout or a whole multi-line
   block. Assert on individual substrings or single lines instead - layout
   and ordering are implementation freedom unless the contract pins them.
