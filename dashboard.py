@@ -558,12 +558,33 @@ PAGE = """<!DOCTYPE html>
  --text:#eceff2;--muted:#9aa4ae;--green:#4ade80;--amber:#fbbf24;
  --red:#f87171;--blue:#60a5fa;--accent:#34d399}
 *{box-sizing:border-box}
+html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font-size:16px;
- line-height:1.5;-webkit-font-smoothing:antialiased;
+ line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden;
  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",
  "Malgun Gothic",sans-serif}
 .mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85em}
-.shell{max-width:520px;margin:0 auto;padding-bottom:96px}
+.shell{max-width:520px;margin:0 auto;height:100vh;height:100dvh;
+ display:flex;flex-direction:column;overflow:hidden}
+#view-now{flex:1;min-height:0;display:flex;flex-direction:column;
+ overflow:hidden}
+#view-hist{flex:1;min-height:0;flex-direction:column;overflow:hidden}
+#view-stats{flex:1;min-height:0;overflow-y:auto;
+ -webkit-overflow-scrolling:touch;padding-bottom:10px}
+.feedsec{flex:1;min-height:0;display:flex;flex-direction:column;
+ margin-bottom:12px}
+.feedsec .feed{flex:1;min-height:0;overflow-y:auto;
+ -webkit-overflow-scrolling:touch}
+.histsec{flex:1;min-height:0;display:flex;flex-direction:column;
+ margin-bottom:12px}
+.histsec .runs{flex:1;min-height:0;overflow-y:auto;
+ -webkit-overflow-scrolling:touch}
+#view-stats section{margin:8px 12px 0}
+#view-stats .sec-head{padding:9px 12px 0}
+#view-stats .statwrap{padding:2px 8px 8px}
+#view-stats table.stats{font-size:12.5px}
+#view-stats .kchips{padding:8px 12px 10px}
+#view-stats .kchip{padding:5px 9px;font-size:12px}
 h1,h2,p{margin:0}
 a{color:var(--blue);text-decoration:none}
 header{position:sticky;top:0;z-index:10;padding:14px 16px 12px;
@@ -595,6 +616,14 @@ header{position:sticky;top:0;z-index:10;padding:14px 16px 12px;
  color:var(--muted);background:var(--card);border:1px solid var(--line);
  border-radius:10px;cursor:pointer}
 .tab.sel{color:#06281a;background:var(--accent);border-color:var(--accent)}
+.panel{padding:10px 0 4px}
+.panel label{font-size:13px;color:var(--muted)}
+.panel input{width:90px;margin-left:6px}
+.gobtn{min-height:44px;width:96px;border:0;border-radius:12px;
+ background:var(--accent);color:#06281a;font:inherit;font-size:15.5px;
+ font-weight:800}
+.gobtn:disabled{opacity:.4}
+#msg{font-size:12px;color:var(--muted);padding:4px 0 0;word-break:break-all}
 section{margin:12px 16px 0;background:var(--card);border:1px solid var(--line);
  border-radius:14px;overflow:hidden}
 .sec-head{display:flex;justify-content:space-between;align-items:baseline;
@@ -670,16 +699,7 @@ table.stats td:first-child{max-width:130px;overflow:hidden;
 .kchip{padding:7px 12px;border-radius:10px;background:var(--card2);
  border:1px solid var(--line);font-size:13px}
 .kchip b{color:#ffd97e}
-.fab{position:fixed;right:18px;bottom:20px;min-height:52px;padding:0 22px;
- border:0;border-radius:26px;background:var(--accent);color:#06281a;
- font:inherit;font-size:16px;font-weight:800;
- box-shadow:0 8px 22px rgba(0,0,0,.45);cursor:pointer;z-index:20}
-.sheet{display:none;position:fixed;left:0;right:0;bottom:0;z-index:19;
- background:#15181b;border-top:1px solid var(--line);
- border-radius:18px 18px 0 0;padding:16px;max-width:520px;margin:0 auto;
- box-shadow:0 -10px 30px rgba(0,0,0,.5)}
-.sheet.openned{display:block}
-.modes{display:flex;gap:6px;margin-bottom:10px}
+.modes{display:flex;gap:6px;margin-top:10px}
 .mode{flex:1;min-height:38px;border:1px solid var(--line);border-radius:10px;
  background:var(--card);color:var(--muted);font:inherit;font-size:14px;
  font-weight:600}
@@ -692,11 +712,7 @@ textarea,select,input{width:100%;border:1px solid var(--line);border-radius:10px
 textarea{min-height:52px;max-height:130px;resize:vertical}
 select{margin-bottom:8px}
 .gorow{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;
- align-items:center;margin-top:10px}
-#go{min-height:46px;border:0;border-radius:12px;background:var(--accent);
- color:#06281a;font:inherit;font-size:16px;font-weight:800}
-#go:disabled{opacity:.4}
-#msg{font-size:12px;color:var(--muted);line-height:1.4;word-break:break-all}
+ align-items:center;margin-top:8px}
 .empty{padding:16px;color:var(--muted);font-size:14px}
 </style></head><body>
 <div class="shell">
@@ -709,6 +725,27 @@ select{margin-bottom:8px}
   <p class="now-line" id="nowline">-</p>
   <div class="round-bar" id="roundbar" style="display:none"></div>
   <div class="round-label" id="roundlabel" style="display:none"></div>
+  <div class="modes">
+    <button class="mode" id="m-single" onclick="toggleMode('single')">단일</button>
+    <button class="mode" id="m-improve" onclick="toggleMode('improve')">개선</button>
+    <button class="mode" id="m-auto" onclick="toggleMode('auto')">자동</button>
+    <button class="mode stop" id="stopbtn" onclick="confirmStop()">종료예약</button>
+  </div>
+  <div class="panel" id="panel-single" style="display:none">
+    <textarea id="idea" rows="2" placeholder="아이디어 한 줄…"></textarea>
+    <div class="gorow"><button class="gobtn" onclick="go('single')">투입</button></div>
+  </div>
+  <div class="panel" id="panel-improve" style="display:none">
+    <select id="imp-run"></select>
+    <textarea id="imp-fb" rows="2" placeholder="개선점 (무엇을 고치거나 추가할지)…"></textarea>
+    <div class="gorow"><button class="gobtn" onclick="go('improve')">투입</button></div>
+  </div>
+  <div class="panel" id="panel-auto" style="display:none">
+    <label>회차 수 (1~20):
+      <input id="auto-runs" type="number" min="1" max="20" value="20"></label>
+    <div class="gorow"><button class="gobtn" onclick="go('auto')">투입</button></div>
+  </div>
+  <div id="msg"></div>
 </header>
 
 <div class="tabs">
@@ -733,14 +770,14 @@ select{margin-bottom:8px}
     </div>
   </section>
 
-  <section>
+  <section class="feedsec">
     <div class="sec-head"><h2>방금 일어난 일</h2><span id="feed-note"></span></div>
     <div class="feed" id="feed"></div>
   </section>
 </div>
 
 <div id="view-hist" style="display:none">
-  <section>
+  <section class="histsec">
     <div class="sec-head"><h2>생산 기록</h2><span id="hist-note"></span></div>
     <div class="runs" id="history"></div>
   </section>
@@ -766,30 +803,6 @@ select{margin-bottom:8px}
 </div>
 </div>
 
-<button class="fab" id="fab" onclick="toggleSheet()">+ 투입</button>
-<div class="sheet" id="sheet">
-  <div class="modes">
-    <button class="mode sel" id="m-single" onclick="setMode('single')">단일</button>
-    <button class="mode" id="m-improve" onclick="setMode('improve')">개선</button>
-    <button class="mode" id="m-auto" onclick="setMode('auto')">자동</button>
-    <button class="mode stop" id="stopbtn" onclick="toggleStop()">종료예약</button>
-  </div>
-  <div id="panel-single">
-    <textarea id="idea" rows="2" placeholder="아이디어 한 줄…"></textarea>
-  </div>
-  <div id="panel-improve" style="display:none">
-    <select id="imp-run"></select>
-    <textarea id="imp-fb" rows="2" placeholder="개선점 (무엇을 고치거나 추가할지)…"></textarea>
-  </div>
-  <div id="panel-auto" style="display:none">
-    <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">
-      자동(배치) — 주제를 출제해 연속 생산. 회차 사이마다 종료예약 확인.</p>
-    <label style="font-size:13px;color:var(--muted)">회차 수 (1~20):
-      <input id="auto-runs" type="number" min="1" max="20" value="3"
-             style="width:84px"></label>
-  </div>
-  <div class="gorow"><button id="go" onclick="go()">투입</button><span id="msg"></span></div>
-</div>
 <script>
 let lastOk = 0;
 let headState = {title:'-', dot:'dot'};
@@ -932,7 +945,7 @@ function render(r){
   // ── 피드
   document.getElementById('feed-note').textContent =
     lv && lv.has_report ? '' : '';
-  let feedHtml = tail.slice().reverse().slice(0,12).map(function(line,i){
+  let feedHtml = tail.slice().reverse().map(function(line,i){
     const hot = i===0 && runOn;
     return '<div class="ev'+(hot?' hot':'')+'"><span class="t">'
       + esc(line.slice(0,8))+'</span><span>'
@@ -946,11 +959,12 @@ function render(r){
       + '</span></div>';
   document.getElementById('feed').innerHTML =
     feedHtml || '<div class="empty">기록 없음</div>';
-  // ── 종료예약 버튼 / go
+  // ── 종료예약 버튼 / 투입 버튼들
   const sb = document.getElementById('stopbtn');
   sb.textContent = r.stop_after ? '예약됨' : '종료예약';
   sb.classList.toggle('armed', !!r.stop_after);
-  document.getElementById('go').disabled = batchOn || runOn;
+  const busy = batchOn || runOn;
+  document.querySelectorAll('.gobtn').forEach(function(b){ b.disabled = busy; });
   // ── 개선 드롭다운
   const sel = document.getElementById('imp-run');
   const keep = sel.value;
@@ -1090,33 +1104,35 @@ function setTab(t){
   TAB = t;
   for(const x of ['now','hist','stats']){
     document.getElementById('tab-'+x).classList.toggle('sel', x===t);
-    document.getElementById('view-'+x).style.display = x===t?'block':'none';
+    document.getElementById('view-'+x).style.display =
+      x!==t ? 'none' : (x==='stats' ? 'block' : 'flex');
   }
 }
 
-function toggleSheet(){
-  const s = document.getElementById('sheet');
-  s.classList.toggle('openned');
-  document.getElementById('fab').textContent =
-    s.classList.contains('openned') ? '✕ 닫기' : '+ 투입';
+let OPEN = null;  // 열려 있는 투입 패널 (단일/개선/자동 중 하나)
+function toggleMode(m){
+  OPEN = (OPEN === m) ? null : m;
+  for(const x of ['single','improve','auto']){
+    document.getElementById('m-'+x).classList.toggle('sel', x===OPEN);
+    document.getElementById('panel-'+x).style.display =
+      x===OPEN ? 'block' : 'none';
+  }
+  if(!OPEN) document.getElementById('msg').textContent = '';
 }
 
 function pickImprove(run){
-  document.getElementById('sheet').classList.add('openned');
-  document.getElementById('fab').textContent = '✕ 닫기';
-  setMode('improve');
+  setTab('now');
+  if(OPEN !== 'improve') toggleMode('improve');
   document.getElementById('imp-run').value = run;
-  window.scrollTo({top:0, behavior:'smooth'});
   return false;
 }
 
-let MODE = 'single';
-function setMode(m){
-  MODE = m;
-  for(const x of ['single','improve','auto']){
-    document.getElementById('m-'+x).classList.toggle('sel', x===m);
-    document.getElementById('panel-'+x).style.display = x===m?'block':'none';
-  }
+async function confirmStop(){
+  const armed = document.getElementById('stopbtn').classList.contains('armed');
+  const q = armed ? '종료 예약을 해제할까요?'
+                  : '정말 종료하시겠습니까?\\n진행 중인 회차까지만 돌고 멈춥니다.';
+  if(!confirm(q)) return;
+  toggleStop();
 }
 
 async function post(path, body){
@@ -1125,12 +1141,12 @@ async function post(path, body){
     body: JSON.stringify(body||{})})).json();
 }
 
-async function go(){
+async function go(mode){
   let res;
-  if(MODE==='single'){
+  if(mode==='single'){
     res = await post('/api/start', {idea: document.getElementById('idea').value});
     if(res.ok) document.getElementById('idea').value='';
-  } else if(MODE==='improve'){
+  } else if(mode==='improve'){
     res = await post('/api/improve', {
       run: document.getElementById('imp-run').value,
       feedback: document.getElementById('imp-fb').value});
