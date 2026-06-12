@@ -17,6 +17,7 @@ API:
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -344,6 +345,10 @@ def build_status(runs_dir: Path | None = None) -> dict:
             except (json.JSONDecodeError, OSError):
                 pass
         last_event = events[-1].get("event") if events else None
+        score = None
+        for e in events:
+            if e.get("event") == "scoreboard":
+                score = {"passed": e.get("passed"), "total": e.get("total")}
         live = {
             "run": run_dir.name,
             "description": desc,
@@ -354,6 +359,11 @@ def build_status(runs_dir: Path | None = None) -> dict:
             "events_tail": [_humanize(e) for e in events[-EVENTS_TAIL:]],
             "stages": stage_states(events),
             "parts": file_states(run_dir, events),
+            "score": score,
+            "fixes": {"static": sum(1 for e in events
+                                    if e.get("event") == "static-issues"),
+                      "exec": sum(1 for e in events
+                                  if e.get("event") == "exec-issues")},
         }
 
     history = list(reversed(load_index(RUNS_DIR)))
@@ -374,6 +384,75 @@ def build_status(runs_dir: Path | None = None) -> dict:
                     PROJECT_ROOT / "evaluator_mistakes.json"),
             },
             "now": datetime.now().isoformat(timespec="seconds")}
+
+
+def _md_to_html(md: str) -> str:
+    """REPORT.md를 폰에서 읽기 좋은 최소 HTML로 (외부 의존성 없음, script 없음)."""
+    import html as html_mod
+    out: list[str] = []
+    in_code = False
+    in_list = False
+    for line in md.splitlines():
+        if line.strip().startswith("```"):
+            if in_list:
+                out.append("</ul>")
+                in_list = False
+            out.append("</pre>" if in_code else "<pre>")
+            in_code = not in_code
+            continue
+        if in_code:
+            out.append(html_mod.escape(line))
+            continue
+        esc = html_mod.escape(line)
+        # **굵게** 와 `코드` 만 지원 (정본은 어디까지나 REPORT.md)
+        esc = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", esc)
+        esc = re.sub(r"`([^`]+)`", r"<code>\1</code>", esc)
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append(f"<li>{esc.strip()[2:]}</li>")
+            continue
+        if in_list:
+            out.append("</ul>")
+            in_list = False
+        if stripped.startswith("### "):
+            out.append(f"<h3>{esc.strip()[4:]}</h3>")
+        elif stripped.startswith("## "):
+            out.append(f"<h2>{esc.strip()[3:]}</h2>")
+        elif stripped.startswith("# "):
+            out.append(f"<h1>{esc.strip()[2:]}</h1>")
+        elif stripped:
+            out.append(f"<p>{esc}</p>")
+    if in_list:
+        out.append("</ul>")
+    if in_code:
+        out.append("</pre>")
+    return "\n".join(out)
+
+
+REPORT_PAGE = """<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REPORT</title><style>
+body{margin:0;background:#101214;color:#eceff2;font-size:16px;line-height:1.6;
+ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",
+ "Malgun Gothic",sans-serif}
+main{max-width:680px;margin:0 auto;padding:18px 16px 50px}
+h1{font-size:21px;margin:10px 0}h2{font-size:18px;margin:22px 0 8px;
+ color:#9adfbd}h3{font-size:16px;margin:16px 0 6px}
+p{margin:6px 0}ul{margin:6px 0;padding-left:22px}li{margin:3px 0}
+pre{background:#1a1d21;border:1px solid #2e343b;border-radius:10px;
+ padding:12px;overflow-x:auto;font-size:12.5px;line-height:1.5;
+ font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+ white-space:pre-wrap;word-break:break-all}
+code{background:#22262b;border-radius:5px;padding:1px 5px;font-size:.88em;
+ font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+a{color:#60a5fa}.top{font-size:14px}</style></head>
+<body><main><p class="top"><a href="/">&larr; 대시보드</a></p>
+__BODY__
+</main></body></html>"""
 
 
 def toggle_stop() -> bool:
@@ -473,328 +552,293 @@ PAGE = """<!DOCTYPE html>
 <html lang="ko"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>generator factory</title>
+<title>generator</title>
 <style>
-:root{--bg:#14110d;--text:#ece3d0;--muted:#9b8e74;--copper:#d9822b;
- --yellow:#f1bf3a;--green:#7ed457;--red:#e0584d;--blue:#6fa8e8;--iron:#aab2b8}
+:root{--bg:#101214;--card:#1a1d21;--card2:#22262b;--line:#2e343b;
+ --text:#eceff2;--muted:#9aa4ae;--green:#4ade80;--amber:#fbbf24;
+ --red:#f87171;--blue:#60a5fa;--accent:#34d399}
 *{box-sizing:border-box}
-body{margin:0;color:var(--text);font-size:14px;
- font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
- background:linear-gradient(90deg,rgba(241,191,58,.03) 1px,transparent 1px),
-  linear-gradient(0deg,rgba(241,191,58,.03) 1px,transparent 1px),
-  radial-gradient(circle at 80% -5%,rgba(217,130,43,.14),transparent 38%),
-  var(--bg);
- background-size:26px 26px,26px 26px,auto,auto}
-.shell{max-width:520px;min-height:100vh;margin:0 auto;
- border-left:1px solid #241e15;border-right:1px solid #241e15}
-h1,h2,h3,p{margin:0}
-a{color:#e8b96a}
-header{position:sticky;top:0;z-index:10;padding:10px;
- border-bottom:2px solid #3a3022;background:rgba(20,17,13,.97)}
-.top{display:flex;align-items:center;justify-content:space-between;gap:8px;
- margin-bottom:8px;flex-wrap:wrap}
-h1{font-size:15px;color:#f7efdd}
-.conn{font-size:11px;color:var(--muted)}
+body{margin:0;background:var(--bg);color:var(--text);font-size:16px;
+ line-height:1.5;-webkit-font-smoothing:antialiased;
+ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",
+ "Malgun Gothic",sans-serif}
+.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85em}
+.shell{max-width:520px;margin:0 auto;padding-bottom:96px}
+h1,h2,p{margin:0}
+a{color:var(--blue);text-decoration:none}
+header{position:sticky;top:0;z-index:10;padding:14px 16px 12px;
+ background:rgba(16,18,20,.96);backdrop-filter:blur(12px);
+ border-bottom:1px solid var(--line)}
+.status-row{display:flex;align-items:center;gap:10px}
+.dot{width:12px;height:12px;border-radius:50%;background:#566069;flex-shrink:0}
+.dot.on{background:var(--green);animation:pulse 2s infinite}
+.dot.bad{background:var(--red)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(74,222,128,.12)}
+ 50%{box-shadow:0 0 0 7px rgba(74,222,128,.22)}}
+.status-row h1{font-size:19px;font-weight:700}
+.conn{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
 .conn.bad{color:var(--red);font-weight:700}
-.badge{padding:3px 8px;border:1px solid #7a6a2c;background:#332b10;
- color:#ffe69a;font-size:12px;white-space:nowrap}
-.badge.on{animation:blink 2.4s infinite}
-.badge.off{border-color:#4a4337;background:#241f16;color:#9b8e74;animation:none}
-.badge.bad{border-color:#8f4438;background:#3a1410;color:#ffb3a8;animation:none}
-@keyframes blink{0%,100%{box-shadow:0 0 0 0 rgba(241,191,58,0)}
- 50%{box-shadow:0 0 10px 1px rgba(241,191,58,.35)}}
-.modes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-.mode{min-height:34px;padding:4px 12px;border:1px solid #4a3d2a;
- background:#211b12;color:var(--muted);font:inherit;font-size:12px}
-.mode.sel{border-color:#e8a14b;background:#4c2d0d;color:#ffe9c7;font-weight:700}
-.mode.stop{margin-left:auto}
-.mode.stop.armed{border-color:#8f4438;background:#3a1410;color:#ffb3a8}
-textarea,select,input{width:100%;border:1px solid #4a3d2a;background:#181410;
- color:var(--text);padding:8px;font:inherit;line-height:1.35}
-textarea{min-height:44px;max-height:120px;resize:vertical}
-select{margin-bottom:6px}
-.gorow{display:grid;grid-template-columns:88px minmax(0,1fr);gap:8px;
- align-items:center;margin-top:8px}
-#go{min-height:44px;border:1px solid #e8a14b;
- background:linear-gradient(180deg,#7a4a16,#4c2d0d);color:#ffe9c7;font:inherit;
- font-weight:700;text-shadow:0 1px 0 rgba(0,0,0,.5)}
-#go:disabled{opacity:.45}
-#msg{font-size:11px;color:var(--muted);line-height:1.35;word-break:break-all}
-.resources{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;
- padding:8px 10px;border-bottom:1px solid #2c251a;background:#191510}
-.res{min-height:46px;padding:6px;border:1px solid #3a3022;text-align:center;
- background:linear-gradient(180deg,#262017,#1b1610)}
-.res span{display:block;font-size:10px;color:var(--muted);margin-bottom:3px}
-.res strong{font-size:13px;color:#ffd97e}
-.hero{padding:10px}
-.strip{display:none;margin-bottom:8px;padding:8px 9px;font-size:12px;
- line-height:1.45;border:1px solid #7a6a2c;background:#2b240f;color:#ffe69a}
-.strip.crashed{border-color:#8f4438;background:#3a1410;color:#ffb3a8}
-.strip.finished{border-color:#4a4337;background:#201b13;color:var(--muted)}
-.factory-card{border:1px solid #4a3d2a;overflow:hidden;
- background:linear-gradient(90deg,rgba(241,191,58,.04) 1px,transparent 1px),
-  linear-gradient(0deg,rgba(241,191,58,.04) 1px,transparent 1px),#1a1610;
- background-size:22px 22px}
-.factory-head{display:flex;align-items:center;justify-content:space-between;
- gap:8px;padding:8px 9px;border-bottom:1px solid #342b1d;
- background:rgba(30,25,17,.94)}
-.factory-head h2{font-size:12px;color:#f0e6cf;white-space:nowrap;flex-shrink:0}
-.factory-head span{color:var(--muted);font-size:11px;overflow:hidden;
+.now-line{margin-top:6px;font-size:15px;color:var(--muted);overflow:hidden;
  text-overflow:ellipsis;white-space:nowrap}
-.map{position:relative;height:332px;overflow:hidden}
-.belt{position:absolute;height:18px;border-top:1px solid #5d5138;
- border-bottom:1px solid #5d5138;
- background:repeating-linear-gradient(90deg,#4f4631 0 9px,#2a241a 9px 16px);
- animation:beltx 1.1s linear infinite}
-.belt.rev{animation-direction:reverse}
-.belt.vertical{width:18px;height:auto;border:0;border-left:1px solid #5d5138;
- border-right:1px solid #5d5138;
- background:repeating-linear-gradient(180deg,#4f4631 0 9px,#2a241a 9px 16px);
- animation:belty 1.1s linear infinite}
-@keyframes beltx{to{background-position-x:16px}}
-@keyframes belty{to{background-position-y:16px}}
-.map.paused .belt{animation-play-state:paused;opacity:.55}
-.map.paused .item{display:none}
-.b1{left:16px;right:48px;top:52px}.b2{right:48px;top:52px;height:120px}
-.b3{left:52px;right:48px;top:172px}.b4{left:52px;top:172px;height:92px}
-.b5{left:52px;right:110px;top:246px}
-.item{position:absolute;width:12px;height:12px;z-index:1;
- border:1px solid rgba(0,0,0,.55);background:var(--copper);
- box-shadow:0 0 7px rgba(217,130,43,.4)}
-.i1{top:55px;left:20px;animation:f1 4s linear infinite}
-.i2{top:55px;left:20px;animation:f1 4s linear infinite 1.3s;
- background:var(--blue)}
-.i3{top:55px;right:51px;animation:f2 3.2s linear infinite .6s;
- background:var(--yellow)}
-.i4{top:175px;right:60px;animation:f3 3.6s linear infinite;
- background:var(--green)}
-.i5{top:175px;left:55px;animation:f4 3.4s linear infinite .8s}
-@keyframes f1{0%{transform:translateX(0);opacity:0}8%,92%{opacity:1}
- 100%{transform:translateX(262px);opacity:0}}
-@keyframes f2{0%{transform:translateY(0);opacity:0}10%,90%{opacity:1}
- 100%{transform:translateY(116px);opacity:0}}
-@keyframes f3{0%{transform:translateX(0);opacity:0}10%,90%{opacity:1}
- 100%{transform:translateX(-242px);opacity:0}}
-@keyframes f4{0%{transform:translateY(0);opacity:0}10%,60%{opacity:1}
- 80%{transform:translateY(72px) translateX(0);opacity:1}
- 100%{transform:translateY(72px) translateX(40px);opacity:0}}
-.machine{position:absolute;z-index:2;width:100px;min-height:58px;
- padding:6px 7px;border:1px solid #5d5138;
- background:linear-gradient(180deg,#2e2719,#1c1710);
- box-shadow:0 6px 14px rgba(0,0,0,.35)}
-.machine strong{display:block;margin-bottom:3px;padding-right:18px;
- font-size:12px;color:#f5ecd6}
-.machine .mnote{display:block;font-size:10px;color:var(--muted);
- line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.machine::before{content:"";position:absolute;width:14px;height:14px;right:6px;
- top:6px;border-radius:50%;border:2px solid #6d6147;background:#241e14}
-.machine.pending{opacity:.55}
-.machine.done{border-color:#5d7b3c}
-.machine.done::before{background:var(--green);border-color:#c9f0ae}
-.machine.active{border-color:var(--copper);opacity:1;
- box-shadow:0 0 0 1px rgba(217,130,43,.35),0 0 20px rgba(217,130,43,.25)}
-.machine.active::before{background:var(--yellow);border-color:#ffe9a8;
- animation:lamp 1s infinite}
-@keyframes lamp{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
-.machine.warn,.machine.halt{border-color:#8f4438;opacity:1}
-.machine.warn::before,.machine.halt::before{background:var(--red);
- border-color:#ffb3a8}
-.machine.warn::before{animation:lamp 1s infinite}
-.craft{display:none;height:7px;margin-top:5px;border:1px solid #4a3d2a;
- background:#191510;overflow:hidden}
-.craft>div{height:100%;width:40%;
- background:linear-gradient(90deg,var(--copper),var(--yellow));
- animation:crafting 2.6s ease-in-out infinite}
-.machine.active .craft,.machine.warn .craft{display:block}
-@keyframes crafting{0%{width:6%}70%{width:96%}100%{width:6%}}
-.hazard{display:none;position:absolute;left:0;right:0;bottom:0;height:5px;
- background:repeating-linear-gradient(45deg,var(--yellow) 0 7px,#18130c 7px 14px);
- opacity:.85}
-.machine.warn .hazard,.machine.halt .hazard{display:block}
-.m-design{left:12px;top:12px}
-.m-tests{left:50%;top:12px;transform:translateX(-50%)}
-.m-build{right:10px;top:12px}
-.m-static{right:10px;top:128px}
-.m-exec{left:50%;top:128px;transform:translateX(-50%)}
-.m-crit{left:12px;top:128px}
-.m-ship{right:10px;top:226px;width:116px}
-.crates{position:absolute;left:14px;bottom:10px;display:flex;
- align-items:flex-end;gap:4px;z-index:2}
-.crate{width:16px;height:16px;border:1px solid #211a10;
- background:linear-gradient(45deg,transparent 45%,rgba(0,0,0,.45) 45% 55%,transparent 55%),
- linear-gradient(-45deg,transparent 45%,rgba(0,0,0,.45) 45% 55%,transparent 55%),#b98a3e}
-.crate.tall{height:24px}
-.crates b{margin-left:5px;font-size:12px;color:#ffd97e}
-.map-callout{padding:8px 9px;border-top:1px solid #5a482c;background:#261d0f;
- color:#f0d8a0;font-size:12px;line-height:1.45;min-height:34px}
-section{margin:0 10px 10px;border:1px solid #3a3022;
- background:rgba(31,26,18,.94)}
-.section-head{display:flex;justify-content:space-between;align-items:center;
- gap:8px;padding:9px 10px;border-bottom:1px solid #342b1d}
-.section-head h2{font-size:13px}
-.section-head span{color:var(--muted);font-size:11px}
-.feed{padding:7px 10px}
-.event{display:grid;grid-template-columns:60px minmax(0,1fr);gap:8px;
- padding:7px 0;border-bottom:1px solid #2c251a;line-height:1.35;font-size:13px}
-.event:last-child{border-bottom:0}
-.time{color:#7d7158;font-size:11px}
-.parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
- padding:10px}
-.part{min-height:48px;padding:8px;border:1px solid #3a3022;background:#191510}
-.part strong{display:block;overflow:hidden;text-overflow:ellipsis;
- white-space:nowrap;font-size:12px;margin-bottom:5px}
-.part span{display:inline-block;padding:2px 6px;background:var(--iron);
- color:#14110d;font-size:11px}
-.part .OK{background:var(--green)}.part .FIX{background:var(--yellow)}
-.part .REV{background:var(--blue)}.part .WAIT{background:#6b6256;color:#1a1610}
-.upgrades{padding:10px;display:grid;gap:8px}
-.upg{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;
- align-items:center;padding:8px;border:1px solid #3a3022;background:#191510}
-.upg strong{display:block;font-size:12px}
-.upg small{display:block;font-size:10px;color:var(--muted);margin-top:2px}
-.upg .lv{font-size:12px;color:#ffd97e;white-space:nowrap}
-.runs{display:grid;gap:8px;padding:10px}
-.runrow{padding:9px;border:1px solid #3a3022;background:#191510}
-.runrow strong{display:block;margin-bottom:5px;font-size:12px;
- overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.runrow .ok{color:var(--green)}.runrow .fail{color:var(--red)}
-.runrow p{color:var(--muted);font-size:12px;line-height:1.45;
+.now-line b{color:var(--text);font-weight:600}
+.round-bar{display:flex;gap:3px;margin-top:10px}
+.round-bar i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.round-bar i.done{background:var(--green)}
+.round-bar i.cur{background:var(--amber);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.45}}
+.round-label{margin-top:5px;font-size:12px;color:var(--muted);
+ display:flex;justify-content:space-between;gap:8px}
+.round-label .warn{color:#ffb4b4}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+ padding:10px 16px 0}
+.tab{padding:10px 0;text-align:center;font-size:15px;font-weight:600;
+ color:var(--muted);background:var(--card);border:1px solid var(--line);
+ border-radius:10px;cursor:pointer}
+.tab.sel{color:#06281a;background:var(--accent);border-color:var(--accent)}
+section{margin:12px 16px 0;background:var(--card);border:1px solid var(--line);
+ border-radius:14px;overflow:hidden}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;
+ padding:13px 16px 0;gap:8px}
+.sec-head h2{font-size:16px;font-weight:700;white-space:nowrap}
+.sec-head span{font-size:12px;color:var(--muted);overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap}
+.workers{display:grid;gap:10px;padding:12px 14px 14px}
+.worker{display:grid;grid-template-columns:52px minmax(0,1fr) auto;
+ gap:4px 14px;align-items:center;padding:13px 14px;border-radius:12px;
+ border:1px solid var(--line);background:var(--card2)}
+.worker.on{border-color:rgba(251,191,36,.55);
+ background:linear-gradient(180deg,rgba(251,191,36,.10),rgba(251,191,36,.03))}
+.avatar{grid-row:span 2;width:52px;height:52px;border-radius:14px;
+ display:grid;place-items:center;font-weight:800;font-size:15px;
+ background:#2c3138;color:var(--muted)}
+.on .avatar{background:var(--amber);color:#2a1c02;animation:working 1.4s infinite}
+@keyframes working{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+.worker .who{font-size:13px;color:var(--muted);font-weight:600}
+.worker .doing{grid-column:2;font-size:16.5px;font-weight:700;line-height:1.35;
  word-break:break-all}
-@media (max-width:390px){
- .machine{width:94px}.m-ship{width:110px}
- .resources{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.worker.off .doing{font-size:14px;font-weight:500;color:#566069}
+.worker .extra{grid-column:2;font-size:13px;color:#ffd98a;margin-top:2px}
+.loopchip{grid-row:span 2;align-self:center;padding:6px 10px;border-radius:10px;
+ background:rgba(251,191,36,.16);color:var(--amber);font-size:13px;
+ font-weight:800;white-space:nowrap;text-align:center;line-height:1.3}
+.loopchip small{display:block;font-size:10.5px;font-weight:600;opacity:.85}
+.gates{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+ padding:12px 14px 14px}
+.gate{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;
+ align-items:center;padding:10px;border-radius:11px;
+ border:1px solid var(--line);background:var(--card2);min-height:56px}
+.gate .ic{width:22px;height:22px;border-radius:50%;display:grid;
+ place-items:center;font-size:12px;font-weight:900}
+.gate b{display:block;font-size:13.5px;font-weight:700;white-space:nowrap}
+.gate small{display:block;font-size:11px;color:var(--muted);line-height:1.3;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gate.pass .ic{background:rgba(74,222,128,.16);color:var(--green)}
+.gate.busy{border-color:rgba(251,191,36,.5)}
+.gate.busy .ic{background:var(--amber);color:#2a1c02;animation:blink 1.2s infinite}
+.gate.busy small{color:#ffd98a}
+.gate.fail .ic{background:rgba(248,113,113,.18);color:var(--red)}
+.gate.fail{border-color:rgba(248,113,113,.45)}
+.gate.wait{opacity:.5}
+.gate.wait .ic{background:var(--card);color:#566069}
+.meta-strip{display:grid;grid-template-columns:repeat(3,1fr);
+ border-top:1px solid var(--line)}
+.meta-strip div{padding:10px 0 12px;text-align:center}
+.meta-strip div+div{border-left:1px solid var(--line)}
+.meta-strip span{display:block;font-size:11.5px;color:var(--muted)}
+.meta-strip b{font-size:16.5px;font-weight:700}
+.feed{padding:6px 16px 12px}
+.ev{display:grid;grid-template-columns:58px minmax(0,1fr);gap:10px;
+ padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.feed .ev:first-child{border-top:0}
+.ev .t{font-size:12px;color:var(--muted);padding-top:2px;
+ font-variant-numeric:tabular-nums}
+.ev.hot{color:#ffd98a}
+.runs{padding:6px 0 4px}
+.runrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;
+ padding:12px 16px;border-top:1px solid var(--line);align-items:start}
+.runs .runrow:first-child{border-top:0}
+.score{min-width:50px;padding:5px 4px;border-radius:9px;text-align:center;
+ font-weight:800;font-size:13.5px;white-space:nowrap}
+.score.ok{background:rgba(74,222,128,.15);color:var(--green)}
+.score.part{background:rgba(251,191,36,.15);color:var(--amber)}
+.score.bad{background:rgba(248,113,113,.15);color:var(--red)}
+.score.infra{background:rgba(96,165,250,.15);color:var(--blue)}
+.runrow .idea{font-size:15px;font-weight:500;display:-webkit-box;
+ -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.runrow .meta{grid-column:2;font-size:12.5px;color:var(--muted)}
+table.stats{width:100%;border-collapse:collapse;font-size:13.5px}
+table.stats th{font-size:11.5px;color:var(--muted);font-weight:600;
+ text-align:left;padding:8px 6px 4px}
+table.stats td{padding:7px 6px;border-top:1px solid var(--line);
+ font-variant-numeric:tabular-nums}
+table.stats td:first-child{max-width:130px;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap}
+.statwrap{padding:4px 12px 12px;overflow-x:auto}
+.kchips{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px 14px}
+.kchip{padding:7px 12px;border-radius:10px;background:var(--card2);
+ border:1px solid var(--line);font-size:13px}
+.kchip b{color:#ffd97e}
+.fab{position:fixed;right:18px;bottom:20px;min-height:52px;padding:0 22px;
+ border:0;border-radius:26px;background:var(--accent);color:#06281a;
+ font:inherit;font-size:16px;font-weight:800;
+ box-shadow:0 8px 22px rgba(0,0,0,.45);cursor:pointer;z-index:20}
+.sheet{display:none;position:fixed;left:0;right:0;bottom:0;z-index:19;
+ background:#15181b;border-top:1px solid var(--line);
+ border-radius:18px 18px 0 0;padding:16px;max-width:520px;margin:0 auto;
+ box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+.sheet.openned{display:block}
+.modes{display:flex;gap:6px;margin-bottom:10px}
+.mode{flex:1;min-height:38px;border:1px solid var(--line);border-radius:10px;
+ background:var(--card);color:var(--muted);font:inherit;font-size:14px;
+ font-weight:600}
+.mode.sel{background:var(--accent);border-color:var(--accent);color:#06281a}
+.mode.stop{flex:0 0 auto;padding:0 12px}
+.mode.stop.armed{border-color:rgba(248,113,113,.6);background:rgba(248,113,113,.12);
+ color:#ffb4b4}
+textarea,select,input{width:100%;border:1px solid var(--line);border-radius:10px;
+ background:var(--bg);color:var(--text);padding:10px;font:inherit;font-size:15px}
+textarea{min-height:52px;max-height:130px;resize:vertical}
+select{margin-bottom:8px}
+.gorow{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;
+ align-items:center;margin-top:10px}
+#go{min-height:46px;border:0;border-radius:12px;background:var(--accent);
+ color:#06281a;font:inherit;font-size:16px;font-weight:800}
+#go:disabled{opacity:.4}
+#msg{font-size:12px;color:var(--muted);line-height:1.4;word-break:break-all}
+.empty{padding:16px;color:var(--muted);font-size:14px}
 </style></head><body>
 <div class="shell">
 <header>
-  <div class="top">
-    <h1>generator factory</h1>
-    <span class="conn" id="conn">접속 중...</span>
-    <span class="badge off" id="badge">-</span>
+  <div class="status-row">
+    <span class="dot" id="dot"></span>
+    <h1 id="title">접속 중…</h1>
+    <span class="conn" id="conn"></span>
   </div>
+  <p class="now-line" id="nowline">-</p>
+  <div class="round-bar" id="roundbar" style="display:none"></div>
+  <div class="round-label" id="roundlabel" style="display:none"></div>
+</header>
+
+<div class="tabs">
+  <div class="tab sel" id="tab-now" onclick="setTab('now')">현황</div>
+  <div class="tab" id="tab-hist" onclick="setTab('hist')">기록</div>
+  <div class="tab" id="tab-stats" onclick="setTab('stats')">지표</div>
+</div>
+
+<div id="view-now">
+  <section>
+    <div class="sec-head"><h2>지금</h2><span id="now-run" class="mono">-</span></div>
+    <div class="workers">
+      <div class="worker off" id="w26">
+        <span class="avatar">26B</span>
+        <span class="who" id="w26-who">조립공</span>
+        <span class="loopchip" id="w26-chip" style="display:none"></span>
+        <span class="doing" id="w26-doing">대기</span>
+        <span class="extra" id="w26-extra" style="display:none"></span>
+      </div>
+      <div class="worker off" id="w31">
+        <span class="avatar">31B</span>
+        <span class="who" id="w31-who">감독관</span>
+        <span class="loopchip" id="w31-chip" style="display:none"></span>
+        <span class="doing" id="w31-doing">대기</span>
+        <span class="extra" id="w31-extra" style="display:none"></span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>게이트 점검표</h2><span>통과 상태 · 루프 횟수</span></div>
+    <div class="gates" id="gates"></div>
+    <div class="meta-strip">
+      <div><span>검수 점수</span><b id="m-score">-</b></div>
+      <div><span>수리 (정적+시운전)</span><b id="m-fix">-</b></div>
+      <div><span>마지막 기록</span><b id="m-age" style="font-size:14px">-</b></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>방금 일어난 일</h2><span id="feed-note"></span></div>
+    <div class="feed" id="feed"></div>
+  </section>
+</div>
+
+<div id="view-hist" style="display:none">
+  <section>
+    <div class="sec-head"><h2>생산 기록</h2><span id="hist-note"></span></div>
+    <div class="runs" id="history"></div>
+  </section>
+</div>
+
+<div id="view-stats" style="display:none">
+  <section>
+    <div class="sec-head"><h2>프롬프트 버전별</h2><span>실험 전후 비교</span></div>
+    <div class="statwrap"><table class="stats" id="st-version"></table></div>
+  </section>
+  <section>
+    <div class="sec-head"><h2>난이도(level)별</h2><span>성공률 해석 보정용</span></div>
+    <div class="statwrap"><table class="stats" id="st-level"></table></div>
+  </section>
+  <section>
+    <div class="sec-head"><h2>개선(improve) 판정</h2><span id="st-imp-note"></span></div>
+    <div class="kchips" id="st-improve"></div>
+  </section>
+  <section>
+    <div class="sec-head"><h2>실패 분해 · 자산</h2><span>인프라 ≠ 모델 실력</span></div>
+    <div class="kchips" id="st-misc"></div>
+  </section>
+</div>
+</div>
+
+<button class="fab" id="fab" onclick="toggleSheet()">+ 투입</button>
+<div class="sheet" id="sheet">
   <div class="modes">
     <button class="mode sel" id="m-single" onclick="setMode('single')">단일</button>
     <button class="mode" id="m-improve" onclick="setMode('improve')">개선</button>
     <button class="mode" id="m-auto" onclick="setMode('auto')">자동</button>
-    <button class="mode stop" id="stopbtn" onclick="toggleStop()">종료 예약</button>
+    <button class="mode stop" id="stopbtn" onclick="toggleStop()">종료예약</button>
   </div>
   <div id="panel-single">
-    <textarea id="idea" rows="2" placeholder="아이디어 한 줄..."></textarea>
+    <textarea id="idea" rows="2" placeholder="아이디어 한 줄…"></textarea>
   </div>
   <div id="panel-improve" style="display:none">
     <select id="imp-run"></select>
-    <textarea id="imp-fb" rows="2"
-      placeholder="개선점 (무엇을 고치거나 추가할지)..."></textarea>
+    <textarea id="imp-fb" rows="2" placeholder="개선점 (무엇을 고치거나 추가할지)…"></textarea>
   </div>
   <div id="panel-auto" style="display:none">
-    <p style="font-size:11px;color:var(--muted);margin-bottom:6px">
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">
       자동(배치) — 주제를 출제해 연속 생산. 회차 사이마다 종료예약 확인.</p>
-    <label style="font-size:12px;color:var(--muted)">회차 수 (1~20):
+    <label style="font-size:13px;color:var(--muted)">회차 수 (1~20):
       <input id="auto-runs" type="number" min="1" max="20" value="3"
-             style="width:80px"></label>
+             style="width:84px"></label>
   </div>
-  <div class="gorow">
-    <button id="go" onclick="go()">투입</button>
-    <span id="msg"></span>
-  </div>
-</header>
-
-<div class="resources">
-  <div class="res"><span>출하품</span><strong id="r-ship">-</strong></div>
-  <div class="res"><span>조립 매뉴얼</span><strong id="r-lessons">-</strong></div>
-  <div class="res"><span>노트(비평+검수)</span><strong id="r-notes">-</strong></div>
-  <div class="res"><span>누적 비용</span><strong id="r-cost">-</strong></div>
-</div>
-
-<div class="hero">
-  <div class="strip" id="batchstrip"></div>
-  <div class="factory-card">
-    <div class="factory-head">
-      <h2>라인 맵</h2><span id="runname">-</span>
-    </div>
-    <div class="map paused" id="map">
-      <div class="belt b1"></div><div class="belt vertical b2"></div>
-      <div class="belt rev b3"></div><div class="belt vertical b4"></div>
-      <div class="belt b5"></div>
-      <div class="item i1"></div><div class="item i2"></div>
-      <div class="item i3"></div><div class="item i4"></div>
-      <div class="item i5"></div>
-      <div class="machine pending m-design" id="st-design" data-pos="m-design">
-        <strong>설계</strong><span class="mnote">31B</span>
-        <div class="craft"><div></div></div><i class="hazard"></i></div>
-      <div class="machine pending m-tests" id="st-tests" data-pos="m-tests">
-        <strong>기준</strong><span class="mnote">31B 출제</span>
-        <div class="craft"><div></div></div><i class="hazard"></i></div>
-      <div class="machine pending m-build" id="st-build" data-pos="m-build">
-        <strong>조립</strong><span class="mnote">26B</span>
-        <div class="craft"><div></div></div><i class="hazard"></i></div>
-      <div class="machine pending m-static" id="st-static" data-pos="m-static">
-        <strong>정적</strong><span class="mnote">AST 검사</span>
-        <div class="craft"><div></div></div><i class="hazard"></i></div>
-      <div class="machine pending m-exec" id="st-exec" data-pos="m-exec">
-        <strong>시운전</strong><span class="mnote">Docker</span>
-        <div class="craft"><div></div></div><i class="hazard"></i></div>
-      <div class="machine pending m-crit" id="st-crit" data-pos="m-crit">
-        <strong>품질심사</strong><span class="mnote">31B</span>
-        <div class="craft"><div></div></div><i class="hazard"></i></div>
-      <div class="machine pending m-ship" id="st-ship" data-pos="m-ship">
-        <strong>출하</strong><span class="mnote">REPORT.md</span>
-        <div class="craft"><div></div></div><i class="hazard"></i></div>
-      <div class="crates"><span class="crate"></span>
-        <span class="crate tall"></span><span class="crate"></span>
-        <b id="crates-n">x0</b></div>
-    </div>
-    <div class="map-callout" id="callout">-</div>
-  </div>
-</div>
-
-<section>
-  <div class="section-head"><h2>이벤트 피드</h2><span id="feed-note"></span></div>
-  <div class="feed" id="feed"></div>
-</section>
-
-<section>
-  <div class="section-head"><h2>부품 현황</h2><span>파일별</span></div>
-  <div class="parts" id="parts"></div>
-</section>
-
-<section>
-  <div class="section-head"><h2>공장 업그레이드</h2><span id="recur"></span></div>
-  <div class="upgrades">
-    <div class="upg"><div><strong>조립 매뉴얼</strong>
-      <small>26B가 같은 실수를 반복하지 않게 설계에 주입</small></div>
-      <span class="lv" id="u-lessons">-</span></div>
-    <div class="upg"><div><strong>개선 노트</strong>
-      <small>출하품을 더 좋게 만드는 비평 패턴 축적</small></div>
-      <span class="lv" id="u-cnotes">-</span></div>
-    <div class="upg"><div><strong>검수 노트</strong>
-      <small>31B 감독관의 채점 실수 교정 자료</small></div>
-      <span class="lv" id="u-enotes">-</span></div>
-  </div>
-</section>
-
-<section>
-  <div class="section-head"><h2>생산 기록</h2><span id="hist-note"></span></div>
-  <div class="runs" id="history"></div>
-</section>
+  <div class="gorow"><button id="go" onclick="go()">투입</button><span id="msg"></span></div>
 </div>
 <script>
 let lastOk = 0;
-let liveBadge = {text:'-', cls:'badge off'};
+let headState = {title:'-', dot:'dot'};
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 
+function fmtAge(s){
+  if(s==null) return '-';
+  if(s < 90) return s+'초 전';
+  if(s < 5400) return Math.round(s/60)+'분 전';
+  return Math.round(s/3600)+'시간 전';
+}
+
 function renderConn(){
   const c = document.getElementById('conn');
-  const b = document.getElementById('badge');
-  if(!lastOk){ c.textContent='접속 중...'; return; }
+  if(!lastOk){ c.textContent='접속 중…'; return; }
   const age = Math.round((Date.now()-lastOk)/1000);
+  const t = document.getElementById('title');
+  const d = document.getElementById('dot');
   if(age > 12){
     c.textContent = age+'초째 응답 없음'; c.className='conn bad';
-    b.textContent='연결 끊김'; b.className='badge bad';
+    t.textContent = '연결 끊김'; d.className = 'dot bad';
   } else {
     c.textContent = '갱신 '+age+'초 전'; c.className='conn';
-    b.textContent = liveBadge.text; b.className = liveBadge.cls;
+    t.textContent = headState.title; d.className = headState.dot;
   }
 }
 
@@ -811,132 +855,223 @@ function render(r){
   const lv = r.live, bt = r.batch;
   const batchOn = !!(bt && bt.active);
   const runOn = !!(lv && lv.running);
-  // 배지: 무엇이 돌고 있는지 (배치 > 단일 런 > 대기)
+  // ── 헤더
+  if(batchOn) headState = {title:'배치 가동 중', dot:'dot on'};
+  else if(runOn) headState = {title:'가동 중', dot:'dot on'};
+  else if(bt && bt.crashed) headState = {title:'배치 사고', dot:'dot bad'};
+  else headState = {title:'대기', dot:'dot'};
+  let nl = '';
   if(batchOn){
-    liveBadge = {text:'배치 가동 '+(bt.round||0)+'/'+(bt.requested||'?'),
-                 cls:'badge on'};
-  } else if(runOn){
-    liveBadge = {text:'가동 중', cls:'badge on'};
-  } else if(bt && bt.crashed){
-    liveBadge = {text:'배치 사고', cls:'badge bad'};
-  } else {
-    liveBadge = {text:'대기', cls:'badge off'};
+    nl = (bt.round||0)+'/'+(bt.requested||'?')+'회차 — <b>'+esc(bt.phase||'')+'</b>';
+  } else if(runOn && lv){
+    nl = '<b>단일 런:</b> '+esc(lv.description||lv.run);
+  } else if(bt && bt.finished){
+    nl = '지난 배치: '+(bt.ok||0)+'/'+(bt.done||0)+' 출하'
+       + (bt.stopped_by ? ' · 중단: '+esc(bt.stopped_by) : ' · 정상 종료');
+  } else if(lv){
+    nl = '마지막 런: '+esc(lv.description||lv.run);
   }
-  // 배치 띠
-  const strip = document.getElementById('batchstrip');
-  if(bt && (batchOn || bt.crashed || bt.finished)){
-    let cls='strip', html='';
-    const upd = bt.updated ? ' · 갱신 '+esc(String(bt.updated).slice(11,16)) : '';
-    if(batchOn){
-      html = '배치 '+(bt.round||0)+'/'+(bt.requested||'?')+'회차 — '
-           + esc(bt.phase||'')+upd;
-      const st = batchStats(r.history, bt.started);
-      if(st.n) html += '<br>이번 배치: '+st.ok+'/'+st.n+' 출하 · $'
-                     + st.cost.toFixed(3);
-    } else if(bt.crashed){
-      cls += ' crashed';
-      html = '[사고] 배치가 비정상 종료됨 — 마지막 작업: '+esc(bt.phase||'?')
-           + ' ('+(bt.round||0)+'/'+(bt.requested||'?')+'회차)'+upd;
-    } else {
-      cls += ' finished';
-      html = '지난 배치: '+(bt.ok||0)+'/'+(bt.done||0)+' 출하'
-           + (bt.stopped_by ? ' · 중단: '+esc(bt.stopped_by) : ' · 정상 종료')
-           + (bt.finished ? ' · '+esc(String(bt.finished).slice(5,16)) : '');
+  document.getElementById('nowline').innerHTML = nl || '-';
+  // 회차 진행바
+  const rb = document.getElementById('roundbar');
+  const rl = document.getElementById('roundlabel');
+  if(batchOn && bt.requested){
+    let h = '';
+    for(let i=1;i<=bt.requested;i++){
+      h += '<i class="'+(i<bt.round?'done':i===bt.round?'cur':'')+'"></i>';
     }
-    strip.innerHTML = html; strip.className = cls;
-    strip.style.display = 'block';
-  } else strip.style.display = 'none';
-  // 종료 예약 버튼
+    rb.innerHTML = h; rb.style.display='flex';
+    const st = batchStats(r.history, bt.started);
+    rl.innerHTML = '<span>'+st.ok+' 출하 · $'+st.cost.toFixed(3)+'</span>'
+      + (r.stop_after?'<span class="warn">종료예약됨 — 이번 회차까지</span>':'');
+    rl.style.display='flex';
+  } else {
+    rb.style.display='none';
+    if(r.stop_after){
+      rl.innerHTML='<span></span><span class="warn">종료예약됨</span>';
+      rl.style.display='flex';
+    } else rl.style.display='none';
+  }
+  // ── 지금 카드
+  document.getElementById('now-run').textContent =
+    lv ? lv.run + (lv.age_sec!=null?' · '+fmtAge(lv.age_sec):'') : '-';
+  const tail = (lv&&lv.events_tail)||[];
+  const last = tail.length ? tail[tail.length-1] : '';
+  let actor = null;
+  if(runOn){
+    if(last.indexOf('[26B]')>=0) actor='26';
+    else if(last.indexOf('[31B]')>=0) actor='31';
+    else actor='sys';
+  }
+  const text = last.replace(/^\\S+\\s+/,'').replace('[26B] ','').replace('[31B] ','');
+  setWorker('26', actor==='26', actor==='26'?text:'대기',
+            runOn&&actor==='26'?'':'', lv);
+  setWorker('31', actor==='31', actor==='31'?text:
+            (batchOn&&!runOn?'회차 준비 중 — '+(bt.phase||''):'대기'), '', lv);
+  if(actor==='sys' && last){
+    // 시스템 이벤트(게이트 등)는 26B 쪽 카드에 중립 표기
+    setWorker('26', true, text, '', lv);
+  }
+  // ── 게이트 점검표
+  const labels = {design:'설계',tests:'기준',implement:'조립',
+                  static:'정적',exec:'시운전',critique:'심사',ship:'출하'};
+  const cls = {done:'pass',active:'busy',warn:'fail',halt:'fail',pending:'wait'};
+  const ic = {done:'\\u2713',active:'\\u25CF',warn:'!',halt:'\\u2715',pending:'\\u25CB'};
+  document.getElementById('gates').innerHTML = ((lv&&lv.stages)||[])
+    .map(function(s){
+      return '<div class="gate '+(cls[s.status]||'wait')+'">'
+        + '<span class="ic">'+ic[s.status]+'</span><span><b>'+labels[s.key]
+        + '</b><small>'+esc(s.note||'')+'</small></span></div>';
+    }).join('') || '<div class="empty">기록 없음</div>';
+  const sc = lv && lv.score;
+  document.getElementById('m-score').textContent =
+    sc && sc.total!=null ? sc.passed+'/'+sc.total : '-';
+  const fx = (lv&&lv.fixes)||{};
+  document.getElementById('m-fix').textContent =
+    (fx.static||0)+' + '+(fx.exec||0)+'회';
+  document.getElementById('m-age').textContent =
+    lv && lv.age_sec!=null ? fmtAge(lv.age_sec) : '-';
+  // ── 피드
+  document.getElementById('feed-note').textContent =
+    lv && lv.has_report ? '' : '';
+  let feedHtml = tail.slice().reverse().slice(0,8).map(function(line,i){
+    return '<div class="ev'+(i===0&&runOn?' hot':'')+'"><span class="t">'
+      + esc(line.slice(0,8))+'</span><span>'
+      + esc(line.slice(10).replace('[26B] ','26B가 ').replace('[31B] ','31B가 '))
+      + '</span></div>';
+  }).join('');
+  if(lv && lv.has_report)
+    feedHtml += '<div class="ev"><span class="t"></span><span>'
+      + '<a href="/api/report?run='+esc(lv.run)+'&html=1">이 런의 REPORT 보기</a>'
+      + '</span></div>';
+  document.getElementById('feed').innerHTML =
+    feedHtml || '<div class="empty">기록 없음</div>';
+  // ── 종료예약 버튼 / go
   const sb = document.getElementById('stopbtn');
-  sb.textContent = r.stop_after ? '종료 예약됨' : '종료 예약';
+  sb.textContent = r.stop_after ? '예약됨' : '종료예약';
   sb.classList.toggle('armed', !!r.stop_after);
   document.getElementById('go').disabled = batchOn || runOn;
-  // 자원 카운터
-  const shipped = (r.history||[]).filter(function(e){return e.ok;}).length;
-  document.getElementById('r-ship').textContent = shipped;
-  document.getElementById('crates-n').textContent = 'x'+shipped;
-  const kn = r.knowledge||{};
-  document.getElementById('r-lessons').textContent = (kn.lessons||0)+'장';
-  document.getElementById('r-notes').textContent =
-    ((kn.critique_notes||0)+(kn.evaluator_notes||0))+'장';
-  document.getElementById('r-cost').textContent =
-    '$'+(r.total_cost_usd||0).toFixed(3);
-  document.getElementById('u-lessons').textContent = (kn.lessons||0)+'장';
-  document.getElementById('u-cnotes').textContent = (kn.critique_notes||0)+'장';
-  document.getElementById('u-enotes').textContent = (kn.evaluator_notes||0)+'장';
-  const rec = r.recurrence;
-  document.getElementById('recur').textContent =
-    rec && rec.injected_runs ? '재발 '+rec.recurred+'/'+rec.injected_runs : '';
-  // 라인 맵
-  document.getElementById('map').classList.toggle('paused', !runOn && !batchOn);
-  document.getElementById('runname').textContent =
-    lv ? lv.run+(lv.description?' — '+lv.description:'') : '-';
-  const stmap = {design:'st-design',tests:'st-tests',implement:'st-build',
-                 static:'st-static',exec:'st-exec',critique:'st-crit',
-                 ship:'st-ship'};
-  for(const s of (lv&&lv.stages)||[]){
-    const el = document.getElementById(stmap[s.key]);
-    if(!el) continue;
-    el.className = 'machine '+el.dataset.pos+' '+s.status;
-    if(s.note) el.querySelector('.mnote').textContent = s.note;
-  }
-  // 콜아웃: 라인이 멈췄는데 배치가 살아 있으면 배치 단계를 보여준다
-  let co = '';
-  if(lv && lv.events_tail && lv.events_tail.length && runOn){
-    co = esc(lv.events_tail[lv.events_tail.length-1]);
-  } else if(batchOn){
-    co = '회차 준비 중 — '+esc(bt.phase||'');
-  } else if(lv && lv.events_tail && lv.events_tail.length){
-    co = '(정지) '+esc(lv.events_tail[lv.events_tail.length-1]);
-  }
-  if(lv && lv.has_report)
-    co += ' &nbsp;<a href="/api/report?run='+esc(lv.run)+'">REPORT.md</a>';
-  document.getElementById('callout').innerHTML = co || '-';
-  // 이벤트 피드 (최신 위)
-  const tail = (lv&&lv.events_tail)||[];
-  document.getElementById('feed-note').textContent =
-    lv && lv.age_sec!=null ? '마지막 기록 '+fmtAge(lv.age_sec)+' 전' : '';
-  document.getElementById('feed').innerHTML = tail.slice().reverse()
-    .map(function(line){
-      return '<div class="event"><span class="time">'+esc(line.slice(0,8))
-           + '</span><span>'+esc(line.slice(10))+'</span></div>';
-    }).join('') || '<div class="event"><span class="time">-</span>'
-                 + '<span>기록 없음</span></div>';
-  // 부품 현황
-  document.getElementById('parts').innerHTML = ((lv&&lv.parts)||[])
-    .map(function(p){
-      return '<div class="part"><strong>'+esc(p.name)+'</strong><span class="'
-           + esc(p.state)+'">'+esc(p.state)+'</span></div>';
-    }).join('') || '<div class="part"><strong>-</strong></div>';
-  // 개선 드롭다운 (선택값 보존)
+  // ── 개선 드롭다운
   const sel = document.getElementById('imp-run');
   const keep = sel.value;
   sel.innerHTML = (r.improvable||[]).map(function(e){
-    const sc = e.score&&e.score.total
-      ? ' ('+e.score.passed+'/'+e.score.total+')' : '';
-    return '<option value="'+esc(e.run)+'">'+esc(e.run)+sc+' — '
-         + esc(e.idea)+'</option>';
+    const s = e.score&&e.score.total?' ('+e.score.passed+'/'+e.score.total+')':'';
+    return '<option value="'+esc(e.run)+'">'+esc(e.run)+s+' — '+esc(e.idea)
+      +'</option>';
   }).join('') || '<option value="">(개선 가능한 성공 런 없음)</option>';
   if(keep) sel.value = keep;
-  // 생산 기록
+  // ── 기록 탭
   document.getElementById('hist-note').textContent =
-    (r.history||[]).length+'건';
+    (r.history||[]).length+'건 · 합계 $'+(r.total_cost_usd||0).toFixed(3);
   document.getElementById('history').innerHTML = (r.history||[])
-    .map(function(e){
-      const sc = e.score&&e.score.total
-        ? e.score.passed+'/'+e.score.total : '-';
-      const fx = e.fixes ? (e.fixes.static||0)+'+'+(e.fixes.exec||0) : '-';
-      const cost = e.cost_usd!=null ? '$'+e.cost_usd.toFixed(3) : '-';
-      return '<div class="runrow"><strong><span class="'
-        + (e.ok?'ok':'fail')+'">'+(e.ok?'[OK]':'[FAIL]')+'</span> '
-        + esc(e.idea||e.run)+'</strong>'
-        + '<p>score '+sc+' · calls '+(e.calls!=null?e.calls:'-')+' · fix '+fx
-        + ' · '+cost
-        + ' · <a href="/api/report?run='+esc(e.run)+'">REPORT</a>'
-        + (e.ok ? ' · <a href="#" onclick="return pickImprove(\\''
-                + esc(e.run)+'\\')">개선</a>' : '')
-        + '</p></div>';
-    }).join('') || '<div class="runrow"><p>아직 출하품 없음</p></div>';
+    .map(rowHtml).join('') || '<div class="empty">아직 출하품 없음</div>';
+  // ── 지표 탭
+  renderStats(r);
+}
+
+function setWorker(id, on, doing, extra, lv){
+  const w = document.getElementById('w'+id);
+  w.className = 'worker '+(on?'on':'off');
+  document.getElementById('w'+id+'-who').textContent =
+    (id==='26'?'조립공':'감독관')+(on?' · 일하는 중':' · 대기');
+  document.getElementById('w'+id+'-doing').textContent = doing||'대기';
+  const chip = document.getElementById('w'+id+'-chip');
+  const fx = (lv&&lv.fixes)||{};
+  const n = (fx.static||0)+(fx.exec||0);
+  if(on && id==='26' && n>0){
+    chip.innerHTML = '수리<small>'+n+'회</small>'; chip.style.display='block';
+  } else chip.style.display='none';
+  const ex = document.getElementById('w'+id+'-extra');
+  if(extra){ ex.textContent = extra; ex.style.display='block'; }
+  else ex.style.display='none';
+}
+
+function rowHtml(e){
+  const sc = e.score||{};
+  const infra = /API call failed|INTERNAL|네트워크/.test(String(e.status||''));
+  let pill, pcls;
+  if(sc.total!=null && sc.passed!=null){
+    pill = sc.passed+'/'+sc.total;
+    pcls = !e.ok ? 'bad' : (sc.passed===sc.total ? 'ok' : 'part');
+  } else if(e.ok){ pill='OK'; pcls='ok'; }
+  else if(infra){ pill='인프라'; pcls='infra'; }
+  else { pill='중단'; pcls='bad'; }
+  const fx = e.fixes ? (e.fixes.static||0)+'+'+(e.fixes.exec||0) : '-';
+  const cost = e.cost_usd!=null ? '$'+e.cost_usd.toFixed(3) : '-';
+  const tag = e.improved_from ? ' <span style="color:var(--blue)">개선판</span>' : '';
+  return '<div class="runrow"><span class="score '+pcls+'">'+pill+'</span>'
+    + '<span class="idea">'+esc(e.idea||e.run)+tag+'</span>'
+    + '<span class="meta mono">'+esc(String(e.t||'').slice(5,16))
+    + ' · '+cost+' · 수리 '+fx
+    + ' · <a href="/api/report?run='+esc(e.run)+'&html=1">REPORT</a>'
+    + (e.ok ? ' · <a href="#" onclick="return pickImprove(\\''+esc(e.run)
+            + '\\')">개선</a>' : '')
+    + '</span></div>';
+}
+
+function renderStats(r){
+  const hist = r.history||[];
+  // 프롬프트 버전별
+  const byV = {};
+  for(const e of hist){
+    const v = e.prompt_version || '(버전 기록 전)';
+    const b = byV[v] = byV[v]||{n:0,ok:0,sp:0,st:0,cost:0,infra:0};
+    b.n++; if(e.ok) b.ok++;
+    if(e.score&&e.score.total){ b.sp+=e.score.passed; b.st+=e.score.total; }
+    b.cost += e.cost_usd||0;
+    if(/API call failed|INTERNAL/.test(String(e.status||''))) b.infra++;
+  }
+  let h = '<tr><th>버전</th><th>n</th><th>OK</th><th>점수</th><th>$</th></tr>';
+  for(const v of Object.keys(byV)){
+    const b = byV[v];
+    h += '<tr><td title="'+esc(v)+'">'+esc(v)+'</td><td>'+b.n+'</td>'
+      + '<td>'+Math.round(100*b.ok/b.n)+'%</td>'
+      + '<td>'+(b.st?Math.round(100*b.sp/b.st)+'%':'-')+'</td>'
+      + '<td>'+b.cost.toFixed(2)+'</td></tr>';
+  }
+  document.getElementById('st-version').innerHTML = h;
+  // level별
+  const byL = {};
+  for(const e of hist){
+    const l = e.level!=null ? 'L'+e.level : '(없음)';
+    const b = byL[l] = byL[l]||{n:0,ok:0};
+    b.n++; if(e.ok) b.ok++;
+  }
+  let h2 = '<tr><th>난이도</th><th>n</th><th>OK</th></tr>';
+  for(const l of Object.keys(byL).sort()){
+    h2 += '<tr><td>'+l+'</td><td>'+byL[l].n+'</td>'
+       + '<td>'+Math.round(100*byL[l].ok/byL[l].n)+'%</td></tr>';
+  }
+  document.getElementById('st-level').innerHTML = h2;
+  // improve 판정
+  const iv = {IMPROVED:0,'NO-GAIN':0,REGRESSED:0};
+  let impTotal = 0;
+  for(const e of hist){
+    const s = String(e.improvement||'');
+    for(const k of Object.keys(iv)) if(s.indexOf(k)===0){ iv[k]++; impTotal++; }
+  }
+  document.getElementById('st-imp-note').textContent = impTotal+'건';
+  document.getElementById('st-improve').innerHTML =
+    '<span class="kchip">개선 성공 <b>'+iv.IMPROVED+'</b></span>'
+    + '<span class="kchip">무이득 <b>'+iv['NO-GAIN']+'</b></span>'
+    + '<span class="kchip">회귀 <b>'+iv.REGRESSED+'</b></span>';
+  // 실패 분해 + 자산
+  let infra=0, abort=0;
+  for(const e of hist){
+    if(e.ok) continue;
+    if(/API call failed|INTERNAL/.test(String(e.status||''))) infra++;
+    else abort++;
+  }
+  const kn = r.knowledge||{};
+  const rec = r.recurrence||{};
+  document.getElementById('st-misc').innerHTML =
+    '<span class="kchip">인프라 실패 <b>'+infra+'</b></span>'
+    + '<span class="kchip">능력 실패 <b>'+abort+'</b></span>'
+    + (rec.injected_runs?'<span class="kchip">오답 재발 <b>'+rec.recurred+'/'
+       +rec.injected_runs+'</b></span>':'')
+    + '<span class="kchip">조립 매뉴얼 <b>'+(kn.lessons||0)+'장</b></span>'
+    + '<span class="kchip">개선 노트 <b>'+(kn.critique_notes||0)+'장</b></span>'
+    + '<span class="kchip">검수 노트 <b>'+(kn.evaluator_notes||0)+'장</b></span>';
 }
 
 function batchStats(history, since){
@@ -948,16 +1083,27 @@ function batchStats(history, since){
   return {n:n, ok:ok, cost:cost};
 }
 
-function fmtAge(s){
-  if(s < 90) return s+'초';
-  if(s < 5400) return Math.round(s/60)+'분';
-  return Math.round(s/3600)+'시간';
+let TAB = 'now';
+function setTab(t){
+  TAB = t;
+  for(const x of ['now','hist','stats']){
+    document.getElementById('tab-'+x).classList.toggle('sel', x===t);
+    document.getElementById('view-'+x).style.display = x===t?'block':'none';
+  }
+}
+
+function toggleSheet(){
+  const s = document.getElementById('sheet');
+  s.classList.toggle('openned');
+  document.getElementById('fab').textContent =
+    s.classList.contains('openned') ? '✕ 닫기' : '+ 투입';
 }
 
 function pickImprove(run){
+  document.getElementById('sheet').classList.add('openned');
+  document.getElementById('fab').textContent = '✕ 닫기';
   setMode('improve');
-  const sel = document.getElementById('imp-run');
-  sel.value = run;
+  document.getElementById('imp-run').value = run;
   window.scrollTo({top:0, behavior:'smooth'});
   return false;
 }
@@ -1002,6 +1148,7 @@ async function toggleStop(){
   tick();
 }
 
+if(location.hash==='#hist'||location.hash==='#stats') setTab(location.hash.slice(1));
 tick();
 setInterval(tick, 5000);
 setInterval(renderConn, 1000);
@@ -1028,7 +1175,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(build_status(), ensure_ascii=False),
                        "application/json")
         elif url.path == "/api/report":
-            run = parse_qs(url.query).get("run", [""])[0]
+            qs = parse_qs(url.query)
+            run = qs.get("run", [""])[0]
             # 경로 탈출 방지: runs/ 바로 아래 디렉토리 이름만 허용
             if not run or "/" in run or "\\" in run or ".." in run:
                 self._send(400, "bad run name", "text/plain")
@@ -1037,7 +1185,12 @@ class Handler(BaseHTTPRequestHandler):
             if not path.exists():
                 self._send(404, "no report", "text/plain")
                 return
-            self._send(200, path.read_text(encoding="utf-8"), "text/plain")
+            md = path.read_text(encoding="utf-8")
+            if qs.get("html", [""])[0]:
+                self._send(200, REPORT_PAGE.replace("__BODY__", _md_to_html(md)),
+                           "text/html")
+            else:
+                self._send(200, md, "text/plain")
         else:
             self._send(404, "not found", "text/plain")
 

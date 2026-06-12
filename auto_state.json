@@ -1,5 +1,5 @@
 {
-  "level": 4,
+  "level": 3,
   "used_repos": [
     "sakurity/securelogin",
     "wakatime/legacy-python-cli",
@@ -26,6 +26,8 @@
     "ajeetdsouza/zoxide",
     "jantman/biweeklybudget",
     "drduh/pwd.sh",
-    "javaparser/javaparser"
+    "javaparser/javaparser",
+    "fluentscheduler/FluentScheduler",
+    "naggie/dstask"
   ]
 }

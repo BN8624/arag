@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generator Dashboard Focus V5</title>
+  <style>
+    :root {
+      --bg: #101214;
+      --card: #1a1d21;
+      --card2: #22262b;
+      --line: #2e343b;
+      --text: #eceff2;
+      --muted: #9aa4ae;
+      --green: #4ade80;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --blue: #60a5fa;
+      --accent: #34d399;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                   "Malgun Gothic", sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.85em;
+    }
+
+    .shell { max-width: 520px; margin: 0 auto; padding-bottom: 90px; }
+    h1, h2, p { margin: 0; }
+
+    /* ── 상태 헤더 (v4 유지) ────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 14px 16px 12px;
+      background: rgba(16, 18, 20, .96);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .status-row { display: flex; align-items: center; gap: 10px; }
+
+    .dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(74,222,128,.12); }
+      50% { box-shadow: 0 0 0 7px rgba(74,222,128,.22); }
+    }
+
+    .status-row h1 { font-size: 19px; font-weight: 700; }
+    .conn { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+    .now-line {
+      margin-top: 6px; font-size: 15px; color: var(--muted);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .now-line b { color: var(--text); font-weight: 600; }
+
+    .round-bar { display: flex; gap: 3px; margin-top: 10px; }
+    .round-bar i { flex: 1; height: 5px; border-radius: 3px; background: var(--line); }
+    .round-bar i.done { background: var(--green); }
+    .round-bar i.cur { background: var(--amber); animation: blink 1.2s infinite; }
+    @keyframes blink { 50% { opacity: .45; } }
+
+    .round-label {
+      margin-top: 5px; font-size: 12px; color: var(--muted);
+      display: flex; justify-content: space-between;
+    }
+
+    .tabs {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 6px; padding: 10px 16px 0;
+    }
+    .tab {
+      padding: 10px 0; text-align: center; font-size: 15px; font-weight: 600;
+      color: var(--muted); background: var(--card);
+      border: 1px solid var(--line); border-radius: 10px;
+    }
+    .tab.sel { color: #06281a; background: var(--accent); border-color: var(--accent); }
+
+    section {
+      margin: 12px 16px 0;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .sec-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 13px 16px 0;
+    }
+    .sec-head h2 { font-size: 16px; font-weight: 700; }
+    .sec-head span { font-size: 12px; color: var(--muted); }
+
+    /* ── "지금" 히어로: 작업자 2명, 일하는 쪽만 점등 ── */
+    .workers { display: grid; gap: 10px; padding: 12px 14px 14px; }
+
+    .worker {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr) auto;
+      gap: 4px 14px;
+      align-items: center;
+      padding: 13px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--card2);
+    }
+
+    .worker.on {
+      border-color: rgba(251, 191, 36, .55);
+      background: linear-gradient(180deg, rgba(251,191,36,.10), rgba(251,191,36,.03));
+    }
+
+    .avatar {
+      grid-row: span 2;
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      display: grid; place-items: center;
+      font-weight: 800; font-size: 15px;
+      background: #2c3138; color: var(--muted);
+    }
+
+    .on .avatar {
+      background: var(--amber); color: #2a1c02;
+      animation: working 1.4s infinite;
+    }
+
+    @keyframes working {
+      0%, 100% { transform: rotate(-3deg); }
+      50% { transform: rotate(3deg); }
+    }
+
+    .worker .who { font-size: 13px; color: var(--muted); font-weight: 600; }
+    .worker .doing {
+      grid-column: 2;
+      font-size: 16.5px; font-weight: 700; line-height: 1.35;
+    }
+    .worker.off .doing { font-size: 14px; font-weight: 500; color: #566069; }
+
+    .worker .extra {
+      grid-column: 2;
+      font-size: 13px; color: #ffd98a; margin-top: 2px;
+    }
+
+    .loopchip {
+      grid-row: span 2;
+      align-self: center;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(251,191,36,.16);
+      color: var(--amber);
+      font-size: 13px; font-weight: 800;
+      white-space: nowrap;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .loopchip small { display: block; font-size: 10.5px; font-weight: 600; opacity: .85; }
+
+    .elapsed {
+      grid-row: span 2; align-self: center;
+      font-size: 12.5px; color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── 게이트 점검표 (위치가 아니라 상태) ──── */
+    .gates {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 12px 14px 14px;
+    }
+
+    .gate {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      padding: 10px 10px;
+      border-radius: 11px;
+      border: 1px solid var(--line);
+      background: var(--card2);
+      min-height: 56px;
+    }
+
+    .gate .ic {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 12px; font-weight: 900;
+    }
+
+    .gate b { display: block; font-size: 13.5px; font-weight: 700; }
+    .gate small { display: block; font-size: 11px; color: var(--muted); line-height: 1.3; }
+
+    .gate.pass .ic { background: rgba(74,222,128,.16); color: var(--green); }
+    .gate.busy { border-color: rgba(251,191,36,.5); }
+    .gate.busy .ic { background: var(--amber); color: #2a1c02; animation: blink 1.2s infinite; }
+    .gate.busy small { color: #ffd98a; }
+    .gate.fail .ic { background: rgba(248,113,113,.18); color: var(--red); }
+    .gate.wait { opacity: .5; }
+    .gate.wait .ic { background: var(--card); color: #566069; }
+
+    /* ── 라이브 피드 ───────────────────────── */
+    .feed { padding: 6px 16px 12px; }
+    .ev {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr);
+      gap: 10px;
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
+      font-size: 14px;
+    }
+    .feed .ev:first-child { border-top: 0; }
+    .ev .t { font-size: 12px; color: var(--muted); padding-top: 2px;
+             font-variant-numeric: tabular-nums; }
+    .ev.hot { color: #ffd98a; }
+
+    .meta-strip {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid var(--line);
+    }
+    .meta-strip div { padding: 10px 0 12px; text-align: center; }
+    .meta-strip div + div { border-left: 1px solid var(--line); }
+    .meta-strip span { display: block; font-size: 11.5px; color: var(--muted); }
+    .meta-strip b { font-size: 16.5px; font-weight: 700; }
+
+    .fab {
+      position: fixed; right: 18px; bottom: 20px;
+      min-height: 52px; padding: 0 22px;
+      border: 0; border-radius: 26px;
+      background: var(--accent); color: #06281a;
+      font: inherit; font-size: 16px; font-weight: 800;
+      box-shadow: 0 8px 22px rgba(0,0,0,.45);
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="status-row">
+        <span class="dot"></span>
+        <h1>배치 가동 중</h1>
+        <span class="conn">갱신 2초 전</span>
+      </div>
+      <p class="now-line">4/20회차 — <b>신규 생산:</b> 마일스톤 진행 관리 CLI</p>
+      <div class="round-bar">
+        <i class="done"></i><i class="done"></i><i class="done"></i><i class="cur"></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="round-label"><span>3 출하 · $0.04</span><span>종료예약됨 — 이번 회차까지</span></div>
+    </header>
+
+    <div class="tabs">
+      <div class="tab sel">현황</div>
+      <div class="tab">기록</div>
+      <div class="tab">지표</div>
+    </div>
+
+    <section>
+      <div class="sec-head"><h2>지금</h2><span class="mono">20260613-0004 · 경과 12분</span></div>
+      <div class="workers">
+        <div class="worker on">
+          <span class="avatar">26B</span>
+          <span class="who">조립공 · 일하는 중</span>
+          <span class="loopchip">수리<small>2 / 3</small></span>
+          <span class="doing">report.py 고치는 중</span>
+          <span class="extra">사유: 시운전 출력 불일치 — 1분 40초째</span>
+        </div>
+        <div class="worker off">
+          <span class="avatar">31B</span>
+          <span class="who">감독관 · 대기</span>
+          <span class="elapsed"></span>
+          <span class="doing">수리 끝나면 품질심사 예정</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>게이트 점검표</h2><span>통과 상태 · 루프 횟수</span></div>
+      <div class="gates">
+        <div class="gate pass"><span class="ic">✓</span>
+          <span><b>설계</b><small>부품 4개</small></span></div>
+        <div class="gate pass"><span class="ic">✓</span>
+          <span><b>검수 기준</b><small>테스트 5개</small></span></div>
+        <div class="gate pass"><span class="ic">✓</span>
+          <span><b>조립</b><small>4파일</small></span></div>
+        <div class="gate pass"><span class="ic">✓</span>
+          <span><b>정적 검사</b><small>수리 2회 후 통과</small></span></div>
+        <div class="gate busy"><span class="ic">●</span>
+          <span><b>시운전</b><small>불량 1 · 수리 중</small></span></div>
+        <div class="gate wait"><span class="ic">○</span>
+          <span><b>품질심사</b><small>대기</small></span></div>
+      </div>
+      <div class="meta-strip">
+        <div><span>검수 점수</span><b>4/5</b></div>
+        <div><span>콜</span><b>11</b></div>
+        <div><span>비용</span><b class="mono" style="font-size:15px">$0.018</b></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>방금 일어난 일</h2><span>최근 5건</span></div>
+      <div class="feed">
+        <div class="ev hot"><span class="t">00:12:10</span><span>26B가 report.py 수리 시작 (2회째)</span></div>
+        <div class="ev"><span class="t">00:11:48</span><span>시운전 실패: 합계 출력 형식 불일치</span></div>
+        <div class="ev"><span class="t">00:11:02</span><span>시운전 1차 수리분 재검사</span></div>
+        <div class="ev"><span class="t">00:09:31</span><span>정적 검사 통과 (수리 2회)</span></div>
+        <div class="ev"><span class="t">00:08:55</span><span>26B가 4개 파일 조립 완료</span></div>
+      </div>
+    </section>
+
+    <button class="fab">+ 투입</button>
+  </div>
+</body>
+</html>

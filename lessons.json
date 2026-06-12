@@ -619,5 +619,64 @@
       "x"
     ],
     "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T23:00:31",
+    "idea": "파이썬 프로젝트의 구조를 분석하여 정의된 아키텍처 규칙과 비교하는 CLI 도구입니다. JSON 설정 파일들에서 모듈 이름(필수)과 최대 복잡도(1-100 범위)를 검증하며, 외부 레지스트리 API(환경 변수로 Mock JSON 파일 전환 가능)를 통해 표준 명명 규칙을 가져와 적용합니다. 아키텍처 설계 상태를 여러 스냅샷 파일로 저장하여 변경 이력을 관리하고 롤백하는 기능을 갖추며, 분석(analyze), 상태 저장(commit), 복구(rollback), 초기화(init) 서브커맨드를 제공합니다.",
+    "keywords": [
+      "cli tool",
+      "static analysis",
+      "architecture validation",
+      "orphan files",
+      "test data"
+    ],
+    "lesson": "Store sample files intended for analysis in a dedicated directory (e.g., 'tests/' or 'samples/') to prevent them from being flagged as orphan files by static analysis gates."
+  },
+  {
+    "t": "2026-06-12T23:43:39",
+    "idea": "정의된 설정 파일(JSON)의 유효성을 검증하여 API 기반 작업을 예약하고 실행하는 CLI 도구입니다. 작업 정의서(jobs.json)와 실행 이력(history.json)이라는 두 개의 상태 파일을 상호 일관되게 유지하며, 외부 알림 API 호출 시 환경 변수에 따라 실제 API 또는 Mock JSON 파일을 선택적으로 사용합니다. `add`, `run`, `list`, `clear` 등의 서브커맨드를 통해 작업 등록, 강제 실행, 상태 조회 및 이력 초기화 워크플로우를 제공합니다.",
+    "keywords": [
+      "cli-tool",
+      "state-synchronization",
+      "mock-api",
+      "json-config",
+      "automated-pipeline"
+    ],
+    "lesson": "Define specific synchronization constraints and interface contracts for state files instead of using abstract terms like 'mutual consistency' to ensure the planning model can generate a concrete implementation path."
+  },
+  {
+    "t": "2026-06-13T00:24:15",
+    "idea": "개발 프로젝트의 마일스톤 진행 상황을 관리하는 CLI 도구입니다. YAML 형식의 업데이트 파일을 읽어 데이터 유효성을 검증하고, 로컬 JSON 상태 파일과 외부 프로젝트 관리 API(환경 변수에 따라 Mock JSON 파일로 대체 가능)에 진행률을 동기화하며, 최종적으로 현재 달성도를 요약 보고서로 출력합니다.",
+    "keywords": [
+      "python-packaging",
+      "module-imports",
+      "cli-tool",
+      "project-structure"
+    ],
+    "lesson": "Ensure the file directory structure matches the import statements in the test suite; specifically, if tests import from a package name, source files must be located within a directory of that name containing an __init__.py file."
+  },
+  {
+    "t": "2026-06-13T00:31:32",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-13T00:34:09",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-13T00:36:27",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
   }
 ]
