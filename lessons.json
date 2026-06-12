@@ -553,5 +553,63 @@
       "x"
     ],
     "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T14:11:18",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T14:30:33",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T15:10:23",
+    "idea": "JSON 설정 파일에 정의된 텍스트 처리 단계(예: 대문자 변환, 특정 단어 치환, 문자열 반전)를 순차적으로 실행하는 텍스트 파이프라인 CLI 도구입니다. 사용자는 입력 파일 경로와 설정 파일 경로를 인자로 전달하며, 도구는 설정된 순서대로 변환을 적용해 결과를 출력합니다. 모든 처리 로직은 내부 함수로 구현하며, 설정 파일은 읽기 전용 상태 파일로 활용합니다.",
+    "keywords": [
+      "text pipeline",
+      "cli tool",
+      "json config",
+      "modular design"
+    ],
+    "lesson": "Decompose the design into small, decoupled modules to minimize the complexity and token size of individual generation prompts, reducing the risk of API timeouts or internal server errors."
+  },
+  {
+    "t": "2026-06-12T15:48:59",
+    "idea": "시스템 프로세스 목록과 네트워크 연결 정보가 포함된 JSON 파일을 입력받아, 미리 정의된 위협 지표(의심스러운 파일 경로, 비정상 포트 등)와 대조하여 보안 위협을 탐지하는 CLI 도구입니다. 입력된 정형 데이터를 분석하여 위험 요소가 발견된 프로세스들의 리스트와 탐지 사유를 표준 출력으로 요약해 제공합니다.",
+    "keywords": [
+      "security",
+      "threat detection",
+      "json analysis",
+      "cli",
+      "indicator matching"
+    ],
+    "lesson": "Externalize threat indicators into a separate configuration file (e.g., JSON or YAML) rather than a Python module to reduce the volume of code the LLM must generate in a single request."
+  },
+  {
+    "t": "2026-06-12T16:31:58",
+    "idea": "사용자의 핵심 기술 스택이 정의된 JSON 설정 파일과 구직 공고 목록이 담긴 JSON 파일을 입력받아, 키워드 일치 기반으로 적합도를 계산하는 CLI 도구입니다. 각 공고별 매칭 점수를 계산하여 가장 적합한 순서대로 정렬된 결과를 텍스트 파일로 저장합니다. 모든 외부 API 호출 없이 로컬 파일 기반의 단순 매칭 로직으로 구현합니다.",
+    "keywords": [
+      "cli",
+      "keyword matching",
+      "json processing",
+      "prototype design"
+    ],
+    "lesson": "Consolidate simple utility logic into a single file rather than multiple modules to reduce the number of API requests and minimize the risk of transient generation failures."
+  },
+  {
+    "t": "2026-06-12T21:39:23",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
   }
 ]

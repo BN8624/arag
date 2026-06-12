@@ -1,5 +1,5 @@
 {
-  "level": 2,
+  "level": 4,
   "used_repos": [
     "sakurity/securelogin",
     "wakatime/legacy-python-cli",
@@ -15,6 +15,17 @@
     "nikic/PHP-Parser",
     "linkwarden/linkwarden",
     "glanceapp/glance",
-    "my8100/scrapydweb"
+    "my8100/scrapydweb",
+    "PSLmodels/Tax-Calculator",
+    "n8n-io/n8n",
+    "mir1ce/Hawkeye",
+    "santifer/career-ops",
+    "alyssaxuu/carden",
+    "puppeteer/puppeteer",
+    "lasantosr/intelli-shell",
+    "ajeetdsouza/zoxide",
+    "jantman/biweeklybudget",
+    "drduh/pwd.sh",
+    "javaparser/javaparser"
   ]
 }

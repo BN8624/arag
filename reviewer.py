@@ -37,14 +37,24 @@ ITS README:
 ACCEPTANCE CRITERIA IT ALREADY PASSES (all of them):
 {criteria_lines}
 
-Name the 1-3 improvements a real user of this tool would want MOST: a missing
-capability within the promised scope, confusing or unhelpful output, missing
-input validation, a rough edge in the CLI. Stay inside the existing idea -
-no rewrites, no new external services, no scope creep. Each suggestion must
-be concrete enough to act on.
+First decide the verdict, in this order:
+- SUGGEST only if a real user following the README would hit a WALL:
+  a capability the idea promises is missing or wrong, the README leaves the
+  tool unusable (a user cannot figure out how to run it), or the output is
+  misleading about what the tool did.
+- NOCHANGE if the tool delivers what the idea promises and the README is
+  enough to use it. Nice-to-haves are NOT walls: more README detail, extra
+  convenience commands, prettier output, optional validation, broader inputs
+  than promised. If nice-to-haves are all you can think of, the verdict is
+  NOCHANGE.
 
-If the tool already serves its idea well and nothing would noticeably help
-a user, answer NOCHANGE - do not invent busywork.
+Expect NOCHANGE to be the common case - these tools already pass every
+acceptance criterion. A clean NOCHANGE is more useful than invented busywork;
+do not suggest something just to appear thorough.
+
+If (and only if) the verdict is SUGGEST, name the 1-3 walls. Stay inside the
+existing idea - no rewrites, no new external services, no scope creep. Each
+suggestion must be concrete enough to act on.
 
 Respond with a single JSON object (no prose, no fences):
 {{"verdict": "SUGGEST" or "NOCHANGE",
