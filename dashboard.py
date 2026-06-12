@@ -602,36 +602,25 @@ section{margin:12px 16px 0;background:var(--card);border:1px solid var(--line);
 .sec-head h2{font-size:16px;font-weight:700;white-space:nowrap}
 .sec-head span{font-size:12px;color:var(--muted);overflow:hidden;
  text-overflow:ellipsis;white-space:nowrap}
-.workers{display:grid;gap:10px;padding:12px 14px 14px}
-.worker{display:grid;grid-template-columns:52px minmax(0,1fr) auto;
- gap:4px 14px;align-items:center;padding:13px 14px;border-radius:12px;
- border:1px solid var(--line);background:var(--card2)}
-.worker.on{border-color:rgba(251,191,36,.55);
- background:linear-gradient(180deg,rgba(251,191,36,.10),rgba(251,191,36,.03))}
-.avatar{grid-row:span 2;width:52px;height:52px;border-radius:14px;
- display:grid;place-items:center;font-weight:800;font-size:15px;
+.nowstrip{display:flex;align-items:center;gap:11px;padding:10px 14px 12px}
+.actor{width:42px;height:42px;border-radius:12px;display:grid;
+ place-items:center;font-weight:800;font-size:13.5px;flex-shrink:0;
  background:#2c3138;color:var(--muted)}
-.on .avatar{background:var(--amber);color:#2a1c02;animation:working 1.4s infinite}
+.actor.on{background:var(--amber);color:#2a1c02;animation:working 1.4s infinite}
 @keyframes working{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
-.worker .who{font-size:13px;color:var(--muted);font-weight:600}
-.worker .doing{grid-column:2;font-size:16.5px;font-weight:700;line-height:1.35;
- word-break:break-all}
-.worker.off .doing{font-size:14px;font-weight:500;color:#566069}
-.worker .extra{grid-column:2;font-size:13px;color:#ffd98a;margin-top:2px}
-.loopchip{grid-row:span 2;align-self:center;padding:6px 10px;border-radius:10px;
+.ns-text{flex:1;min-width:0;font-size:15.5px;font-weight:700;line-height:1.4;
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+ overflow:hidden}
+.loopchip{padding:6px 10px;border-radius:10px;flex-shrink:0;
  background:rgba(251,191,36,.16);color:var(--amber);font-size:13px;
  font-weight:800;white-space:nowrap;text-align:center;line-height:1.3}
 .loopchip small{display:block;font-size:10.5px;font-weight:600;opacity:.85}
-.gates{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
- padding:12px 14px 14px}
-.gate{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;
- align-items:center;padding:10px;border-radius:11px;
- border:1px solid var(--line);background:var(--card2);min-height:56px}
-.gate .ic{width:22px;height:22px;border-radius:50%;display:grid;
- place-items:center;font-size:12px;font-weight:900}
-.gate b{display:block;font-size:13.5px;font-weight:700;white-space:nowrap}
-.gate small{display:block;font-size:11px;color:var(--muted);line-height:1.3;
- overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gates{display:flex;gap:4px;padding:0 12px 10px;flex-wrap:wrap}
+.gate{display:inline-flex;align-items:center;gap:5px;padding:6px 8px;
+ border-radius:9px;border:1px solid var(--line);background:var(--card2)}
+.gate .ic{width:16px;height:16px;border-radius:50%;display:grid;
+ place-items:center;font-size:10px;font-weight:900}
+.gate b{font-size:12.5px;font-weight:700;white-space:nowrap}
 .gate.pass .ic{background:rgba(74,222,128,.16);color:var(--green)}
 .gate.busy{border-color:rgba(251,191,36,.5)}
 .gate.busy .ic{background:var(--amber);color:#2a1c02;animation:blink 1.2s infinite}
@@ -642,17 +631,20 @@ section{margin:12px 16px 0;background:var(--card);border:1px solid var(--line);
 .gate.wait .ic{background:var(--card);color:#566069}
 .meta-strip{display:grid;grid-template-columns:repeat(3,1fr);
  border-top:1px solid var(--line)}
-.meta-strip div{padding:10px 0 12px;text-align:center}
+.meta-strip div{padding:7px 0 9px;text-align:center}
 .meta-strip div+div{border-left:1px solid var(--line)}
-.meta-strip span{display:block;font-size:11.5px;color:var(--muted)}
-.meta-strip b{font-size:16.5px;font-weight:700}
+.meta-strip span{display:block;font-size:11px;color:var(--muted)}
+.meta-strip b{font-size:14px;font-weight:700}
 .feed{padding:6px 16px 12px}
-.ev{display:grid;grid-template-columns:58px minmax(0,1fr);gap:10px;
- padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.ev{display:grid;grid-template-columns:60px minmax(0,1fr);gap:10px;
+ padding:10px 0;border-top:1px solid var(--line);font-size:16px;
+ line-height:1.45}
 .feed .ev:first-child{border-top:0}
-.ev .t{font-size:12px;color:var(--muted);padding-top:2px;
+.ev .t{font-size:12px;color:var(--muted);padding-top:4px;
  font-variant-numeric:tabular-nums}
-.ev.hot{color:#ffd98a}
+.ev.hot{color:#ffd98a;font-weight:700}
+.ev.hot .t{color:var(--amber)}
+.elapsed{color:var(--amber);font-weight:800;white-space:nowrap}
 .runs{padding:6px 0 4px}
 .runrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;
  padding:12px 16px;border-top:1px solid var(--line);align-items:start}
@@ -728,31 +720,16 @@ select{margin-bottom:8px}
 <div id="view-now">
   <section>
     <div class="sec-head"><h2>지금</h2><span id="now-run" class="mono">-</span></div>
-    <div class="workers">
-      <div class="worker off" id="w26">
-        <span class="avatar">26B</span>
-        <span class="who" id="w26-who">조립공</span>
-        <span class="loopchip" id="w26-chip" style="display:none"></span>
-        <span class="doing" id="w26-doing">대기</span>
-        <span class="extra" id="w26-extra" style="display:none"></span>
-      </div>
-      <div class="worker off" id="w31">
-        <span class="avatar">31B</span>
-        <span class="who" id="w31-who">감독관</span>
-        <span class="loopchip" id="w31-chip" style="display:none"></span>
-        <span class="doing" id="w31-doing">대기</span>
-        <span class="extra" id="w31-extra" style="display:none"></span>
-      </div>
+    <div class="nowstrip">
+      <span class="actor" id="ns-actor">—</span>
+      <span class="ns-text" id="ns-text">대기</span>
+      <span class="loopchip" id="ns-chip" style="display:none"></span>
     </div>
-  </section>
-
-  <section>
-    <div class="sec-head"><h2>게이트 점검표</h2><span>통과 상태 · 루프 횟수</span></div>
     <div class="gates" id="gates"></div>
     <div class="meta-strip">
       <div><span>검수 점수</span><b id="m-score">-</b></div>
-      <div><span>수리 (정적+시운전)</span><b id="m-fix">-</b></div>
-      <div><span>마지막 기록</span><b id="m-age" style="font-size:14px">-</b></div>
+      <div><span>수리</span><b id="m-fix">-</b></div>
+      <div><span>마지막 기록</span><b id="m-age">-</b></div>
     </div>
   </section>
 
@@ -816,6 +793,8 @@ select{margin-bottom:8px}
 <script>
 let lastOk = 0;
 let headState = {title:'-', dot:'dot'};
+let liveTicking = false;   // 진행 중 작업 경과시간 갱신 여부
+let lastEvEpoch = null;    // 마지막 이벤트 시각 (클라이언트 epoch ms)
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -839,6 +818,11 @@ function renderConn(){
   } else {
     c.textContent = '갱신 '+age+'초 전'; c.className='conn';
     t.textContent = headState.title; d.className = headState.dot;
+  }
+  // 진행 중인 작업 경과시간 (피드 첫 줄 옆, 매초 갱신)
+  const el = document.getElementById('ev-elapsed');
+  if(el && liveTicking && lastEvEpoch){
+    el.textContent = '('+fmtDur((Date.now()-lastEvEpoch)/1000)+')';
   }
 }
 
@@ -904,13 +888,26 @@ function render(r){
     else actor='sys';
   }
   const text = last.replace(/^\\S+\\s+/,'').replace('[26B] ','').replace('[31B] ','');
-  setWorker('26', actor==='26', actor==='26'?text:'대기',
-            runOn&&actor==='26'?'':'', lv);
-  setWorker('31', actor==='31', actor==='31'?text:
-            (batchOn&&!runOn?'회차 준비 중 — '+(bt.phase||''):'대기'), '', lv);
-  if(actor==='sys' && last){
-    // 시스템 이벤트(게이트 등)는 26B 쪽 카드에 중립 표기
-    setWorker('26', true, text, '', lv);
+  let nsActor = null, nsText = '대기';
+  if(runOn){
+    nsActor = actor==='26' ? '26' : actor==='31' ? '31' : null;
+    nsText = text || '진행 중';
+  } else if(batchOn){
+    nsActor = '31';
+    nsText = '회차 준비 중 — '+(bt.phase||'');
+  } else if(last){
+    nsText = '대기 — 마지막: '+text;
+  }
+  setNow(nsActor, nsText, lv, runOn||batchOn);
+  // 진행 중인 작업의 경과시간 기준점 (renderConn이 매초 갱신)
+  liveTicking = runOn;
+  lastEvEpoch = null;
+  if(runOn && last && r.now){
+    const sNow = new Date(r.now.replace(' ','T'));
+    const ev = new Date(r.now.slice(0,10)+'T'+last.slice(0,8));
+    let diff = (sNow - ev) / 1000;
+    if(diff < -60) diff += 86400;  // 자정 넘김 보정
+    if(diff >= 0) lastEvEpoch = Date.now() - diff*1000;
   }
   // ── 게이트 점검표
   const labels = {design:'설계',tests:'기준',implement:'조립',
@@ -919,9 +916,10 @@ function render(r){
   const ic = {done:'\\u2713',active:'\\u25CF',warn:'!',halt:'\\u2715',pending:'\\u25CB'};
   document.getElementById('gates').innerHTML = ((lv&&lv.stages)||[])
     .map(function(s){
-      return '<div class="gate '+(cls[s.status]||'wait')+'">'
-        + '<span class="ic">'+ic[s.status]+'</span><span><b>'+labels[s.key]
-        + '</b><small>'+esc(s.note||'')+'</small></span></div>';
+      return '<div class="gate '+(cls[s.status]||'wait')+'" title="'
+        + esc(s.note||'')+'">'
+        + '<span class="ic">'+ic[s.status]+'</span><b>'+labels[s.key]
+        + '</b></div>';
     }).join('') || '<div class="empty">기록 없음</div>';
   const sc = lv && lv.score;
   document.getElementById('m-score').textContent =
@@ -934,10 +932,12 @@ function render(r){
   // ── 피드
   document.getElementById('feed-note').textContent =
     lv && lv.has_report ? '' : '';
-  let feedHtml = tail.slice().reverse().slice(0,8).map(function(line,i){
-    return '<div class="ev'+(i===0&&runOn?' hot':'')+'"><span class="t">'
+  let feedHtml = tail.slice().reverse().slice(0,12).map(function(line,i){
+    const hot = i===0 && runOn;
+    return '<div class="ev'+(hot?' hot':'')+'"><span class="t">'
       + esc(line.slice(0,8))+'</span><span>'
       + esc(line.slice(10).replace('[26B] ','26B가 ').replace('[31B] ','31B가 '))
+      + (hot ? ' <b class="elapsed" id="ev-elapsed"></b>' : '')
       + '</span></div>';
   }).join('');
   if(lv && lv.has_report)
@@ -969,21 +969,23 @@ function render(r){
   renderStats(r);
 }
 
-function setWorker(id, on, doing, extra, lv){
-  const w = document.getElementById('w'+id);
-  w.className = 'worker '+(on?'on':'off');
-  document.getElementById('w'+id+'-who').textContent =
-    (id==='26'?'조립공':'감독관')+(on?' · 일하는 중':' · 대기');
-  document.getElementById('w'+id+'-doing').textContent = doing||'대기';
-  const chip = document.getElementById('w'+id+'-chip');
+function setNow(actor, text, lv, on){
+  const a = document.getElementById('ns-actor');
+  a.textContent = actor ? actor+'B' : '—';
+  a.className = 'actor'+(on?' on':'');
+  document.getElementById('ns-text').textContent = text;
+  const chip = document.getElementById('ns-chip');
   const fx = (lv&&lv.fixes)||{};
   const n = (fx.static||0)+(fx.exec||0);
-  if(on && id==='26' && n>0){
+  if(on && n>0){
     chip.innerHTML = '수리<small>'+n+'회</small>'; chip.style.display='block';
   } else chip.style.display='none';
-  const ex = document.getElementById('w'+id+'-extra');
-  if(extra){ ex.textContent = extra; ex.style.display='block'; }
-  else ex.style.display='none';
+}
+
+function fmtDur(s){
+  if(s < 90) return Math.round(s)+'초';
+  if(s < 5400) return Math.round(s/60)+'분';
+  return (s/3600).toFixed(1)+'시간';
 }
 
 function rowHtml(e){
