@@ -650,6 +650,8 @@ section{margin:12px 16px 0;background:var(--card);border:1px solid var(--line);
 .gate .ic{width:16px;height:16px;border-radius:50%;display:grid;
  place-items:center;font-size:10px;font-weight:900}
 .gate b{font-size:12.5px;font-weight:700;white-space:nowrap}
+.gsec{font-size:11px;color:#ffd98a;font-weight:800;margin-left:1px;
+ font-variant-numeric:tabular-nums;white-space:nowrap}
 .gate.pass .ic{background:rgba(74,222,128,.16);color:var(--green)}
 .gate.busy{border-color:rgba(251,191,36,.5)}
 .gate.busy .ic{background:var(--amber);color:#2a1c02;animation:blink 1.2s infinite}
@@ -832,10 +834,13 @@ function renderConn(){
     c.textContent = '갱신 '+age+'초 전'; c.className='conn';
     t.textContent = headState.title; d.className = headState.dot;
   }
-  // 진행 중인 작업 경과시간 (피드 첫 줄 옆, 매초 갱신)
-  const el = document.getElementById('ev-elapsed');
-  if(el && liveTicking && lastEvEpoch){
-    el.textContent = '('+fmtDur((Date.now()-lastEvEpoch)/1000)+')';
+  // 진행 중인 작업 경과시간 (피드 첫 줄 + 현재 단계 칩, 매초 갱신)
+  if(liveTicking && lastEvEpoch){
+    const sec = (Date.now()-lastEvEpoch)/1000;
+    const el = document.getElementById('ev-elapsed');
+    if(el) el.textContent = '('+fmtDur(sec)+')';
+    const ge = document.getElementById('gate-elapsed');
+    if(ge) ge.textContent = fmtDur(sec);
   }
 }
 
@@ -927,12 +932,19 @@ function render(r){
                   static:'정적',exec:'시운전',critique:'심사',ship:'출하'};
   const cls = {done:'pass',active:'busy',warn:'fail',halt:'fail',pending:'wait'};
   const ic = {done:'\\u2713',active:'\\u25CF',warn:'!',halt:'\\u2715',pending:'\\u25CB'};
-  document.getElementById('gates').innerHTML = ((lv&&lv.stages)||[])
+  // 지금 지나는 단계 = active, 없으면 마지막 warn (수리 중인 게이트)
+  const stages = (lv&&lv.stages)||[];
+  let curKey = null;
+  for(const s of stages){ if(s.status==='active') curKey = s.key; }
+  if(!curKey){ for(const s of stages){ if(s.status==='warn') curKey = s.key; } }
+  document.getElementById('gates').innerHTML = stages
     .map(function(s){
+      const isCur = runOn && s.key === curKey;
       return '<div class="gate '+(cls[s.status]||'wait')+'" title="'
         + esc(s.note||'')+'">'
-        + '<span class="ic">'+ic[s.status]+'</span><b>'+labels[s.key]
-        + '</b></div>';
+        + '<span class="ic">'+ic[s.status]+'</span><b>'+labels[s.key]+'</b>'
+        + (isCur ? '<span class="gsec" id="gate-elapsed"></span>' : '')
+        + '</div>';
     }).join('') || '<div class="empty">기록 없음</div>';
   const sc = lv && lv.score;
   document.getElementById('m-score').textContent =
