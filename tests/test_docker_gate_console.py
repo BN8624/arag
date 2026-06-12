@@ -62,6 +62,17 @@ def test_run_in_docker_hides_console(tmp_path, monkeypatch):
     _assert_hidden(calls[0][1])
 
 
+def test_orchestrator_git_hides_console(tmp_path, monkeypatch):
+    # 스냅샷 git 호출도 같은 숨김 적용 — 게이트 통과마다 검은 창 3연속 깜빡임 방지
+    import orchestrator as orch
+    calls = []
+    monkeypatch.setattr(orch.subprocess, "run", _capture_run(calls))
+    fake_self = SimpleNamespace(workspace=tmp_path)
+    orch.Orchestrator._git(fake_self, "status")
+    assert calls[0][0][0] == "git"
+    _assert_hidden(calls[0][1])
+
+
 def test_docker_kill_on_timeout_hides_console(tmp_path, monkeypatch):
     calls = []
 

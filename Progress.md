@@ -44,6 +44,9 @@
 - **dashboard.py를 고치면 서버 재시작 필수.** PAGE가 프로세스 메모리에 박혀 있어서
   구버전 프로세스가 옛 화면을 계속 서빙함 (pythonw dashboard.py --port 8400 재기동으로 해결)
 - 대시보드는 읽기 전용이라 배치 가동 중 재시작해도 안전
+- **배치 중 검은 창 깜빡임** = 스냅샷 git 호출(add/commit/rev-parse 3연속)이 콘솔 숨김
+  없이 떠서. docker처럼 `_hidden_console_kwargs()` 적용으로 수정 (orchestrator._git).
+  배치는 회차마다 orchestrator를 새 프로세스로 띄우므로 가동 중 배치도 다음 회차부터 적용
 
 ### 낮 배치 3개 분석 (2026-06-12 오후, analyze_batch 콜 0)
 - **배치 종료 양상**: 09:07 배치 = 3회차쯤 돌다 무흔적 사망(빈 로그) /

@@ -20,8 +20,9 @@ import critique_notes
 import run_index
 from config import PROJECT_ROOT, STOP_FILE, force_utf8_stdout
 from design_validator import implementation_order, validate_design
-from docker_gate import (docker_available, install_packages,
-                         run_criteria_checks, run_exec_gate, run_pytest)
+from docker_gate import (_hidden_console_kwargs, docker_available,
+                         install_packages, run_criteria_checks, run_exec_gate,
+                         run_pytest)
 from gates import external_imports, format_issues, run_static_gate
 from lessons import find_relevant_entries, record_lesson
 from llm import CallBudgetExceeded
@@ -975,11 +976,12 @@ class Orchestrator:
     # ------------------------------------------------------------ snapshots
 
     def _git(self, *args) -> subprocess.CompletedProcess:
+        # 콘솔 숨김: pythonw로 돌 때 git 호출마다 검은 창이 깜빡이는 것 방지
         return subprocess.run(
             ["git", "-C", str(self.workspace),
              "-c", "user.name=arag", "-c", "user.email=arag@local", *args],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            stdin=subprocess.DEVNULL)
+            stdin=subprocess.DEVNULL, **_hidden_console_kwargs())
 
     def _git_init(self) -> None:
         if not (self.workspace / ".git").exists():
