@@ -11,7 +11,7 @@ import re
 
 # 프롬프트 세대 표식 — 프롬프트(이 파일 또는 reviewer.py)를 바꿀 때마다 갱신할 것.
 # 런 index에 기록되어 전후 비교(A/B)의 분모를 가른다. 형식: 날짜-변경요약
-PROMPT_VERSION = "20260612-reviewer-nochange-exit"
+PROMPT_VERSION = "20260613-readme-usability"
 
 DESIGN_SCHEMA_EXAMPLE = """{
   "project_name": "todo_cli",
@@ -527,11 +527,26 @@ Known-working commands (verified by automated checks):
 - {sig.get('command', '')}
 {examples}
 
-Structure: what the tool does (2-3 sentences), requirements (Python version,
-`pip install .` if there are dependencies), usage with the verified commands
-above as examples plus expected output, and a short options/subcommands table
-if applicable. Keep it under 80 lines. Do not invent commands or options that
-are not in the design.
+HARD RULE: a reader must be able to install and run this tool using ONLY this
+README. Missing install steps or missing usage examples make the README a
+failure even if everything else is good.
+
+REQUIRED sections, in this order:
+1. Title + what the tool does (2-3 sentences).
+2. "## 설치" - exact copy-paste commands: required Python version, and
+   `pip install .` if there are dependencies (if stdlib-only, say
+   "Python 3.10+ 외에 설치할 것 없음").
+3. "## 빠른 시작" - ONE copy-paste command a first-time user runs
+   (use the verified success-signal command above) plus the expected output.
+   If it needs an input file, show how to create a minimal one first
+   (a few lines of file content, or a `python -c` one-liner that writes it).
+4. "## 사용법" - EVERY subcommand/option in the design gets one runnable
+   example with a one-line explanation. Use the verified commands above.
+5. "## 입력 파일 형식" - only if the tool reads files: the exact expected
+   format with a short sample.
+
+Keep it under 100 lines. Do not invent commands, options, or file fields
+that are not in the design.
 
 Respond with exactly one markdown code block containing the complete README:
 

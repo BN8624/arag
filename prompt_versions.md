@@ -47,6 +47,18 @@ index에 prompt_version 없음. analyze_batch의 단계 구분(커밋 기준)으
     다음 실험 후보로 "readme_prompt 보강(설치·사용 예시 필수)" 또는 시험지에
     README 실행가능성 기준 포함을 등록 — NOCHANGE율 판정은 표본 더 모은 뒤
 
+## 20260613-readme-usability — 2026-06-13 아침
+
+- **목적**: 총평 지적 2/2가 "README에 설치 명령·사용 예시 없음" — README 부실
+  가설 검증. README가 좋아지면 리뷰어 NOCHANGE가 자연히 등장해야 함
+  (리뷰어 출구 검증과 한 세트)
+- **변경**: readme_prompt — HARD RULE("README만으로 설치·실행 가능해야") +
+  필수 섹션 5개 강제(설치/빠른 시작/사용법: 모든 서브커맨드 예시 1개씩/입력 파일
+  형식). 검증된 커맨드만 쓰라는 기존 규칙 유지, 80→100줄 한도
+- **관찰 지표**: 총평의 README 계열 지적률(현재 2/2), NOCHANGE 등장 여부,
+  README 생성 길이/실패율(extract_markdown 실패)
+- **측정 현황**: 적용 직후 20회차 배치 가동 — 결과 대기
+
 ## (대기열) 다음 실험 후보
 
 1. **improve 계획 프롬프트 다이어트** — 30,000자 도달 2건 + "no usable plan" 중단
