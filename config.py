@@ -28,10 +28,16 @@ DEFAULT_MODELS = {
 
 
 def force_utf8_stdout() -> None:
-    """윈도우 콘솔 cp949 인코딩 사고 방지. 스크립트 진입점에서 호출."""
+    """윈도우 콘솔 cp949 인코딩 사고 방지 + 줄 단위 버퍼링. 진입점에서 호출.
+
+    line_buffering: 대시보드가 배치/오케스트레이터를 띄울 때 stdout이 로그
+    파일로 향하는데, 기본 블록 버퍼링이면 프로세스가 비정상 종료할 때 로그가
+    통째로 증발한다 (낮 배치 2회 무흔적 사망 실관측 — 빈 launch 로그).
+    """
     for stream in (sys.stdout, sys.stderr):
         try:
-            stream.reconfigure(encoding="utf-8", errors="replace")
+            stream.reconfigure(encoding="utf-8", errors="replace",
+                               line_buffering=True)
         except (AttributeError, ValueError):
             pass
 
