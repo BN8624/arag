@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generator Factory Dashboard Sample</title>
+  <style>
+    :root {
+      --bg: #0e1110;
+      --panel: #171c1a;
+      --panel-2: #202722;
+      --line: #3b463e;
+      --text: #e4ebe5;
+      --muted: #8c9a91;
+      --green: #83d46c;
+      --blue: #68a6ff;
+      --amber: #f1b75c;
+      --red: #e56b65;
+      --steel: #aeb8c2;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255,255,255,.025) 1px, transparent 1px),
+        var(--bg);
+      background-size: 28px 28px;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 14px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #27302a;
+      background: rgba(14, 17, 16, .92);
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: 16px;
+      letter-spacing: 0;
+      color: #f2f8f1;
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border: 1px solid #33543a;
+      background: #18331e;
+      color: #c8f5c4;
+      font-size: 12px;
+    }
+
+    .metrics {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric {
+      padding: 4px 7px;
+      border: 1px solid #303933;
+      background: #141816;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    section {
+      border: 1px solid #2c352f;
+      background: rgba(23, 28, 26, .94);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #2c352f;
+      color: #dce8dd;
+    }
+
+    .section-head h2 {
+      font-size: 13px;
+      color: #dce8dd;
+    }
+
+    .section-head span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .factory {
+      padding: 10px;
+    }
+
+    .line {
+      display: grid;
+      gap: 8px;
+      position: relative;
+    }
+
+    .line::before {
+      content: "";
+      position: absolute;
+      left: 21px;
+      top: 26px;
+      bottom: 26px;
+      width: 6px;
+      border-left: 1px solid #596459;
+      border-right: 1px solid #202820;
+      background: repeating-linear-gradient(
+        180deg,
+        #667266 0 14px,
+        #2b332d 14px 22px
+      );
+      z-index: 0;
+    }
+
+    .station {
+      position: relative;
+      z-index: 1;
+      min-height: 74px;
+      padding: 9px 10px 9px 52px;
+      border: 1px solid #3b463e;
+      background: linear-gradient(180deg, #222923, #151a17);
+    }
+
+    .station.done { border-color: #426846; }
+    .station.active {
+      border-color: #b58a42;
+      box-shadow: 0 0 0 1px rgba(241, 183, 92, .28), 0 0 22px rgba(241, 183, 92, .16);
+    }
+    .station.warn { border-color: #8c4c42; }
+
+    .station-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #f0f5ef;
+    }
+
+    .lamp {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #515a53;
+      border: 1px solid #788176;
+    }
+
+    .station > .lamp-node {
+      position: absolute;
+      left: 14px;
+      top: 24px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #202820;
+      border: 2px solid #596459;
+      box-shadow: 0 0 0 4px #151a17;
+    }
+
+    .done .lamp { background: var(--green); border-color: #bdf1b5; }
+    .active .lamp {
+      background: var(--amber);
+      border-color: #ffdf98;
+      animation: pulse 1.2s infinite;
+    }
+    .warn .lamp { background: var(--red); border-color: #ffaaa4; }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: .8; }
+      50% { transform: scale(1.28); opacity: 1; }
+    }
+
+    .machine {
+      height: 22px;
+      margin-bottom: 6px;
+      border: 1px solid #556158;
+      background:
+        linear-gradient(90deg, #303932 0 16px, transparent 16px),
+        linear-gradient(180deg, #2b332e, #151916);
+      position: relative;
+    }
+
+    .machine::after {
+      content: "";
+      position: absolute;
+      left: 24px;
+      right: 12px;
+      top: 8px;
+      height: 5px;
+      background: repeating-linear-gradient(90deg, #879086 0 7px, #39423b 7px 13px);
+    }
+
+    .station small {
+      display: block;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .station strong {
+      color: #f5f0d8;
+      font-weight: 700;
+    }
+
+    .work-order {
+      margin: 0 10px 10px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .notice {
+      border: 1px solid #4f4630;
+      background: #221d13;
+      padding: 10px;
+      color: #efd8a7;
+      min-height: 76px;
+    }
+
+    .scoreboard {
+      border: 1px solid #2f4052;
+      background: #151c23;
+      padding: 10px;
+      min-height: 76px;
+    }
+
+    .bar {
+      height: 10px;
+      margin-top: 8px;
+      background: #263029;
+      border: 1px solid #3c493f;
+    }
+
+    .bar > div {
+      width: 80%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--amber));
+    }
+
+    .side {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .feed, .parts, .cards {
+      padding: 10px 12px 12px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px solid #29312b;
+      color: #dce5dd;
+      line-height: 1.35;
+    }
+
+    .event:last-child { border-bottom: 0; }
+    .time { color: #718078; font-size: 12px; }
+
+    .part {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px solid #29312b;
+    }
+
+    .part:last-child { border-bottom: 0; }
+    .part-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tag { color: #111; background: var(--steel); padding: 2px 6px; font-size: 12px; }
+    .tag.ok { background: var(--green); }
+    .tag.fix { background: var(--amber); }
+    .tag.bad { background: var(--red); color: #220b0b; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .run-card {
+      border: 1px solid #303933;
+      background: #141816;
+      padding: 10px;
+      min-height: 92px;
+    }
+
+    .run-card h3 {
+      font-size: 13px;
+      margin-bottom: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .run-card p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    textarea {
+      min-height: 64px;
+      resize: vertical;
+      border: 1px solid #354037;
+      background: #101411;
+      color: var(--text);
+      padding: 9px;
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid #789a61;
+      background: #26391e;
+      color: #dff5d3;
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 700;
+    }
+
+    .desktop-only { display: none; }
+
+    .mobile-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 10px;
+      border-top: 1px solid #2c352f;
+      background: #111512;
+    }
+
+    .summary-cell {
+      border: 1px solid #303933;
+      background: #151a17;
+      padding: 8px;
+      min-height: 52px;
+    }
+
+    .summary-cell span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .summary-cell strong {
+      font-size: 13px;
+      color: #f2f8f1;
+    }
+
+    @media (min-width: 920px) {
+      main {
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .factory { padding: 14px; overflow-x: auto; }
+
+      .line {
+        min-width: 880px;
+        grid-template-columns: repeat(7, minmax(104px, 1fr));
+        gap: 10px;
+      }
+
+      .line::before {
+        left: 7%;
+        right: 7%;
+        top: 54px;
+        bottom: auto;
+        width: auto;
+        height: 6px;
+        border-left: 0;
+        border-right: 0;
+        border-top: 1px solid #596459;
+        border-bottom: 1px solid #202820;
+        background: repeating-linear-gradient(
+          90deg,
+          #667266 0 14px,
+          #2b332d 14px 22px
+        );
+      }
+
+      .station {
+        min-height: 136px;
+        padding: 10px;
+      }
+
+      .station > .lamp-node { display: none; }
+
+      .machine {
+        height: 42px;
+        margin-bottom: 8px;
+      }
+
+      .machine::after {
+        top: 17px;
+        height: 7px;
+      }
+
+      .work-order {
+        margin: 12px 14px 14px;
+        grid-template-columns: 1.2fr .8fr;
+        gap: 10px;
+      }
+
+      .cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .desktop-only { display: inline; }
+      .mobile-summary { display: none; }
+    }
+
+    @media (max-width: 860px) {
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 12px 10px;
+      }
+
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        min-height: 42px;
+      }
+
+      .metrics {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .metric {
+        flex: 1 1 calc(50% - 8px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topline">
+      <h1>generator factory</h1>
+      <span class="badge">RUNNING</span>
+      <span class="metric">run 20260612-1031</span>
+    </div>
+    <div class="metrics">
+      <span class="metric">score 4/5</span>
+      <span class="metric">calls 13</span>
+      <span class="metric">fix 2+1</span>
+      <span class="metric">total $0.083</span>
+    </div>
+  </header>
+
+  <main>
+    <div>
+      <section>
+        <div class="section-head">
+          <h2>생산 라인</h2>
+          <span>CSV 지출 분석 CLI 제작 중</span>
+        </div>
+        <div class="factory">
+          <div class="line">
+            <div class="station done">
+              <span class="lamp-node"></span>
+              <div class="station-title"><span>설계실</span><span class="lamp"></span></div>
+              <div class="machine"></div>
+              <small><strong>31B</strong> 파일 구조와 계약 승인</small>
+            </div>
+            <div class="station done">
+              <span class="lamp-node"></span>
+              <div class="station-title"><span>기준실</span><span class="lamp"></span></div>
+              <div class="machine"></div>
+              <small><strong>31B</strong> 수용 테스트 5개 출제</small>
+            </div>
+            <div class="station done">
+              <span class="lamp-node"></span>
+              <div class="station-title"><span>조립 라인</span><span class="lamp"></span></div>
+              <div class="machine"></div>
+              <small><strong>26B</strong> 6개 파일 생성 완료</small>
+            </div>
+            <div class="station done">
+              <span class="lamp-node"></span>
+              <div class="station-title"><span>정적 검사</span><span class="lamp"></span></div>
+              <div class="machine"></div>
+              <small>AST/import/signature 통과</small>
+            </div>
+            <div class="station warn">
+              <span class="lamp-node"></span>
+              <div class="station-title"><span>시운전</span><span class="lamp"></span></div>
+              <div class="machine"></div>
+              <small>Docker 실행 실패 1건 발견</small>
+            </div>
+            <div class="station active">
+              <span class="lamp-node"></span>
+              <div class="station-title"><span>재작업</span><span class="lamp"></span></div>
+              <div class="machine"></div>
+              <small><strong>26B</strong> report.py 수정 중</small>
+            </div>
+            <div class="station">
+              <span class="lamp-node"></span>
+              <div class="station-title"><span>출하</span><span class="lamp"></span></div>
+              <div class="machine"></div>
+              <small>REPORT.md 대기</small>
+            </div>
+          </div>
+        </div>
+        <div class="mobile-summary">
+          <div class="summary-cell"><span>현재 위치</span><strong>재작업 라인</strong></div>
+          <div class="summary-cell"><span>작업자</span><strong>26B</strong></div>
+          <div class="summary-cell"><span>문제 파일</span><strong>report.py</strong></div>
+          <div class="summary-cell"><span>검사 결과</span><strong>4/5 통과</strong></div>
+        </div>
+        <div class="work-order">
+          <div class="notice">
+            <strong>현재 작업</strong><br>
+            Docker 시운전에서 출력 형식 불일치가 나와서 26B가 report.py만 표적 수정 중.
+          </div>
+          <div class="scoreboard">
+            <strong>수용 기준</strong><br>
+            4/5 통과. 마지막 기준은 "월별 합계 Markdown 표" 출력 확인.
+            <div class="bar"><div></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section style="margin-top:12px">
+        <div class="section-head">
+          <h2>생산 기록</h2>
+          <span>최근 출하품</span>
+        </div>
+        <div class="cards">
+          <div class="run-card">
+            <h3>[OK] CSV 지출 분석기</h3>
+            <p>score 5/5<br>calls 12 · fix 1+0<br>REPORT 보기 / 개선하기</p>
+          </div>
+          <div class="run-card">
+            <h3>[OK] PDF 청구서 추출기</h3>
+            <p>score 4/5<br>calls 17 · fix 2+1<br>REPORT 보기 / 개선하기</p>
+          </div>
+          <div class="run-card">
+            <h3>[FAIL] 구독 탐지 도구</h3>
+            <p>score 2/5<br>calls 21 · no progress<br>실패 원인 보기</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="side">
+      <section>
+        <div class="section-head">
+          <h2>이벤트 피드</h2>
+          <span>최근 6건</span>
+        </div>
+        <div class="feed">
+          <div class="event"><span class="time">10:31</span><span>26B가 report.py 수정 시작</span></div>
+          <div class="event"><span class="time">10:30</span><span>Docker 시운전 실패: 기대 출력 누락</span></div>
+          <div class="event"><span class="time">10:29</span><span>정적 검사 통과</span></div>
+          <div class="event"><span class="time">10:28</span><span>26B가 6개 파일 조립 완료</span></div>
+          <div class="event"><span class="time">10:25</span><span>31B가 테스트 기준 작성 완료</span></div>
+          <div class="event"><span class="time">10:22</span><span>31B 설계 승인: 파일 6개</span></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>부품 현황</h2>
+          <span>파일별</span>
+        </div>
+        <div class="parts">
+          <div class="part"><span class="part-name">main.py</span><span class="tag ok">OK</span></div>
+          <div class="part"><span class="part-name">parser.py</span><span class="tag ok">OK</span></div>
+          <div class="part"><span class="part-name">categorizer.py</span><span class="tag ok">OK</span></div>
+          <div class="part"><span class="part-name">report.py</span><span class="tag fix">FIX</span></div>
+          <div class="part"><span class="part-name">storage.py</span><span class="tag ok">OK</span></div>
+          <div class="part"><span class="part-name">tests_acceptance.py</span><span class="tag bad">1 FAIL</span></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>작업 투입</h2>
+          <span>목업</span>
+        </div>
+        <div class="controls">
+          <textarea>CSV 지출 내역을 읽어 카테고리별 합계와 월별 합계를 Markdown 리포트로 출력하는 CLI</textarea>
+          <button>시작</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>

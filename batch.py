@@ -22,6 +22,8 @@ improve 폭주 방지 (체인 정책 — 합의 2026-06-12):
 """
 
 import argparse
+import json
+import os
 import subprocess
 import sys
 import time
@@ -33,6 +35,9 @@ from idea_factory import generate_idea
 from run_index import load_index
 
 RUNS_DIR = PROJECT_ROOT / "runs"
+# 배치 심장박동: 대시보드가 "배치가 돌고 있는가"를 알 수 있는 유일한 근거.
+# 회차 시작·대기·종료 때마다 갱신하고, pid를 같이 적어 생존 확인을 가능하게 한다.
+BATCH_STATE_NAME = "batch_state.json"
 DEFAULT_RUNS = 3
 MAX_RUNS = 20
 MAX_CONSECUTIVE_FAILURES = 3  # 회차당 내부 재도전 1회 포함 = 빌드 6연속 실패 시 정지
@@ -42,6 +47,19 @@ INFRA_WAIT_SEC = 900
 MAX_INFRA_STRIKES = 2
 _INFRA_MARKERS = ("api call failed", "winerror", "connection reset",
                   "connection aborted")
+
+
+def write_batch_state(runs_dir: Path, **fields) -> None:
+    """배치 상태 파일 갱신. 상태 기록 실패가 배치를 죽여서는 안 된다."""
+    state = {"pid": os.getpid(),
+             "updated": datetime.now().isoformat(timespec="seconds")}
+    state.update(fields)
+    try:
+        runs_dir.mkdir(exist_ok=True)
+        (runs_dir / BATCH_STATE_NAME).write_text(
+            json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def _looks_infra(text: str) -> bool:
@@ -185,6 +203,8 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
     consecutive_failures = 0
     infra_strikes = 0
     stopped_by = None
+    write_batch_state(runs_dir, active=True, started=started_at,
+                      requested=n_runs, round=0, phase="배치 시작")
 
     def _handle_failure(reason: str) -> str | None:
         """실패 1건 처리. 배치를 멈춰야 하면 중단 사유를 반환.
@@ -200,6 +220,9 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
                 return "infra-outage"
             print(f"[BATCH] infra error (API/network) - waiting "
                   f"{INFRA_WAIT_SEC // 60} min before the next round")
+            write_batch_state(runs_dir, active=True, started=started_at,
+                              requested=n_runs, round=done,
+                              phase=f"인프라 장애 - {INFRA_WAIT_SEC // 60}분 대기")
             sleep_fn(INFRA_WAIT_SEC)
             return None
         consecutive_failures += 1
@@ -228,6 +251,9 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
             run, idea, feedback = target
             print(f"[BATCH] round {round_no}/{n_runs}: improving {run} "
                   "(feedback = failed criteria, 0 calls)")
+            write_batch_state(runs_dir, active=True, started=started_at,
+                              requested=n_runs, round=round_no,
+                              phase=f"개선 중: {run}")
             round_start = datetime.now().isoformat(timespec="seconds")
             code = runner(["--improve", str(Path(runs_dir) / run),
                            "--feedback", feedback, idea])
@@ -248,6 +274,9 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
         if review:
             run, idea = review
             print(f"[BATCH] round {round_no}/{n_runs}: user-view review of {run}")
+            write_batch_state(runs_dir, active=True, started=started_at,
+                              requested=n_runs, round=round_no,
+                              phase=f"총평 중: {run}")
             if reviewer_fn is not None:
                 feedback = reviewer_fn(Path(runs_dir) / run, idea)
             else:
@@ -262,6 +291,9 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
                     break
             if feedback:
                 print(f"[BATCH] reviewer suggests improvements -> improve {run}")
+                write_batch_state(runs_dir, active=True, started=started_at,
+                                  requested=n_runs, round=round_no,
+                                  phase=f"총평 반영 개선 중: {run}")
                 round_start = datetime.now().isoformat(timespec="seconds")
                 code = runner(["--improve", str(Path(runs_dir) / run),
                                "--feedback", feedback, idea])
@@ -281,6 +313,8 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
 
         # ---- 3겹: 신규 생산
         print(f"[BATCH] round {round_no}/{n_runs}: generating idea")
+        write_batch_state(runs_dir, active=True, started=started_at,
+                          requested=n_runs, round=round_no, phase="아이디어 출제 중")
         try:
             if idea_gen is not None:
                 out = idea_gen()
@@ -301,6 +335,9 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
 
         print(f"[BATCH] idea (repo {out.get('repo', '?')}, "
               f"level {out.get('level', '?')}): {out['idea']}")
+        write_batch_state(runs_dir, active=True, started=started_at,
+                          requested=n_runs, round=round_no,
+                          phase=f"신규 생산 중: {str(out['idea'])[:60]}")
         cmd = [out["idea"]]
         if out.get("level") is not None:
             # 출제 레벨을 index에 남겨 난이도 변화가 전후 비교를 오염시키는지 추적
@@ -317,6 +354,11 @@ def run_batch(n_runs: int = DEFAULT_RUNS, runner=_default_runner,
             if stopped_by:
                 break
 
+    write_batch_state(runs_dir, active=False, started=started_at,
+                      requested=n_runs, round=done,
+                      phase="배치 종료", done=done, ok=ok,
+                      improves=improves, stopped_by=stopped_by,
+                      finished=datetime.now().isoformat(timespec="seconds"))
     print(f"[BATCH] finished: {ok}/{done} runs ok, {improves} improve round(s)"
           + (f" (stopped by {stopped_by})" if stopped_by else ""))
     print("[BATCH] summary:")

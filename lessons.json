@@ -446,5 +446,112 @@
       "x"
     ],
     "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T09:41:02",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T09:53:15",
+    "idea": "사용자 설정 파일(JSON)에 정의된 관심 키워드와 카테고리를 바탕으로, 제공된 모의 데이터 파일(JSON)에서 최신 뉴스나 정보를 필터링하여 요약 보고서를 생성하는 CLI 도구입니다. 프로그램은 설정 파일을 통해 필터링 기준을 읽고, 모의 데이터에서 조건에 맞는 항목을 추출하여 카테고리별 항목 수와 주요 내용을 텍스트 파일로 출력합니다. 모든 외부 API 응답은 로컬 JSON 파일로 대체하여 구현하며, 입력 데이터의 유효성을 검증하여 최종 요약본을 생성합니다.",
+    "keywords": [
+      "cli",
+      "json",
+      "report generation",
+      "file handling",
+      "data processing"
+    ],
+    "lesson": "Explicitly validate that target output paths are not directories before performing file write operations to prevent IsADirectoryError during I/O."
+  },
+  {
+    "t": "2026-06-12T09:57:33",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T10:04:44",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T10:13:34",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T10:31:39",
+    "idea": "로그 파일(JSON)과 탐지 규칙 파일(JSON)을 입력받아 보안 위협을 분석하는 CLI 도구입니다. 외부 위협 인텔리전스 API(JSON 파일로 대체 가능)를 통해 IP 위험도를 확인하며, 분석 결과와 처리 이력을 state.json 파일에 저장하고 업데이트합니다. 입력 데이터의 유효성 검사, 위협 상관관계 분석, 최종 탐지 리포트 생성 기능을 제공합니다.",
+    "keywords": [
+      "cli tool",
+      "security analysis",
+      "json processing",
+      "prototype design",
+      "modularization"
+    ],
+    "lesson": "Avoid over-fragmenting a prototype design into too many small files, as excessive modularity increases the prompt context size during iterative revisions and can trigger LLM API stability issues."
+  },
+  {
+    "t": "2026-06-12T10:53:42",
+    "idea": "텍스트 파일의 문자셋과 언어 패턴을 분석하여 지정된 프로필과 일치하는지 검증하는 CLI 도구입니다. 외부 JSON 설정 파일에서 허용되는 문자 범위(스크립트)를 읽어 입력 파일의 텍스트를 검사하고, 일치율을 계산하여 분석 보고서를 출력합니다. 입력 파일은 타 프로그램에서 생성된 텍스트 로그 형식이어야 하며, 모든 설정은 CLI 인자로 전달받습니다.",
+    "keywords": [
+      "unicode",
+      "charset",
+      "text-analysis",
+      "cli",
+      "validation"
+    ],
+    "lesson": "Use standard libraries for character property lookups instead of hard-coding exhaustive script range tables to prevent bloated source files."
+  },
+  {
+    "t": "2026-06-12T11:38:30",
+    "idea": "작업 시간 기록이 담긴 JSON 파일을 입력받아 카테고리별 총 소요 시간을 계산하여 출력하는 CLI 도구입니다. 입력 파일의 각 항목은 작업 이름, 카테고리, 소요 시간(분)을 포함해야 하며, 결과는 텍스트 형태의 요약 보고서로 출력됩니다. 별도의 데이터베이스 없이 파일 읽기와 집계 로직만으로 동작하는 단순 변환 도구입니다.",
+    "keywords": [
+      "cli tool",
+      "json processing",
+      "data aggregation",
+      "automation pipeline"
+    ],
+    "lesson": "Define specific technical constraints and edge-case requirements, such as input validation and configurable output formats, to ensure planning agents have sufficient architectural substance to generate a usable plan for trivial utilities."
+  },
+  {
+    "t": "2026-06-12T13:14:08",
+    "idea": "웹 크롤링 작업의 로그 파일을 분석하여 성공률과 평균 응답 시간을 요약하는 CLI 도구입니다. JSON 형식의 로그 파일을 입력받아 설정 파일(JSON)에 정의된 임계치와 비교하여 성능 저하 여부를 판단하고 최종 요약 리포트를 출력합니다. 외부 API 연동 없이 로컬 파일만으로 동작하며, 분석 결과는 텍스트 기반의 요약 보고서 형태로 제공됩니다.",
+    "keywords": [
+      "cli",
+      "log analysis",
+      "metrics calculation",
+      "json",
+      "report generation"
+    ],
+    "lesson": "Implement core calculation and formatting logic as pure functions in dedicated modules to ensure they can be tested and corrected independently, avoiding the need for forbidden monkeypatching in the main entry point."
+  },
+  {
+    "t": "2026-06-12T13:44:13",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-12T13:47:05",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
   }
 ]

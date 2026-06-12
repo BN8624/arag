@@ -40,5 +40,17 @@
     "idea": "텍스트 파일의 문자셋과 언어 패턴을 분석하여 지정된 프로필과 일치하는지 검증하는 CLI 도구입니다. 외부 JSON 설정 파일에서 허용되는 문자 범위(스크립트)를 읽어 입력 파일의 텍스트를 검사하고, 일치율을 계산하여 분석 보고서를 출력합니다. 입력 파일은 타 프로그램에서 생성된 텍스트 로그 형식이어야 하며, 모든 설정은 CLI 인자로 전달받습니다.",
     "path": "reporter.py",
     "issue": "The `format_report` function only displays the count of unmatched characters. It should be updated to list the specific unmatched characters identified by the analyzer in the final report."
+  },
+  {
+    "t": "2026-06-12T12:01:23",
+    "idea": "JSON 파일에 정의된 크론(cron) 표현식 기반 작업 목록과 특정 시간 범위를 입력받아, 해당 기간 동안 각 작업이 실행될 정확한 일시를 계산하여 출력하는 CLI 도구입니다. 사용자는 CLI 인자로 조회 시작 및 종료 시간을 설정하며, 도구는 입력 파일의 스케줄 설정을 분석해 실행 예정 시간을 텍스트 리스트 형태로 반환합니다. 별도의 상태 저장 없이 입력된 설정 파일의 내용을 즉석에서 계산하여 출력하는 순수 변환 도구입니다.",
+    "path": "cron_engine.py",
+    "issue": "In calculate_occurrences, the try-except block wraps ValueErrors with a redundant 'Error parsing cron fields: ' prefix. This causes the descriptive error from _parse_field to be nested (e.g., 'Error: Error parsing cron fields: Value 61...'), which fails the acceptance criterion for clear, descriptive range error reporting. Remove the try-except block and let the original ValueError propagate."
+  },
+  {
+    "t": "2026-06-12T12:09:19",
+    "idea": "지리 데이터가 담긴 JSON 파일과 비교할 두 국가의 이름을 CLI 인자로 입력받아, 인구와 면적 등 주요 지표를 대조하여 출력하는 도구입니다. 각 지표별로 어느 국가가 더 큰 값을 가졌는지 판별하는 핵심 기능과 함께, 전체 지표 중 더 많은 항목에서 우세한 국가를 선정하는 요약 보고서를 출력합니다.",
+    "path": "presenter.py",
+    "issue": "The summary message for a tie ('It is a tie between...') deviates from the expected 'Overall Winner: Tie' output specified in the acceptance criteria and test evidence. Remove the conditional friendly message and use 'Overall Winner: {overall_winner}' consistently."
   }
 ]

@@ -1,5 +1,5 @@
 {
-  "level": 3,
+  "level": 2,
   "used_repos": [
     "sakurity/securelogin",
     "wakatime/legacy-python-cli",
@@ -12,6 +12,9 @@
     "utmstack/UTMStack",
     "gohugoio/hugo",
     "quantum-elixir/quantum-core",
-    "nikic/PHP-Parser"
+    "nikic/PHP-Parser",
+    "linkwarden/linkwarden",
+    "glanceapp/glance",
+    "my8100/scrapydweb"
   ]
 }
