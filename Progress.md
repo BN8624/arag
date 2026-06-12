@@ -1,5 +1,38 @@
 # Progress: 자가개선 인프라(0~3층) + 부분합격·중재·자동개선 루프 완료
 
+## 8차 세션 후반: 외부 리뷰 반영 — orchestrator 분해 + 지표 고정 + README (2026-06-12 밤)
+
+외부 정적 리뷰(GitHub 기준) 접수 → 3자 검토로 채택/기각 분류 후 채택분 일괄 적용.
+
+### 채택 1: orchestrator.py 분해 (1,299줄 → 흐름만 남기고 단계별 믹스인 7개)
+- `phase_common`(상수+RunAborted) / `phase_design` / `phase_tests` /
+  `phase_implement` / `phase_gates` / `phase_critique` / `phase_improve` /
+  `reporting` — **순수 이동 리팩토링** (동작 변화 0, Orchestrator는 믹스인 조립)
+- 테스트 패치 지점 3곳만 새 모듈로 변경 (run_static_gate류 → phase_gates,
+  find_relevant_entries → phase_design). 223개 전부 통과
+- **리플레이 검증**: 녹음된 런(20260612-184951)을 분해 후 파이프라인으로 재현 —
+  설계→구현→게이트(Docker 실제 실행)→채점 3/3→README까지 동일하게 완주.
+  검증용 리플레이 런은 장부에서 제거
+- 배치 가동 중 리팩토링 금지 원칙 확인 (회차마다 새 프로세스가 새 코드 로드)
+
+### 채택 2: 평가 지표 고정 — prompt_version을 장부에 기록
+- `prompts.PROMPT_VERSION` (현재 "20260612-reviewer-nochange-exit") →
+  `reporting._record_index`가 런마다 기록. **프롬프트를 바꿀 때마다 갱신할 것**
+- 목적: 전후 비교(A/B)의 분모를 런 단위로 가른다 — "오답노트가 효과 있었나"를
+  나중에 측정 가능하게. 기존 level·score_split 기록과 한 세트
+
+### 채택 3: README 전면 보강 (스크립트 수준 → 운영 문서)
+- 구조도, 실행 모드 6종(단일/개선/배치/대시보드/분석/리플레이/감시자),
+  결과물 읽는 법 + 상태 라벨 정의(partial = "불완전하지만 건질 수 있음"),
+  비용·쿼터, **보안 경고**(Docker는 완전한 샌드박스 아님, 대시보드 외부 노출 금지),
+  현재 한계 명시
+
+### 기각/보류 (사유 기록)
+- 런타임 JSON 분리: 단일 PC 프로젝트에서 git이 노트의 백업·히스토리 — 공개 전환 시 재검토
+- provider 추상화: 1차 스코프(gemma 둘 고정) 보호. Mock·Replay로 충분
+- CI: 선택 과제로 보류 (테스트 콜 0이라 붙이긴 쉬움)
+- partial 라벨 세분화: 루프가 partial을 자동 개선 표적으로 소비 중 — REPORT 표기 개선은 2차
+
 ## 현황 요약 (2026-06-12 갱신, 8차 세션)
 - **상태**: 테스트 222개 통과. 밤샘 배치 18회차 완주(13 OK) 분석 완료
   → 배치에서 나온 실패 4종에 대한 수정 반영 (아래 "배치 분석 결과와 수정")

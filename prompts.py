@@ -9,6 +9,10 @@
 import json
 import re
 
+# 프롬프트 세대 표식 — 프롬프트(이 파일 또는 reviewer.py)를 바꿀 때마다 갱신할 것.
+# 런 index에 기록되어 전후 비교(A/B)의 분모를 가른다. 형식: 날짜-변경요약
+PROMPT_VERSION = "20260612-reviewer-nochange-exit"
+
 DESIGN_SCHEMA_EXAMPLE = """{
   "project_name": "todo_cli",
   "description": "one-line description of the tool",

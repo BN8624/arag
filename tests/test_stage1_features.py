@@ -139,7 +139,7 @@ def test_scoreboard_regression_rolls_back(tmp_path, monkeypatch):
     """수정본이 게이트는 통과해도 채점표가 후퇴하면 rollback.
     초기 빌드는 2기준 중 1개만 통과(불완전) → 비평 실행 →
     수정 후 0개로 후퇴 → rollback → 복원본 1/2 재확인."""
-    import orchestrator as om
+    import phase_gates as om  # 게이트 함수는 phase_gates 전역에서 호출됨
     monkeypatch.setattr(om, "run_exec_gate", lambda *a, **k: ([], "ok"))
 
     def score(c1, c2):

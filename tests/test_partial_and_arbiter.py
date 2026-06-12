@@ -45,14 +45,16 @@ def _design_with_checks() -> dict:
 
 
 def _mock_gates(monkeypatch, pytest_fn, criteria_results):
-    monkeypatch.setattr(om, "run_static_gate", lambda ws, design: [])
-    monkeypatch.setattr(om, "external_imports", lambda ws: set())
-    monkeypatch.setattr(om, "install_packages",
+    # 게이트 함수들은 phase_gates 모듈 전역에서 호출된다 (orchestrator 분해)
+    import phase_gates as pg
+    monkeypatch.setattr(pg, "run_static_gate", lambda ws, design: [])
+    monkeypatch.setattr(pg, "external_imports", lambda ws: set())
+    monkeypatch.setattr(pg, "install_packages",
                         lambda deps, pkgs: (True, ""))
-    monkeypatch.setattr(om, "run_exec_gate",
+    monkeypatch.setattr(pg, "run_exec_gate",
                         lambda ws, sig, deps_dir=None: ([], "signal ok"))
-    monkeypatch.setattr(om, "run_pytest", pytest_fn)
-    monkeypatch.setattr(om, "run_criteria_checks",
+    monkeypatch.setattr(pg, "run_pytest", pytest_fn)
+    monkeypatch.setattr(pg, "run_criteria_checks",
                         lambda ws, checks, deps_dir=None: criteria_results)
 
 

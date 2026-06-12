@@ -562,9 +562,10 @@ def test_orchestrator_records_injected_keywords(tmp_path, monkeypatch):
     from conftest import GOOD_CORE, GOOD_MAIN, make_design
     from test_orchestrator_mock import MockLLM, fenced
     import orchestrator as orch_mod
+    import phase_design
 
     monkeypatch.setattr(
-        orch_mod, "find_relevant_entries",
+        phase_design, "find_relevant_entries",
         lambda idea: [{"lesson": "JSON 저장 시 인코딩을 명시하라",
                        "keywords": ["json", "encoding"]}])
     llm = MockLLM(critic=[json.dumps(make_design()), "LGTM"],
