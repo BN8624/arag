@@ -210,6 +210,41 @@ def test_improve_new_file_implemented(tmp_path):
     assert "is_dup" in (ws / "main.py").read_text(encoding="utf-8")
 
 
+def test_scoreboard_labels_regression_capability(tmp_path):
+    """improve 모드 채점표는 기존 기준=[regression], 새 기준=[capability] 라벨."""
+    prev = _make_prev_run(tmp_path)
+    orch = Orchestrator(MockLLM(critic=[], generator=[]),
+                        tmp_path / "runs" / "imp", skip_exec=True,
+                        improve_from=prev)
+    orch._old_commands = {"old1"}
+    orch._prev_score = 1
+    orch.scoreboard = [
+        {"criterion": "old1", "command": "c1", "passed": True, "detail": "ok"},
+        {"criterion": "new1", "command": "c2", "passed": False, "detail": "boom"},
+    ]
+    text = orch._scoreboard_text()
+    assert "[regression] old1" in text
+    assert "[capability] new1" in text
+
+    orch._record_index("아이디어", "OK")
+    entries = json.loads((tmp_path / "runs" / "index.json")
+                         .read_text(encoding="utf-8"))
+    assert entries[-1]["score_split"] == {
+        "regression": {"passed": 1, "total": 1},
+        "capability": {"passed": 0, "total": 1}}
+    assert "regression 1/1" in entries[-1]["improvement"]
+
+
+def test_scoreboard_no_labels_outside_improve(tmp_path):
+    """일반 런 채점표에는 라벨이 없다 (혼동 방지)."""
+    orch = Orchestrator(MockLLM(critic=[], generator=[]),
+                        tmp_path / "runs" / "r", skip_exec=True)
+    orch.scoreboard = [{"criterion": "c", "command": "x",
+                        "passed": True, "detail": "ok"}]
+    assert "[regression]" not in orch._scoreboard_text()
+    assert "[capability]" not in orch._scoreboard_text()
+
+
 def test_prev_passed_reads_last_scoreboard(tmp_path):
     prev = _make_prev_run(tmp_path, scoreboard_passed=1)
     assert Orchestrator._prev_passed(prev) == 1

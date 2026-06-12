@@ -113,6 +113,79 @@ def event_stats(events: list[dict]) -> dict:
     }
 
 
+# 콜 프롬프트 머리 → 단계 분류 (prompts.py 첫 줄과 동기화)
+_PHASE_HEADS = [
+    ("You are the architect of a small multi-file", "설계"),
+    ("You are the architect reviewing a WORKING", "improve계획"),
+    ("You are implementing ONE file", "구현"),
+    ("A multi-file Python project failed automated", "수리(fix)"),
+    ("A code reviewer flagged problems", "표적수정"),
+    ("You are a strict but fair code reviewer", "비평"),
+    ("You are the examiner", "시험지/중재"),
+    ("You are an END USER", "총평"),
+    ("Write a README.md", "README"),
+]
+
+
+def _phase_of_call(head: str) -> str:
+    for prefix, name in _PHASE_HEADS:
+        if head.startswith(prefix):
+            return name
+    return "기타"
+
+
+def load_calls(run_dir: Path) -> list[dict]:
+    """llm_calls.jsonl 녹음 (없으면 빈 목록)."""
+    path = run_dir / "llm_calls.jsonl"
+    if not path.exists():
+        return []
+    calls = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.strip():
+            continue
+        try:
+            calls.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return calls
+
+
+def context_report(entries: list[dict], runs_dir: Path) -> list[str]:
+    """컨텍스트 계측: 단계별 프롬프트 크기 + 성패와의 상관 (콜 0).
+
+    "큰 입력 = 좋은 입력" 가정 검증용 — 다이어트를 비용책이 아니라
+    정확도책으로 평가하기 위한 데이터.
+    """
+    by_phase: dict[str, list[int]] = {}
+    ok_sizes: list[int] = []
+    fail_sizes: list[int] = []
+    for e in entries:
+        calls = load_calls(runs_dir / str(e.get("run", "")))
+        if not calls:
+            continue
+        for c in calls:
+            chars = int(c.get("prompt_chars", 0))
+            by_phase.setdefault(
+                _phase_of_call(str(c.get("prompt_head", ""))), []).append(chars)
+            if c.get("role") == "generator":
+                (ok_sizes if e.get("ok") else fail_sizes).append(chars)
+    if not by_phase:
+        return ["녹음 있는 런 없음"]
+    lines = ["단계별 프롬프트 크기 (녹음 있는 런만):"]
+    for phase, sizes in sorted(by_phase.items(), key=lambda kv: -len(kv[1])):
+        lines.append(f"  {phase:<10} {len(sizes):>3}콜  "
+                     f"평균 {sum(sizes) / len(sizes):>8,.0f}자  "
+                     f"최대 {max(sizes):>8,}자")
+    if ok_sizes and fail_sizes:
+        lines.append("26B(generator) 프롬프트 크기 x 성패:")
+        lines.append(f"  성공 런 평균 {sum(ok_sizes) / len(ok_sizes):,.0f}자 "
+                     f"({len(ok_sizes)}콜) vs 실패 런 평균 "
+                     f"{sum(fail_sizes) / len(fail_sizes):,.0f}자 "
+                     f"({len(fail_sizes)}콜)")
+        lines.append("  (주의: 표본 작음 + 실패 런은 수리 콜이 많아 인과 아님 — 추세만)")
+    return lines
+
+
 def prompt_diet(run_dir: Path) -> dict | None:
     """llm_calls.jsonl이 있으면 역할별 prompt_chars 평균 (다이어트 측정)."""
     path = run_dir / "llm_calls.jsonl"
@@ -240,6 +313,14 @@ def summarize(entries: list[dict], runs_dir: Path) -> None:
                     / sum(e.get("calls", 0) for e in group))
         print(f"    {phase}: input {per_call:,.0f} tok/콜 "
               f"(신규+재도전 {len(group)}런)")
+
+    # ── 컨텍스트 계측 (다이어트 = 정확도책인지 검증) ─────────────
+    print()
+    print("=" * 78)
+    print("컨텍스트 계측 (단계별 프롬프트 크기 + 성패 상관)")
+    print("=" * 78)
+    for line in context_report(entries, runs_dir):
+        print(line)
 
     # ── 평가자 실수 (31B 교정 자료 — 수집·표시만, 주입 없음) ──────
     print()

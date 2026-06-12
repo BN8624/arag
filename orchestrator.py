@@ -444,8 +444,10 @@ class Orchestrator:
                           and old_passed > self._prev_score)))
         tag = ("REGRESSED" if regressed
                else "IMPROVED" if improved else "NO-GAIN")
-        return (f"{tag} - old criteria {old_passed}/{len(old)} "
-                f"(was {self._prev_score}), new criteria "
+        # 용어(evals 글 반영): 기존 기준=regression(회귀 방지선, 100% 사수 대상)
+        # / 새 기준=capability(능력 확장, 낮은 통과율도 정상)
+        return (f"{tag} - regression {old_passed}/{len(old)} "
+                f"(was {self._prev_score}), capability "
                 f"{new_passed}/{len(new)}")
 
     def _resume_design(self) -> None:
@@ -873,7 +875,14 @@ class Orchestrator:
         lines = []
         for r in self.scoreboard:
             mark = "[PASS]" if r["passed"] else "[FAIL]"
-            line = f"{mark} {r['criterion']}"
+            label = ""
+            if self.improve_from and self._old_commands:
+                # regression=기존 기준(사수 대상) / capability=새 기준(확장)
+                kind = ("regression"
+                        if r.get("criterion") in self._old_commands
+                        else "capability")
+                label = f" [{kind}]"
+            line = f"{mark}{label} {r['criterion']}"
             if not r["passed"]:
                 line += f" - {r['detail']}"
             lines.append(line)
@@ -1153,6 +1162,18 @@ class Orchestrator:
         if self.improve_from:
             entry["improved_from"] = self.improve_from.name
             entry["improvement"] = self._improvement_verdict()
+            if self.scoreboard and self._old_commands:
+                # regression(기존 기준)/capability(새 기준) 분리 점수
+                old = [r for r in self.scoreboard
+                       if r.get("criterion") in self._old_commands]
+                new = [r for r in self.scoreboard
+                       if r.get("criterion") not in self._old_commands]
+                entry["score_split"] = {
+                    "regression": {"passed": sum(r["passed"] for r in old),
+                                   "total": len(old)},
+                    "capability": {"passed": sum(r["passed"] for r in new),
+                                   "total": len(new)},
+                }
         if run_index.record_run(self.run_dir, entry):
             self.log("index-recorded", run=entry["run"], status=status)
 
