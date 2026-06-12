@@ -1,5 +1,5 @@
 {
-  "level": 3,
+  "level": 1,
   "used_repos": [
     "sakurity/securelogin",
     "wakatime/legacy-python-cli",
@@ -28,6 +28,10 @@
     "drduh/pwd.sh",
     "javaparser/javaparser",
     "fluentscheduler/FluentScheduler",
-    "naggie/dstask"
+    "naggie/dstask",
+    "YishenTu/claudian",
+    "wshobson/agents",
+    "PhilippC/keepass2android",
+    "kernc/backtesting.py"
   ]
 }

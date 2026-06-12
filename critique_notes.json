@@ -106,5 +106,35 @@
     "idea": "사용자의 급여 주기와 지출 항목이 담긴 CSV 파일을 바탕으로, 다음 급여일까지 필요한 예비비를 계산하는 CLI 도구입니다. JSON 설정 파일에 저장된 급여일 정보를 읽어 현재 시점부터 다음 급여일까지의 지출 합계를 산출하며, 결과는 터미널에 총 예약 금액과 항목 리스트로 출력합니다.",
     "path": "main.py",
     "issue": "The 'Invalid JSON' error should also handle cases where the JSON is syntactically valid but missing the required 'payday_day' key (which currently raises an uncaught KeyError). Add KeyError to the JSON exception handler."
+  },
+  {
+    "t": "2026-06-13T01:32:47",
+    "idea": "로컬 지식 저장소를 관리하는 CLI 도구입니다. CSV 파일로 제공된 지식 스니펫들을 읽어 개별 텍스트 파일로 저장하며, 처리된 항목의 ID와 태그별 통계를 JSON 상태 파일에 기록하고 업데이트합니다. 모든 동작은 CLI 인자를 통해 수행되며, 외부 API 없이 파일 시스템만 사용하여 구현합니다.",
+    "path": "main.py",
+    "issue": "The manual check 'if not os.path.exists(status_path)' is redundant because manager.get_tag_stats is intended to handle file access. Remove this check to allow the manager's exception handling to drive the behavior."
+  },
+  {
+    "t": "2026-06-13T01:32:47",
+    "idea": "로컬 지식 저장소를 관리하는 CLI 도구입니다. CSV 파일로 제공된 지식 스니펫들을 읽어 개별 텍스트 파일로 저장하며, 처리된 항목의 ID와 태그별 통계를 JSON 상태 파일에 기록하고 업데이트합니다. 모든 동작은 CLI 인자를 통해 수행되며, 외부 API 없이 파일 시스템만 사용하여 구현합니다.",
+    "path": "manager.py",
+    "issue": "The function 'get_tag_stats' returns a string instead of raising 'FileNotFoundError' when the status file is missing, causing 'test_get_tag_stats_file_not_found' to fail. Remove the 'if not os.path.exists' check and ensure 'FileNotFoundError' is allowed to propagate from 'open()', while still catching 'json.JSONDecodeError'."
+  },
+  {
+    "t": "2026-06-13T02:00:51",
+    "idea": "로컬 지식 저장소를 관리하는 CLI 도구입니다. CSV 파일로 제공된 지식 스니펫들을 읽어 개별 텍스트 파일로 저장하며, 처리된 항목의 ID와 태그별 통계를 JSON 상태 파일에 기록하고 업데이트합니다. 모든 동작은 CLI 인자를 통해 수행되며, 외부 API 없이 파일 시스템만 사용하여 구현합니다.",
+    "path": "manager.py",
+    "issue": "The function get_tag_stats (via storage.format_tag_stats) fails to raise FileNotFoundError when the status file is missing, contradicting the behavior expected by the test suite (test_get_tag_stats_file_not_found). While storage.load_status handles missing files for the 'process' flow, the 'stats' flow specifically requires a file to exist to provide reports. Modify get_tag_stats to check for file existence before calling the storage formatter."
+  },
+  {
+    "t": "2026-06-13T02:20:37",
+    "idea": "로컬 지식 저장소를 관리하는 CLI 도구입니다. CSV 파일로 제공된 지식 스니펫들을 읽어 개별 텍스트 파일로 저장하며, 처리된 항목의 ID와 태그별 통계를 JSON 상태 파일에 기록하고 업데이트합니다. 모든 동작은 CLI 인자를 통해 수행되며, 외부 API 없이 파일 시스템만 사용하여 구현합니다.",
+    "path": "manager.py",
+    "issue": "The clear_status function is broken; it initializes a StatusManager (which loads existing data) and immediately saves it back, effectively doing nothing. It should either delete the status file or explicitly reset the processed_ids and tag_counts to empty values before saving."
+  },
+  {
+    "t": "2026-06-13T03:48:44",
+    "idea": "JSON 형식의 계정 정보 파일에서 특정 민감 필드를 마스킹 처리하는 CLI 도구입니다. 사용자로부터 마스킹할 필드 이름들과 JSON 파일 경로를 명령줄 인자로 받아, 해당 필드의 값들을 별표(*)로 치환한 JSON 결과물을 출력합니다. 입력 파일의 유효성 검사와 데이터 변환 로직을 수행하며, 별도의 상태 저장 없이 순수하게 입력 파일에서 출력으로의 변환만을 처리합니다.",
+    "path": "main.py",
+    "issue": "The 'mask' command uses sys.exit(1) inside a Click command, which can be intercepted by the Click group wrapper, leading to the CLI returning exit code 0 instead of 1 during validation errors. Change to @click.pass_context and use ctx.exit(1) to ensure the exit code is correctly propagated to the shell."
   }
 ]

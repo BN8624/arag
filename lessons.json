@@ -678,5 +678,77 @@
       "x"
     ],
     "lesson": "y"
+  },
+  {
+    "t": "2026-06-13T00:49:13",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-13T01:08:14",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-13T02:49:50",
+    "idea": "다양한 플랫폼용 AI 스킬 정의서를 변환하는 CLI 도구입니다. 사용자가 정의한 JSON 형식의 통합 스킬 명세서를 읽어, 설정 파일(config.json)에 정의된 각 플랫폼별 전용 설정 파일로 변환하여 출력합니다. 입력 파일의 필수 필드 유효성을 검사하며, 외부 API 없이 로컬 파일 시스템만을 사용하여 변환 결과를 저장합니다.",
+    "keywords": [
+      "cli",
+      "json-conversion",
+      "mapping-schema",
+      "file-persistence",
+      "platform-adapter"
+    ],
+    "lesson": "Define an explicit mapping schema in the configuration file that maps source JSON keys to destination keys, and ensure output directories are explicitly created before writing files to avoid persistence failures."
+  },
+  {
+    "t": "2026-06-13T03:30:08",
+    "idea": "다양한 플랫폼용 AI 스킬 정의서를 변환하는 CLI 도구입니다. 사용자가 정의한 JSON 형식의 통합 스킬 명세서를 읽어, 설정 파일(config.json)에 정의된 각 플랫폼별 전용 설정 파일로 변환하여 출력합니다. 입력 파일의 필수 필드 유효성을 검사하며, 외부 API 없이 로컬 파일 시스템만을 사용하여 변환 결과를 저장합니다.",
+    "keywords": [
+      "cli",
+      "json-conversion",
+      "schema-mapping",
+      "file-system",
+      "platform-specific"
+    ],
+    "lesson": "Define an explicit key-to-key mapping schema in the configuration file to translate common fields to platform-specific fields, and verify that the conversion loop iterates through all configured platforms before triggering the file write operation."
+  },
+  {
+    "t": "2026-06-13T04:00:25",
+    "idea": "JSON 형식의 계정 정보 파일에서 특정 민감 필드를 마스킹 처리하는 CLI 도구입니다. 사용자로부터 마스킹할 필드 이름들과 JSON 파일 경로를 명령줄 인자로 받아, 해당 필드의 값들을 별표(*)로 치환한 JSON 결과물을 출력합니다. 입력 파일의 유효성 검사와 데이터 변환 로직을 수행하며, 별도의 상태 저장 없이 순수하게 입력 파일에서 출력으로의 변환만을 처리합니다.",
+    "keywords": [
+      "cli",
+      "json",
+      "masking",
+      "data-transformation",
+      "privacy"
+    ],
+    "lesson": "Explicitly specify the expected data structure (e.g., flat vs. nested JSON) and the required traversal method to ensure a concrete implementation plan."
+  },
+  {
+    "t": "2026-06-13T04:46:19",
+    "idea": "역사적 가격 데이터가 담긴 CSV 파일을 입력받아, 정해진 주기와 금액으로 자산을 매수하는 정액 분할 투자(DCA) 전략의 최종 수익률을 계산하는 CLI 도구입니다. 사용자는 투자 주기(일 단위)와 1회 투자 금액을 CLI 인자로 입력하며, 프로그램은 총 투자액, 최종 보유 수량, 그리고 마지막 가격 기준의 평가 금액을 계산하여 출력합니다. 입력 파일은 'date,price' 형식의 CSV여야 하며, 모든 결과는 표준 출력으로 제공됩니다.",
+    "keywords": [
+      "dca",
+      "time-series",
+      "csv-parsing",
+      "missing-data",
+      "investment-strategy"
+    ],
+    "lesson": "Explicitly define the policy for handling gaps in time-series data (e.g., skip the interval or use the next available date) to ensure consistent behavior when the input CSV contains missing dates."
+  },
+  {
+    "t": "2026-06-13T07:53:32",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
   }
 ]
