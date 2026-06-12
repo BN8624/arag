@@ -110,7 +110,9 @@ IDEA: {idea}
 {lessons_part}
 Also produce:
 - "requirements": FIRST decompose the IDEA into atomic requirements - every
-  distinct capability the idea mentions or clearly implies, one entry each.
+  distinct capability AND stated promise the idea mentions or clearly
+  implies (output units, file formats, supported syntax, generality), one
+  entry each.
   Each requirement maps to the acceptance criteria that cover it via
   "covered_by" (a list of 0-based indices into "acceptance_criteria").
   Every requirement MUST be covered by at least one criterion - if a
@@ -124,7 +126,16 @@ Also produce:
 - "interfaces": the exact functions/classes each file must define, with
   signatures. The implementer will follow these as a contract.
 - "acceptance_criteria": 3-6 concrete, checkable statements of what the
-  finished tool must do.
+  finished tool must do. Criteria must verify the idea's PROMISES, not merely
+  that commands exit 0:
+  * if the idea states an output unit or format (hours, xlsx, a JSON report
+    file...), one criterion must check that exact unit/format appears;
+  * if it promises generality (any file path, user-defined config), one
+    criterion must use a non-default input;
+  * if it promises a syntax or range (e.g. standard cron expressions), one
+    criterion must exercise a non-trivial case, not only the simplest one.
+  A tool that runs but silently narrows a stated promise FAILS that criterion.
+  Do not inflate the criterion count for this - tighten what each one covers.
 - "criteria_checks": for EVERY acceptance criterion, one executable check:
   a command, a substring its output must contain, and optionally
   "expect_exit_code" (integer, default 0). Use "expect_exit_code": 1 when the
