@@ -344,11 +344,55 @@ def test_find_improve_target_skips_already_improved(tmp_path):
     _write_index(runs, [
         {"run": "r1", "ok": True, "idea": "아이디어1",
          "failed_criteria": ["기준 A"]},
-        # r1은 이미 improve 시도됨 (성패 무관) + improve 런 자체도 대상 아님
+        # r1은 이미 improve 시도됨 + r2는 IMPROVED 판정이 없어 체인 부적격
         {"run": "r2", "ok": True, "improved_from": "r1",
          "failed_criteria": ["기준 C"]},
     ])
     assert batch.find_improve_target(runs) is None
+
+
+def test_improve_chain_allows_improved_run_once_more(tmp_path):
+    """깊이 2 체인: IMPROVED 판정 + 실패 기준이 달라졌으면 개선의 개선 허용."""
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "idea": "아이디어1",
+         "failed_criteria": ["기준 A"]},
+        {"run": "r2", "ok": True, "idea": "아이디어1", "improved_from": "r1",
+         "improvement": "IMPROVED - old criteria 5/5 (was 4), new criteria 1/2",
+         "failed_criteria": ["기준 B"]},
+    ])
+    run, _, feedback = batch.find_improve_target(runs)
+    assert run == "r2" and "기준 B" in feedback
+
+
+def test_improve_chain_stops_at_depth_limit(tmp_path):
+    """깊이 한도(2) 도달한 improve 런은 다시 개선하지 않는다."""
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "failed_criteria": ["A"]},
+        {"run": "r2", "ok": True, "improved_from": "r1",
+         "improvement": "IMPROVED - x", "failed_criteria": ["B"]},
+        {"run": "r3", "ok": True, "improved_from": "r2",
+         "improvement": "IMPROVED - y", "failed_criteria": ["C"]},
+    ])
+    assert batch.find_improve_target(runs) is None  # r3 depth 2 = 한도
+
+
+def test_improve_chain_stops_on_regression_or_same_failures(tmp_path):
+    """REGRESSED/NO-GAIN 또는 같은 failed_criteria 반복이면 체인 중단."""
+    runs = tmp_path / "runs"
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "failed_criteria": ["A"]},
+        {"run": "r2", "ok": True, "improved_from": "r1",
+         "improvement": "NO-GAIN - old criteria 4/5", "failed_criteria": ["B"]},
+    ])
+    assert batch.find_improve_target(runs) is None  # NO-GAIN 체인 중단
+    _write_index(runs, [
+        {"run": "r1", "ok": True, "failed_criteria": ["A"]},
+        {"run": "r2", "ok": True, "improved_from": "r1",
+         "improvement": "IMPROVED - x", "failed_criteria": ["A"]},
+    ])
+    assert batch.find_improve_target(runs) is None  # 같은 기준 반복 중단
 
 
 def test_find_review_target_perfect_unreviewed_only(tmp_path):

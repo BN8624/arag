@@ -6,9 +6,11 @@
        → 지적 있으면 improve, NOCHANGE면 같은 회차에서 신규 생산으로 진행
   3. 신규 생산: 아이디어 출제(콜 1) → orchestrator 완주
 
-improve 폭주 방지:
+improve 폭주 방지 (체인 정책 — 합의 2026-06-12):
   - 런당 자동 improve 1회 (improved_from 기록으로 판별)
-  - improve 런 자체는 다시 improve/총평 대상이 안 됨 (개선의 개선 금지)
+  - 개선의 개선은 깊이 2까지 허용하되 가드 통과 시에만:
+    직전 improve가 IMPROVED 판정(회귀·무이득이면 중단)이고,
+    같은 failed_criteria가 반복되지 않을 때 (헛도는 체인 차단)
   - 총평은 런당 1회 (auto_review.json 마커, NOCHANGE여도 기록)
 
 회차 사이마다 STOP_AFTER_RUN 플래그 확인 (대시보드 종료예약 버튼이 만듦).
@@ -67,6 +69,42 @@ def _improve_done_or_running(entries: list[dict]) -> set[str]:
     return {e["improved_from"] for e in entries if e.get("improved_from")}
 
 
+MAX_IMPROVE_CHAIN = 2  # 개선의 개선 허용 깊이 (합의: 2부터, 3은 아직 이름)
+
+
+def _chain_depth(by_run: dict[str, dict], run: str) -> int:
+    """improved_from을 따라 올라간 체인 깊이 (원본 런 = 0)."""
+    depth = 0
+    seen = {run}
+    cur = by_run.get(run)
+    while cur and cur.get("improved_from") and cur["improved_from"] not in seen:
+        seen.add(cur["improved_from"])
+        depth += 1
+        cur = by_run.get(cur["improved_from"])
+    return depth
+
+
+def _chain_eligible(e: dict, by_run: dict[str, dict]) -> bool:
+    """이 런을 improve 대상으로 삼아도 되나 (체인 가드).
+
+    원본 런은 항상 가능. improve 런은: 깊이 한도 안 + 직전 판정이
+    IMPROVED(회귀·무이득 체인 중단) + 같은 failed_criteria 반복이 아님.
+    """
+    src = e.get("improved_from")
+    if not src:
+        return True
+    if _chain_depth(by_run, str(e.get("run", ""))) >= MAX_IMPROVE_CHAIN:
+        return False
+    if not str(e.get("improvement") or "").startswith("IMPROVED"):
+        return False
+    src_failed = (by_run.get(str(src)) or {}).get("failed_criteria")
+    mine = {str(c) for c in e.get("failed_criteria") or []}
+    if mine and src_failed is not None \
+            and mine == {str(c) for c in src_failed}:
+        return False  # 같은 기준에서 계속 막힘 — 헛도는 체인
+    return True
+
+
 def find_improve_target(runs_dir: Path) -> tuple[str, str, str] | None:
     """부분 실패 OK 런 → (런 이름, 원래 아이디어, 공짜 피드백). 없으면 None.
 
@@ -74,8 +112,11 @@ def find_improve_target(runs_dir: Path) -> tuple[str, str, str] | None:
     """
     entries = load_index(runs_dir)
     improved = _improve_done_or_running(entries)
+    by_run = {str(e.get("run", "")): e for e in entries}
     for e in reversed(entries):  # 최신 우선
-        if not e.get("ok") or e.get("improved_from") or e["run"] in improved:
+        if not e.get("ok") or e["run"] in improved:
+            continue
+        if not _chain_eligible(e, by_run):
             continue
         failed = [str(c) for c in e.get("failed_criteria") or [] if str(c).strip()]
         if not failed or not (Path(runs_dir) / e["run"]).exists():
@@ -92,8 +133,11 @@ def find_review_target(runs_dir: Path) -> tuple[str, str] | None:
     from reviewer import review_marker
     entries = load_index(runs_dir)
     improved = _improve_done_or_running(entries)
+    by_run = {str(e.get("run", "")): e for e in entries}
     for e in reversed(entries):
-        if not e.get("ok") or e.get("improved_from") or e["run"] in improved:
+        if not e.get("ok") or e["run"] in improved:
+            continue
+        if not _chain_eligible(e, by_run):
             continue
         score = e.get("score") or {}
         if not score.get("total") or score.get("passed") != score.get("total"):

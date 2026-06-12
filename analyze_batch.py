@@ -241,6 +241,21 @@ def summarize(entries: list[dict], runs_dir: Path) -> None:
         print(f"    {phase}: input {per_call:,.0f} tok/콜 "
               f"(신규+재도전 {len(group)}런)")
 
+    # ── 평가자 실수 (31B 교정 자료 — 수집·표시만, 주입 없음) ──────
+    print()
+    print("=" * 78)
+    print("평가자 실수 수집 (false-lgtm / perfect-but-gap / partial-lgtm / repeat-review)")
+    print("=" * 78)
+    from evaluator_notes import PROMOTE_FLOOR, harvest, promotion_candidates
+    mistakes = harvest(runs_dir)
+    if not mistakes:
+        print("수집된 사례 없음 (총평을 받은 런이 쌓이면 나타남)")
+    for m in mistakes:
+        print(f"  {m['run']}  [{m['kind']}]  {m['detail'][:70]}")
+    for n, kind in promotion_candidates(mistakes):
+        print(f"  [승격후보] {kind} {n}회 반복 (>= {PROMOTE_FLOOR}) — "
+              "비평/출제 프롬프트 보강 검토")
+
     # ── 재발률 ───────────────────────────────────────────────────
     print()
     rec = recurrence_stats(entries)
