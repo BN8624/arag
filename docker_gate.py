@@ -10,6 +10,7 @@ stdlib-only 규격이라 가능), 컨테이너는 --rm으로 자동 정리.
 
 import shlex
 import subprocess
+import sys
 import uuid
 from pathlib import Path
 
@@ -17,11 +18,25 @@ IMAGE = "python:3.12-slim"
 EXEC_TIMEOUT_SEC = 30
 
 
+def _hidden_console_kwargs() -> dict:
+    """Windows에서 자식 docker 프로세스가 콘솔 창을 띄우지 않게 하는 인자.
+
+    pythonw(대시보드 백그라운드)로 돌 때 docker.exe가 회차마다 검은 창을
+    깜빡이는 것 방지. 다른 OS에서는 빈 dict (동작 동일).
+    """
+    if sys.platform != "win32":
+        return {}
+    si = subprocess.STARTUPINFO()
+    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    si.wShowWindow = subprocess.SW_HIDE
+    return {"creationflags": subprocess.CREATE_NO_WINDOW, "startupinfo": si}
+
+
 def docker_available() -> bool:
     try:
         result = subprocess.run(
             ["docker", "info"], capture_output=True, timeout=20,
-            stdin=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL, **_hidden_console_kwargs(),
         )
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -49,7 +64,8 @@ def install_packages(deps_dir: Path, packages: list[str],
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=timeout, stdin=subprocess.DEVNULL)
+            errors="replace", timeout=timeout, stdin=subprocess.DEVNULL,
+            **_hidden_console_kwargs())
     except subprocess.TimeoutExpired:
         return False, f"pip install timed out after {timeout}s"
     out = (result.stdout or "") + (result.stderr or "")
@@ -179,7 +195,7 @@ def _run_in_docker(workdir: Path, argv: list[str], timeout: int,
         result = subprocess.run(
             cmd, capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=timeout + 60,  # +60: 컨테이너 기동 여유
-            stdin=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL, **_hidden_console_kwargs(),
         )
         out = (result.stdout or "") + (result.stderr or "")
         if result.returncode == 124:  # coreutils timeout의 시간 초과 코드
@@ -187,7 +203,7 @@ def _run_in_docker(workdir: Path, argv: list[str], timeout: int,
         return result.returncode, out
     except subprocess.TimeoutExpired as err:
         subprocess.run(["docker", "kill", name], capture_output=True,
-                       stdin=subprocess.DEVNULL)
+                       stdin=subprocess.DEVNULL, **_hidden_console_kwargs())
         partial = ""
         for chunk in (err.stdout, err.stderr):
             if chunk:
