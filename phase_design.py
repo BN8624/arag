@@ -14,6 +14,9 @@ from schema import parse_design
 
 class DesignPhase:
     def _load_lessons(self, idea: str) -> list[str]:
+        if not getattr(self, "notes_enabled", True):  # cold mode: 오답노트 주입 OFF
+            self.log("notes-disabled", store="lessons", mode="cold")
+            return []
         try:
             entries = find_relevant_entries(idea)
             found = [str(e.get("lesson", "")).strip() for e in entries]

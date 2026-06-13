@@ -184,3 +184,54 @@ def test_notes_injected_into_implement_prompt(tmp_path):
     orch = Orchestrator(llm, tmp_path / "runs" / "r", skip_exec=True)
     assert orch.run("tiny todo cli") is True
     assert all("print confirmation for every action" in p for p in llm.prompts)
+
+
+def test_cold_mode_disables_note_injection(tmp_path, monkeypatch):
+    """cold mode: 오답노트/비평노트가 프롬프트에 주입되지 않는다 (수확은 별개)."""
+    import phase_design
+
+    # 매칭될 비평노트를 미리 저장 (conftest가 tmp로 격리) - warm이면 주입될 것
+    critique_notes.record_notes(
+        "todo cli list",
+        [{"path": "main.py", "issues": ["print confirmation for every action"]}])
+
+    # cold는 lessons 검색에 닿기 전에 단락돼야 한다 - 호출되면 잡는다
+    called = {"lessons": False}
+    real = phase_design.find_relevant_entries
+
+    def spy_lessons(*a, **k):
+        called["lessons"] = True
+        return real(*a, **k)
+
+    monkeypatch.setattr(phase_design, "find_relevant_entries", spy_lessons)
+
+    class SpyLLM(MockLLM):
+        def __init__(self, critic, generator):
+            super().__init__(critic, generator)
+            self.gen_prompts: list[str] = []
+
+        def generate(self, role, prompt, temperature=None):
+            if role == "generator":
+                self.gen_prompts.append(prompt)
+            return super().generate(role, prompt, temperature)
+
+    llm = SpyLLM(
+        critic=[json.dumps(make_design()), "LGTM"],
+        generator=[fenced(GOOD_CORE), fenced(GOOD_MAIN)],
+    )
+    orch = Orchestrator(llm, tmp_path / "runs" / "r", skip_exec=True,
+                        notes_enabled=False)
+    assert orch.mode == "cold"
+    assert orch.run("tiny todo cli") is True
+
+    # 비평노트가 구현 프롬프트에 안 들어갔다
+    assert all("print confirmation for every action" not in p
+               for p in llm.gen_prompts)
+    # 오답노트 검색 자체가 호출되지 않았다 (cold 단락)
+    assert called["lessons"] is False
+    # 두 store 모두 notes-disabled 로깅
+    events = [json.loads(line) for line in
+              (tmp_path / "runs" / "r" / "events.jsonl").read_text(
+                  encoding="utf-8").splitlines()]
+    disabled = {e["store"] for e in events if e["event"] == "notes-disabled"}
+    assert disabled == {"lessons", "critique_notes"}
