@@ -32,6 +32,9 @@
     "YishenTu/claudian",
     "wshobson/agents",
     "PhilippC/keepass2android",
-    "kernc/backtesting.py"
+    "kernc/backtesting.py",
+    "jhuckaby/Cronicle",
+    "Donkie/Spoolman",
+    "gsantner/markor"
   ]
 }

@@ -26,6 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import observability
 from config import PROJECT_ROOT, STOP_FILE, force_utf8_stdout
 from run_index import load_index, recurrence_stats
 
@@ -455,6 +456,19 @@ __BODY__
 </main></body></html>"""
 
 
+_OBS_CACHE: dict = {"t": 0.0, "data": None}
+
+
+def obs_summary_cached(ttl: float = 60.0) -> dict:
+    """관측 요약 (60초 캐시 — 런 디렉토리 전수 읽기를 폴링마다 안 하게)."""
+    now = time.time()
+    if _OBS_CACHE["data"] is None or now - _OBS_CACHE["t"] > ttl:
+        rows = observability.classify_all(RUNS_DIR)
+        _OBS_CACHE["data"] = observability.summary(rows)
+        _OBS_CACHE["t"] = now
+    return _OBS_CACHE["data"]
+
+
 def toggle_stop() -> bool:
     """종료 예약 플래그 토글. 토글 후 상태(True=예약됨)를 반환."""
     if STOP_FILE.exists():
@@ -786,6 +800,10 @@ select{margin-bottom:8px}
 </div>
 
 <div id="view-stats" style="display:none">
+  <section>
+    <div class="sec-head"><h2>실패 관측</h2><span>limit_type · 부산물 점수</span></div>
+    <div class="kchips" id="st-obs">-</div>
+  </section>
   <section>
     <div class="sec-head"><h2>프롬프트 버전별</h2><span>실험 전후 비교</span></div>
     <div class="statwrap"><table class="stats" id="st-version"></table></div>
@@ -1119,6 +1137,29 @@ function setTab(t){
     document.getElementById('view-'+x).style.display =
       x!==t ? 'none' : (x==='stats' ? 'block' : 'flex');
   }
+  if(t==='stats') loadObs();
+}
+
+async function loadObs(){
+  let o;
+  try{ o = await (await fetch('/api/obs')).json(); }catch(e){ return; }
+  const L = {MODEL_LIMIT:'모델 한계',LOOP_LIMIT:'루프 한계',
+             SPEC_LIMIT:'스펙 한계',INFRA_LIMIT:'인프라',UNKNOWN:'미분류'};
+  let h = '';
+  for(const k of Object.keys(L)){
+    const n = (o.by_limit||{})[k]||0;
+    if(n) h += '<span class="kchip">'+L[k]+' <b>'+n+'</b></span>';
+  }
+  const q = o.by_quality||{};
+  h += '<span class="kchip">좋은 실패 <b>'+(q.good||0)+'</b></span>'
+    + '<span class="kchip">junk <b>'+(q.junk||0)+'</b>'
+    + (o.junk_rate!=null?' ('+Math.round(o.junk_rate*100)+'%)':'')+'</span>'
+    + (o.avg_artifact_score!=null
+       ? '<span class="kchip">부산물 점수 <b>'+o.avg_artifact_score+'</b></span>' : '')
+    + (o.cost_per_useful_artifact!=null
+       ? '<span class="kchip">유용 부산물당 <b>$'+o.cost_per_useful_artifact
+         +'</b></span>' : '');
+  document.getElementById('st-obs').innerHTML = h || '-';
 }
 
 let OPEN = null;  // 열려 있는 투입 패널 (단일/개선/자동 중 하나)
@@ -1203,6 +1244,10 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE, "text/html")
         elif url.path == "/api/status":
             self._send(200, json.dumps(build_status(), ensure_ascii=False),
+                       "application/json")
+        elif url.path == "/api/obs":
+            self._send(200, json.dumps(obs_summary_cached(),
+                                       ensure_ascii=False),
                        "application/json")
         elif url.path == "/api/report":
             qs = parse_qs(url.query)

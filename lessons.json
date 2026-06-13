@@ -750,5 +750,57 @@
       "x"
     ],
     "lesson": "y"
+  },
+  {
+    "t": "2026-06-13T08:22:12",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
+  },
+  {
+    "t": "2026-06-13T08:35:49",
+    "idea": "작업 일정 충돌 확인 도구입니다. JSON 형식의 작업 목록 파일(작업명, 시작 시간, 소요 시간 포함)을 입력받아 시간대가 겹치는 작업들이 있는지 분석합니다. 충돌이 발생한 작업 쌍을 찾아 리스트로 출력하고, 충돌이 없는 경우 'No conflicts' 메시지를 반환합니다.",
+    "keywords": [
+      "scheduling",
+      "conflict-detection",
+      "json-input",
+      "time-overlap",
+      "data-schema"
+    ],
+    "lesson": "Specify a concrete input data schema with explicit key names and value formats to ensure the planning model can generate a deterministic implementation."
+  },
+  {
+    "t": "2026-06-13T08:40:26",
+    "idea": "3D 프린팅 프로젝트에 필요한 필라멘트 총량과 보유 재고를 비교하여 재료 부족 여부를 판별하는 CLI 도구입니다. 재고 목록 파일과 프로젝트 요구사항 파일(JSON 형식)의 경로를 인자로 받아, 각 재료별 총 소요량과 가용량을 계산해 부족한 무게를 출력합니다.",
+    "keywords": [
+      "cli tool",
+      "json processing",
+      "automated code generation",
+      "api stability",
+      "file generation"
+    ],
+    "lesson": "Split the implementation of multiple files into separate API calls rather than requesting the entire project in a single prompt to avoid server-side timeouts and internal errors."
+  },
+  {
+    "t": "2026-06-13T09:00:24",
+    "idea": "todo.txt 형식의 텍스트 파일을 입력받아 작업의 우선순위와 완료 상태를 분석하는 CLI 도구입니다. 파일 경로를 인자로 받아 각 우선순위별(A, B, C) 작업 개수와 전체 완료율을 계산하며, 최종 분석 결과는 요약 보고서 형태로 표준 출력에 표시합니다.",
+    "keywords": [
+      "cli",
+      "text-parser",
+      "prototype",
+      "automation",
+      "llm-generation"
+    ],
+    "lesson": "Consolidate simple prototype logic into fewer files to minimize the number of LLM API calls and reduce the probability of encountering transient infrastructure failures."
+  },
+  {
+    "t": "2026-06-13T09:20:37",
+    "idea": "tiny todo cli",
+    "keywords": [
+      "x"
+    ],
+    "lesson": "y"
   }
 ]
