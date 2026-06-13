@@ -57,6 +57,31 @@ cold 실패를 아무거나 넣으면 잘못된 비평·과적합 패치·틀린
 protocol_version은 앵커, protocol_fingerprint는 조건을 펼친 객체(해시 시스템 X —
 산으로 안 가게. 나중에 접으면 됨).
 
+## 2026-06-14 — Gemma 4 팩트 (공식 모델카드 검증) + 출력한도 실측
+
+### 모델 팩트 (ai.google.dev/gemma/docs/core/model_card_4)
+Gemma 4 출시 2026-04-02. ARAG가 쓰는 두 모델:
+- **26B-A4B (generator)**: MoE 총25.2B/활성3.8B. 입력 **텍스트+이미지+비디오**(~60s 1fps).
+  컨텍스트 **256K**. **음성 ❌.**
+- **31B (critic)**: Dense. 입력 텍스트+이미지+비디오. 컨텍스트 256K. **음성 ❌.**
+- 음성(audio)은 작은 모델(E2B·E4B·12B)에만. **PDF/문서는 "비전으로 이미지처럼 읽기"**지
+  파일시스템 읽기 아님 → "코더가 워크스페이스 파일을 읽는다"는 여전히 불가(내용 인라인 필요).
+- function calling + structured JSON 출력 네이티브 (design.json 계약 강제에 쓸 여지).
+
+### thinking은 제어 가능 (핵심 레버)
+- 켜기: 시스템 프롬프트 맨 앞 `<|think|>` 토큰. 끄기: 토큰 제거. **config 파라미터 아님,
+  시스템 프롬프트 기반.** LOW: 표준 토큰 없음, SI로 "효율적으로 생각" → thinking ~20%↓.
+- ⚠️ AI Studio 관리형 엔드포인트는 thinking 기본 ON으로 보임(설정 없이도 thoughts 토큰 다수).
+  → OFF가 실제로 0이 되는지는 **실측 필요**.
+
+### 출력 한도 실측 (콜당, probe_output_limit.py)
+- 공식 출력 토큰 max는 문서에 없음. 실측: 콜당 total ~27k까지 STOP(잘림 없음) 관측.
+- **thinking이 출력 생성의 75~83%(런합계), 단일콜에선 88%까지.** 단 **크기에 비례 안 함** —
+  n=40 think=23,755(폭주) vs n=60 think=4,174, n=80 think=3,099. **분산이 본질.**
+- 결론: 위험은 "출력 크기 천장"이 아니라 **thinking 폭주로 인한 분산성 잘림(MAX_TOKENS)**.
+  → 콜당 finish_reason/토큰 계측(#1) 필요. thinking 제어로 완화 가능성 → 측정 후보(PLAN §4).
+- 26B 새벽 500 지속(2026-06-14 00시대 실패율 ~66%) → 프로브 천장탐색은 13시 이후 재실행.
+
 ## 미해결 (다음 세션이 먼저 답할 것)
 - temperature 고정값(추천 0.2) + AI Studio gemma의 temperature/seed 지원 여부(코드 확인).
 - prototype_score_auto / failure_usefulness_auto 기계 산출 규칙(observability 재사용).
