@@ -27,15 +27,18 @@ def _default_runner(args: list[str]) -> int:
     return proc.returncode
 
 
-def select_cards(db, count: int, exclude=()) -> list[str]:
+def select_cards(db, count: int, exclude=(), min_level: int = 1) -> list[str]:
     """난이도 레벨에 고루 퍼지도록 task_id를 count개 고른다 (낮은 레벨부터 라운드로빈).
 
     exclude: 제외할 task_id(이미 실행한 카드 등).
+    min_level: 이 레벨 미만 카드는 제외 (붕괴 구간 집중 측정용, 기본 1=전부).
     """
     exclude = set(exclude)
     by_level: dict[int, list[str]] = {}
     for t in db.list_tasks():
         if t["task_id"] in exclude:
+            continue
+        if t["difficulty_level"] < min_level:
             continue
         by_level.setdefault(t["difficulty_level"], []).append(t["task_id"])
     picked: list[str] = []
@@ -52,14 +55,16 @@ def select_cards(db, count: int, exclude=()) -> list[str]:
 
 
 def run_cards(db, count: int, runner=_default_runner,
-              extra_args: list[str] | None = None, exclude=()) -> dict:
+              extra_args: list[str] | None = None, exclude=(),
+              min_level: int = 1) -> dict:
     """카드 count장을 한 장씩 순차 실행. 통계 dict 반환.
 
     extra_args: orchestrator에 덧붙일 인자(예: ['--skip-exec']). 기본 없음.
     exclude: 제외할 task_id(이미 실행한 카드).
+    min_level: 이 레벨 미만 카드 제외 (붕괴 구간 집중).
     """
     extra_args = extra_args or []
-    task_ids = select_cards(db, count, exclude=exclude)
+    task_ids = select_cards(db, count, exclude=exclude, min_level=min_level)
     stats = {"requested": count, "selected": len(task_ids), "ok": 0,
              "failed": 0, "stopped_by": None, "results": []}
     infra_strikes = 0
@@ -83,8 +88,13 @@ def run_cards(db, count: int, runner=_default_runner,
 
 
 def main(argv=None) -> int:
-    """CLI: python bank_run.py [N] [--skip-exec]  — bank에서 N장 실행 (기본 20)."""
+    """CLI: python bank_run.py [N] [--min-level L] [--skip-exec]  — bank에서 N장 실행."""
     args = list(argv if argv is not None else sys.argv[1:])
+    min_level = 1
+    if "--min-level" in args:
+        i = args.index("--min-level")
+        min_level = int(args[i + 1])
+        del args[i:i + 2]
     extra = [a for a in args if a.startswith("--")]
     pos = [a for a in args if not a.startswith("--")]
     count = int(pos[0]) if pos else 20
@@ -98,7 +108,8 @@ def main(argv=None) -> int:
         if db.count() == 0:
             print("[ERROR] design_bank.sqlite가 비어있다 - 먼저 bank_generate.py")
             return 1
-        stats = run_cards(db, count, extra_args=extra, exclude=already)
+        stats = run_cards(db, count, extra_args=extra, exclude=already,
+                          min_level=min_level)
     print(f"[OK] selected={stats['selected']} ok={stats['ok']} "
           f"failed={stats['failed']} stopped_by={stats['stopped_by']} "
           f"(제외 {len(already)}장 이미 실행됨)")
