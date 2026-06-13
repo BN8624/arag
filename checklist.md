@@ -9,12 +9,12 @@
 - [ ] temperature 고정값 확정 (추천 0.2, 변동 최소화)
 - [ ] AI Studio gemma가 temperature/seed를 받는지 코드로 확인 (못 받으면 seed=null)
 
-## 1. cold/warm mode 분리 (최우선 코딩)
-- [ ] orchestrator에 `notes_enabled`(기본 True) + CLI `--mode cold|warm`
-- [ ] `phase_design._load_lessons`: cold면 즉시 `[]` 반환 (+ mode 로그)
-- [ ] `phase_implement._load_notes`: cold면 즉시 `[]` 반환
-- [ ] 테스트: cold 런에 lessons/critique 주입 0건 단언 (콜 0 mock)
-- [ ] 검증: warm 런은 기존대로 주입됨 (회귀 없음)
+## 1. cold/warm mode 분리 (최우선 코딩) ✅
+- [x] orchestrator에 `notes_enabled`(기본 True) + CLI `--mode cold|warm`
+- [x] `phase_design._load_lessons`: cold면 즉시 `[]` 반환 (+ notes-disabled 로그)
+- [x] `phase_implement._load_notes`: cold면 즉시 `[]` 반환
+- [x] 테스트: cold 런에 lessons/critique 주입 0건 단언 (콜 0 mock) — 268 통과
+- [x] 검증: warm 런은 기존대로 주입됨 (회귀 없음)
 
 ## 2. 카드 6개 정의 (bank 스키마 재사용)
 - [ ] 깨끗한 `design_bank.sqlite`에 게임/앱 카드 6장 (PLAN §2 표)
