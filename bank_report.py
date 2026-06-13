@@ -39,6 +39,18 @@ def join_runs(db, runs_dir: Path | None = None) -> list[dict]:
     return rows
 
 
+def latest_per_card(rows: list[dict]) -> list[dict]:
+    """task_id별로 가장 최근 런 하나만 남긴다 (재도전·재실행 이중계상 제거).
+
+    join_runs는 index 순서(시간순)를 보존하므로, 뒤에 나온 런이 최신.
+    카드 단위 보정(calibration)은 카드당 1결과여야 한다.
+    """
+    by_card: dict[str, dict] = {}
+    for r in rows:
+        by_card[r["task_id"]] = r  # 같은 task_id면 뒤(최신)가 덮어씀
+    return list(by_card.values())
+
+
 def _agg(rows: list[dict]) -> dict:
     n = len(rows)
     ok = sum(1 for r in rows if r["ok"])
@@ -73,10 +85,11 @@ def per_level(rows: list[dict]) -> dict:
 
 
 def render(db, runs_dir: Path | None = None) -> str:
-    rows = join_runs(db, runs_dir)
-    if not rows:
+    all_rows = join_runs(db, runs_dir)
+    if not all_rows:
         return "조인된 런이 없다 (task_id 가진 런이 index에 없음). 먼저 bank_run.py."
-    lines = [f"# Design Bank B2 리포트 (조인 {len(rows)}런)", ""]
+    rows = latest_per_card(all_rows)  # 카드 단위 (재도전 이중계상 제거)
+    lines = [f"# Design Bank B2 리포트 (카드 {len(rows)}장 / 런 {len(all_rows)}개)", ""]
     lines.append("## 레벨별")
     for lv, a in per_level(rows).items():
         lines.append(f"- L{lv}: n={a['n']} 성공률={a['success_rate']} "

@@ -5,7 +5,7 @@ import json
 import pytest
 
 from bank_db import BankDB
-from bank_report import join_runs, per_level, per_tag, render
+from bank_report import join_runs, latest_per_card, per_level, per_tag, render
 from test_bank_schema import EXAMPLE
 
 
@@ -60,6 +60,20 @@ def test_per_tag_counts_shared_tag(setup):
     assert rep["parser_logic"]["n"] == 2
     assert rep["parser_logic"]["ok"] == 1
     assert rep["cli_arg_surface"]["n"] == 1
+
+
+def test_latest_per_card_dedupes_retry(setup):
+    db, runs_dir, t1, t2 = setup
+    # t2를 두 번 돈 것처럼: 실패 런 + 최신 성공 런
+    import json
+    idx = json.loads((runs_dir / "index.json").read_text(encoding="utf-8"))
+    idx.append({"run": "r2b", "status": "OK", "ok": True, "task_id": t2})
+    (runs_dir / "index.json").write_text(json.dumps(idx), encoding="utf-8")
+    rows = join_runs(db, runs_dir)
+    assert len(rows) == 3  # 런 단위
+    carded = latest_per_card(rows)
+    assert len(carded) == 2  # 카드 단위
+    assert {r["task_id"]: r["ok"] for r in carded}[t2] is True  # 최신(성공) 반영
 
 
 def test_render_runs(setup):
