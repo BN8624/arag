@@ -170,6 +170,8 @@ class ReportingMixin:
         }
         if self.level is not None:
             entry["level"] = self.level
+        if getattr(self, "task_id", None):
+            entry["task_id"] = self.task_id
         if self._injected_lesson_keywords:
             entry["lessons_injected"] = list(self._injected_lesson_keywords)
         if self.scoreboard:

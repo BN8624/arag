@@ -48,7 +48,7 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
                  skip_exec: bool = False, max_minutes: int = DEFAULT_MAX_MINUTES,
                  resume_from: Path | None = None,
                  improve_from: Path | None = None, feedback: str = "",
-                 level: int | None = None):
+                 level: int | None = None, task_id: str | None = None):
         self.llm = llm
         self.run_dir = Path(run_dir)
         self.workspace = self.run_dir / "workspace"
@@ -77,6 +77,7 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
         self.improve_from = Path(improve_from) if improve_from else None
         self.feedback = feedback
         self.level = level  # 출제 난이도 (배치 출제기가 전달, 전후 비교 분석용)
+        self.task_id = task_id  # Design Bank 접점: 이 런이 어느 task_card에서 나왔나
         self._prev_score: int | None = None   # improve: 직전 런의 통과 수
         self._old_commands: set[str] = set()  # improve: 기존 기준의 커맨드
         self._events = (self.run_dir / "events.jsonl").open("a", encoding="utf-8")
@@ -267,6 +268,9 @@ def main() -> int:
     parser.add_argument("--level", type=int, default=None,
                         help="idea difficulty level from the batch generator "
                              "(recorded in the index for before/after analysis)")
+    parser.add_argument("--task-id", default=None,
+                        help="Design Bank task_card id this run came from "
+                             "(recorded in the index for per-card join)")
     parser.add_argument("--replay", metavar="RUN_DIR",
                         help="replay recorded LLM responses from a previous "
                              "run dir (llm_calls.jsonl) - no API calls. "
@@ -309,7 +313,8 @@ def main() -> int:
     orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
                         skip_exec=skip_exec, max_minutes=args.max_minutes,
                         resume_from=resume_from, improve_from=improve_from,
-                        feedback=args.feedback, level=args.level)
+                        feedback=args.feedback, level=args.level,
+                        task_id=args.task_id)
     ok = orch.run(args.idea)
 
     # 종료 예약: 플래그가 있으면 이번 회차로 끝 (재도전도 안 잡는다)
@@ -337,7 +342,8 @@ def main() -> int:
         print(f"[START] run dir: {run_dir}")
         orch = Orchestrator(llm, run_dir, critique_rounds=args.rounds,
                             skip_exec=skip_exec, max_minutes=args.max_minutes,
-                            resume_from=retry_resume, level=args.level)
+                            resume_from=retry_resume, level=args.level,
+                            task_id=args.task_id)
         ok = orch.run(args.idea)
 
     print(f"[INFO] API calls used: {llm.call_count}")
