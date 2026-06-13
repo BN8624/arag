@@ -167,6 +167,9 @@ class ReportingMixin:
             "failure_keywords": list(self._failure_keywords),
             # 실험 무결성: 어느 프롬프트 세대에서 나온 런인지 (전후 비교용)
             "prompt_version": PROMPT_VERSION,
+            # PLAN2 cold/warm 측정: 노트 주입 여부 (cold=OFF, warm=ON)
+            "mode": getattr(self, "mode", "warm"),
+            "notes_enabled": getattr(self, "notes_enabled", True),
         }
         if self.level is not None:
             entry["level"] = self.level
