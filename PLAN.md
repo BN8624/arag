@@ -1,193 +1,174 @@
-# PLAN.md — ARAG 계획
+# PLAN.md — ARAG PLAN 2 (게임/앱 프로토타입 기반 측정)
 
-> 지침은 [CLAUDE.md](CLAUDE.md), 진행상황은 [HANDOFF.md](HANDOFF.md).
+> 지침은 [CLAUDE.md](CLAUDE.md), 진행상황은 [HANDOFF.md](HANDOFF.md),
+> 진행 체크리스트는 [checklist.md](checklist.md), 결정 로그는 [context-notes.md](context-notes.md).
 > 이 문서는 **앞으로 할 일과 그 명세**만 담는다. 끝난 일은 HANDOFF로 간다.
 
-## 0. 큰 그림 (2026-06-13 확정)
+## 0. 최종 목표 (2026-06-13 재확정)
 
-ARAG의 1차 산출물은 코드가 아니라 **관측 데이터** — "저가 모델의 장기 루프
-적합성을 측정하는 실험 장치". 두 트랙을 병행한다:
+ARAG의 목표는 **엄밀한 벤치마크가 아니다.** 목표는 다음이다.
 
-- **본체(실행 루프)**: 계속 돌며 측정 데이터를 쌓는다. 프롬프트 실험은 배치당 1개.
-- **Design Bank(별도 모듈)**: 통제된 과제 재료를 공급한다. 본체와의 접점은
-  task_id 한 지점뿐 — 따로 개발하다 마지막에 붙인다.
+> 사용자가 대략적 밑그림을 주면, 1~2개 저가 모델이 **프로덕션급으로 업그레이드
+> 가능한 작은 프로토타입**을 만들 수 있는지 확인한다.
 
-진행 순서: **관측 체계(0단계, 완료) → Design Bank B0~B5 → 관측판 확장.**
+이 과정에서 함께 본다.
+- 무료/저가 모델이 어디까지 쓸 만한가.
+- 오답노트·비평노트가 실제로 품질 개선에 도움이 되는가 (**핵심 비교**).
+- 모델별 차이가 실제 결과물에서 드러나는가.
+- 실패했을 때 다음 시도에 도움이 되는 부산물이 남는가.
+- 어떤 난이도부터 상위/유료 모델이 필요한가.
 
----
+→ PLAN 2는 **논문식 벤치마크가 아니라 실제 프로토타입 생산 실험**이다.
 
-## 1. 관측 체계 (0단계 — 완료, observability.py)
+### 과했던 방향 (폐기/보류)
+초기에 파일수·계약수·도메인·oracle강도 축, m×k 격자, synthetic grid, reference
+구현 대량작성, 세밀 taxonomy, 신뢰구간, 셀 중단규칙까지 논의했으나 **현재 목표에
+과하다** (도구가 목적을 잡아먹음, 흥미 없는 카드, 합성격자 성능≠실전 생성능력).
+→ **보류.** 측정이 무거워지면 다시 꺼내되, 지금은 최소 측정으로 간다.
 
-실패의 상위 원인과 부산물 가치를 콜 0으로 기계 채점. 상세 규칙은 코드가 정본.
-
-### limit_type — 실패의 상위 원인
-모든 실패는 단순 "모델 실패"가 아니라 상위 원인으로 먼저 분류한다.
-근거가 명확할 때만 분류하고, 애매하면 **UNKNOWN**(억지 분류 금지 —
-UNKNOWN 비율 자체가 taxonomy 보강 신호).
-
-- `MODEL_LIMIT` — 같은 에러 반복, 시그니처 계속 깨뜨림, 수리 예산 소진,
-  로그 읽고도 엉뚱한 수정 (no-progress / budget-exhausted / design-rejected)
-- `LOOP_LIMIT` — 루프 구조가 기회를 못 줌 (수리 기회 부족, rollback 없음,
-  실패 로그 전달 실패, 시간 예산 초과)
-- `SPEC_LIMIT` — 시험/기준 결함 (31B 테스트 과함, 중재 blame=test, 시험지 재생성)
-- `INFRA_LIMIT` — 외부 장애 (500/429/네트워크/타임아웃/pip 설치 실패).
-  **오답노트에 넣지 않는다** — 학습 가능한 실패가 아니다
-- `UNKNOWN` — 근거 불충분 (예: improve 계획 파싱 실패 — 모델 출력 불량일 수도,
-  프롬프트 비대일 수도)
-
-### artifact_score 0~5 — 부산물 가치 (전부 events 기계 채점)
-- +1 design.json이 구조적으로 유효
-- +1 events가 실패 위치를 특정 (게이트 지적/설계 반려/트레이스백)
-- +1 실패 유형이 taxonomy에 매핑됨 (UNKNOWN이 아님)
-- +1 오답노트로 전환된 교훈 있음 (lesson-recorded)
-- +1 재현 가능 (llm_calls.jsonl 녹음 → --replay 가능)
-
-품질: **good(4~5) / bad(2~3) / junk(0~1)**. 가장 나쁜 건 실패가 아니라
-**관측 불가능한 실패(junk)** — 줄여야 할 건 실패율이 아니라 junk 비율이다.
-
-### 비용 = 정보 비용
-성공 비용이 아니라 "돈 써서 무슨 정보를 얻었나"로 본다.
-1차: `cost_per_useful_artifact`(= 비용 / (성공 + good 실패)). 적용됨.
-후행(데이터 쌓인 뒤): `cost_per_new_failure_class`, `cost_per_level_boundary_found`
-— "새 클래스 / 한계선 발견" 판정 기준을 Design Bank B2 데이터 보고 정의.
+### 살아있는 것
+- 관측 체계 0단계(`observability.py`) — 실패 분류·artifact 채점. 라벨은 §4로 단순화.
+- Design Bank 모듈(`bank_*.py`) — **카드 저장소로 재사용**(생성 벤치마크용 아님).
+- `--task-id` 접점, 격리 worktree(`../arag-bank`), cold/warm 격리 원칙.
 
 ---
 
-## 2. Design Bank — 명세
+## 1. 핵심 실험 — cold vs warm
 
-### 2.1 목적
-좋은 아이디어를 많이 저장하는 게 아니라, **실험 가능한 과제를 구조화해
-모델 한계 측정에 쓰는 것**. 과제는 아이디어가 아니라 `task_card` 단위.
+같은 조건에서 노트 유무만 바꿔 **오답노트/비평노트의 효과**를 본다.
 
-좋은 task_card 조건: 요구사항 명확 / 테스트 가능 / 난이도·태그 부착 /
-예상 실패모드 / 실행 결과와 연결 가능 / 실패해도 관측 로그를 남김.
+| 고정 | 변수 |
+|---|---|
+| 같은 카드 / 모델 / 예산(K=3) / 프롬프트 | cold: 노트 없음 ↔ warm: 노트 있음 |
 
-### 2.2 task_card 스키마 (v1)
+- **cold mode**: lessons / critique_notes / evaluator_mistakes 주입 OFF.
+  목적 = 순수 모델+프롬프트만의 결과.
+- **warm mode**: 위 노트 주입 ON. 목적 = 누적 노트가 품질·수리횟수·실패유용성·비용에
+  도움이 되는지.
+- **절대 섞지 않는다.** 런마다 `mode`를 기록.
+
+초기에는 정밀 통계보다 **방향성 확인**이 목적.
+
+### warm이 데울 노트의 출처 (확정)
+노트는 `_exploration`으로 비웠으므로 warm은 데울 내용이 없다(=cold와 같아짐).
+**실행 순서**: ① cold 6런(노트 OFF) + 실패/비평/오답 후보 *수확* → ② 수확 노트
+정리(기계 요약 + 최소 확인, §1.5 품질필터) → warm 저장소 적재 → ③ warm 6런
+(노트 ON, **같은 카드 재시도**) → ④ cold 대비 비교(prototype_score·
+failure_usefulness 개선? repair_rounds 감소? PASS/PARTIAL 증가? 비용 변화?).
+
+> **⚠️ 이 셰이크다운은 오답노트 효과의 정식 측정이 아니다.** 같은 카드 재시도에
+> cold에서 나온 노트를 쓰면 "한 번 틀리고 해설 본 뒤 다시 푸는 것"에 가까워 효과가
+> **과대평가**된다. 12런의 목적은 **노트 파이프라인이 작동하는지 확인**이다 —
+> cold 주입 OFF / 실패 수확 / warm 적재 / warm 주입 / 결과 기록 / 폰 감사 화면.
+> 정식 일반화 효과 측정은 캠페인2(cross-card warm)에서 한다.
+
+### 캠페인 로드맵
+- **캠페인1 (= 이번 셰이크다운, same-card warm)**: cold 카드의 노트를 같은 카드
+  warm에 사용. 목적 = 파이프라인 검증.
+- **캠페인2 (cross-card warm)**: A 카드들에서 수확한 노트를 *비슷하지만 다른* B
+  카드들에 적용(예: 숫자야구→숫자추리, 퀴즈→객관식변형, 가위바위보리그→주사위리그).
+  목적 = 노트가 같은 문제 재시도뿐 아니라 **비슷한 문제에도 일반화되나** 확인.
+
+### 1.5 warm 노트 품질 필터 (USE/HOLD/DROP)
+cold 실패를 아무거나 warm에 넣으면 잘못된 비평·카드전용 과적합 패치·틀린 원인분석이
+섞여 warm을 오염시킨다. 적재 전 후보를 3종으로 분류한다.
+- `USE` — 다음 warm에 주입 / `HOLD` — 기록만, 주입 안 함 / `DROP` — 틀렸거나 너무
+  구체적이라 버림. **기계가 자동 분류 → 폰 감사에서 사람이 변경 가능.**
+
+---
+
+## 2. 첫 카드풀 (게임/앱 6개)
+
+선정 기준: 사용자가 결과를 눈으로 판단 / 흥미로운 주제 / 작은 CLI로 시작 /
+확장 가능 / 멀티파일 자연 발생 / 성공·실패가 보임 / 실패 시 약점이 드러남 /
+오답노트로 남길 실패가 나옴. → **업무자동화(CSV·영수증·로그) 카드는 주 카드 아님.**
+
+| # | 카드 | 역할(난이도) | 보는 능력 |
+|---|---|---|---|
+| 1 | 숫자 야구 게임 CLI | L1 하네스 점검 | 입출력·게임루프·입력검증·규칙·상태 |
+| 2 | 퀴즈 게임 CLI + 문제 JSON 로딩 | L1~2 데이터로딩 | JSON 로딩·구조처리·점수·오답기록·파일검증 |
+| 3 | 가위바위보 리그 + 전적 저장 | L1~2 상태저장 | 반복경기·판정·전적누적·JSON 저장/로드·메뉴 |
+| 4 | 미니 상점 경영 시뮬 | L2 상태/재고/돈 | 돈·재고·구매/판매·일정산·리포트 |
+| 5 | 아이템 강화 시뮬 | L2 확률/상태변화 | 확률·단계·실패패널티·비용·로그·요약(멀티파일 자연) |
+| 6 | 자동 전투 RPG | L2~3 멀티파일 | 캐릭터·몬스터·스킬·전투루프·HP·승패·리포트 |
+
+- 5·6은 멀티파일 구조가 자연스럽다(item/enhancer/probability/wallet/history/cli,
+  character/monster/skill/battle/balance/cli). **랜덤성 → 테스트 모드 seed/deterministic 필요.**
+- 6은 범위 작게: 영웅 1·몬스터 3종·스킬 2개·전투 1회·저장 없음.
+- **보류 카드**: 덱빌딩 카드전투, 방치형 자원생산 (복잡도 급상승 → L3 확장 카드로).
+
+---
+
+## 3. 결과 라벨 (5개, 단순)
+
+| 라벨 | 뜻 |
+|---|---|
+| `PASS` | 기계 검증 통과 + 프로토타입으로 볼 결과가 나옴 |
+| `PARTIAL_USEFUL` | 미완성이나 실행 가능한 부분 + 다음 개선에 쓸 실패 정보 남음 |
+| `MODEL_FAIL` | 모델이 요구사항을 제대로 구현 못 함 |
+| `INFRA_FAIL` | API/서버/Docker/네트워크 등 모델 능력과 무관한 실패 |
+| `HARNESS_FAIL` | 카드/테스트/oracle/실행하네스/판정 로직 문제 |
+
+> 기존 observability의 limit_type(5종)은 이 5라벨로 매핑해 단순화한다.
+> `INVALID_CARD`는 당장 안 쓰고 HARNESS_FAIL에 포함(필요 시 분리).
+
+## 4. 점수·기록 필드
+
+초기 점수 3개만 본다. **점수는 _auto(기계 잠정) / _user(사람 확정) 2단계.**
+처음엔 _user가 없어도 되고, 폰 감사에서 덮어쓴다.
+- **prototype_score 0~5**: 0 없음 / 1 실행불안정 / 2 일부기능 / 3 작동하나부족 /
+  4 꽤쓸만 / 5 바로확장하고싶음.
+- **failure_usefulness 0~5**: 0 쓸모없음 / 1 막연 / 2 위치보임 / 3 수정방향보임 /
+  4 오답노트후보 / 5 다음루프에 강하게 반영가치.
+- **cost_usd**: 모델 비교·warm/cold 비교에 필요.
+
+런마다 기록할 최소 필드.
 ```json
 {
-  "task_id": "T-000001",
-  "source_model": "gemma-31b",
-  "title": "CSV log summarizer with CLI options",
-  "goal": "작은 CSV 로그를 읽고 상태별 요약을 출력하는 CLI 도구.",
-  "difficulty_level": 2,
-  "difficulty_tags": ["cli_arg_surface", "parser_logic", "stateful_io"],
-  "expected_failure_modes": ["argument_parsing_error", "missing_edge_case"],
-  "acceptance_criteria": ["--input 경로를 받는다", "status별 개수를 출력한다",
-                          "빈 파일과 잘못된 컬럼을 처리한다"],
-  "required_files": ["main.py", "parser.py", "tests/test_cli.py"],
-  "test_oracle": "pytest 기준 전체 통과",
-  "anti_goals": ["웹 서버 금지", "외부 DB 금지"],
-  "notes_for_evaluator": "파일 I/O와 CLI 인자 표면을 동시에 보는 과제",
-  "design_quality_score": null,
-  "created_at": "AUTO",
-  "schema_version": "task_card.v1"
+  "protocol_version": "p2.0",
+  "protocol_fingerprint": {
+    "prompt_version": "p2-prompt-v1", "card_pool_version": "p2-cards-v1",
+    "label_set_version": "p2-labels-v1", "repair_budget": 3, "notes_mode": "cold"
+  },
+  "card_id": "L2-003", "card_name": "item_enhancement_simulator", "card_level": 2,
+  "model_design": "gemma-31b", "model_impl": "gemma-26b",
+  "mode": "cold", "notes_enabled": false,
+  "final_label": "PASS", "failure_stage": "none", "repair_rounds": 1,
+  "prototype_score_auto": 3, "prototype_score_user": null,
+  "failure_usefulness_auto": 4, "failure_usefulness_user": null,
+  "human_audit_status": "pending",
+  "cost_usd": 0.02, "elapsed_sec": 420
 }
 ```
+`protocol_version`은 앵커, `protocol_fingerprint`는 비교 조건을 펼쳐 기록한다.
+**처음부터 해시 시스템을 만들지 않는다** — 중요한 건 해시가 아니라 조건이 남는 것.
+나중에 fingerprint를 문자열 해시로 접으면 됨.
 
-### 2.3 고정 어휘 (자유입력 금지 — 검증이 외부 태그를 거부)
+## 5. 사람 감사 화면 (폰)
 
-**difficulty_tags (12종)** — 난이도는 level 숫자보다 태그 조합이 중요:
-`multi_file_contract` 여러 파일 간 함수명·import·시그니처 계약 /
-`stateful_io` 파일 저장·로드, 상태 관리 / `numeric_precision` 부동소수·반올림·오차 /
-`cli_arg_surface` CLI 인자·옵션·도움말·입력 검증 / `regression_sensitive` 기존 기능 보존 /
-`parser_logic` 텍스트·CSV·JSON·로그 파싱 / `external_mock` 외부 API·네트워크 mock /
-`test_generation` 테스트 설계 자체가 핵심 / `schema_validation` JSON·구조 검증 /
-`error_handling` 예외·사용자 친화적 실패 / `refactor_required` 구조적 정리 /
-`context_heavy` 긴 문맥 유지·요구사항 추적
-
-**expected_failure_modes (13종)** — 실행 결과와 비교할 기준:
-`import_mismatch` `signature_drift` `missing_edge_case` `argument_parsing_error`
-`test_contract_mismatch` `state_persistence_error` `numeric_tolerance_error`
-`parser_boundary_error` `regression_introduced` `mocking_failure`
-`schema_violation` `overengineering` `under_specification`
-
-**difficulty_level (1~5)**: 1 단일파일·단순함수 / 2 작은 멀티파일·CLI·파일I/O /
-3 멀티파일 계약·상태관리·회귀방지 / 4 복잡한 설계변경·다단계·예외 다수 /
-5 장기루프 한계측정용(여러 실패모드 동시·컨텍스트 유지 강요)
-
-### 2.4 DB 구조 (SQLite 단일 파일 `design_bank.sqlite`)
-- `tasks` (task_id PK, source_model, title, goal, difficulty_level, task_json,
-  design_quality_score, created_at, schema_version)
-- `task_tags` (task_id, tag) / `expected_failure_modes` (task_id, failure_mode)
-- `task_reviews` (review_id PK, task_id, reviewer_model, review_json,
-  revised_difficulty_level, design_quality_score, created_at)
-- `run_results` (run_id PK, task_id, model_profile, success, artifact_score,
-  limit_type, failure_class, cost_usd, report_path, events_path, created_at)
-  — **정본 아님. runs/index.json에서 파생** (정본 충돌 방지)
-
-### 2.5 모델별 역할 (1차 수집 목표)
-| 모델 | 역할 | 목표 수량 |
-|---|---|---:|
-| 31B | 기준선 설계자 (스키마·태그 고정) | 300~500 |
-| Gemini 3.5 Flash | 대량 설계자 (분포 채우기) | 1,000~2,000 |
-| Gemini 3.1 Pro | 고품질 설계자 (level 4~5) | 200~300 |
-| Gemini 3.1 Pro | 검수자 (난이도 재판정·태그 보정) | 300~500 |
+사용자는 코드를 안 읽으므로 런 결과는 **아이폰에서 바로 판단 가능한 산문 1화면**이어야 한다.
+형식: `[카드ID] 이름 / mode → 결과 라벨 / 점수 / 비용 / 시간 / 수리 n/3 /
+만든 것(파일) / 통과 / 실패 / 기계판단` + 사람 체크 3개:
+`[ ] 판정 맞음  [ ] 프로토타입으로 건질 수 있음  [ ] 오답노트로 쓸 만함`.
 
 ---
 
-## 3. Design Bank — 개발 단계 (병행, 격리)
+## 6. 첫 단계 = 셰이크다운 (결론 아님, 장치 검증)
 
-### 격리 규칙 (본체 비오염)
-1. **코드 격리**: `bank_*.py` + `design_bank.sqlite`만.
-   orchestrator/batch/gates/prompts는 수정 금지 (접점 2곳 제외)
-2. **접점 딱 2곳, B2에서만**: orchestrator `--task-id` 인자 → index에 task_id 기록(3줄);
-   batch 아이디어 출처에 "bank에서 뽑기" 옵션 추가 (idea_factory 대체 아님, 병렬)
-3. **실험 비오염**: 카드 생성은 실행 프롬프트를 안 바꾸므로 실험과 독립.
-   31B 생성은 critic RPD를 쓰니 **배치 쉬는 시간에** (RPD 1,500 중 배치 ~200/일, 여유)
-4. **모델 격리**: Gemini는 `bank_llm.py`에 한정. 본체 llm.py 수정 금지
-5. 모든 모듈 콜 0 테스트 가능 (mock 설계자 주입)
+- 카드 6개 × {cold, warm} × 1회 = **12런.**
+- 볼 것: 실행 안정성 / 라벨이 제대로 남나 / 비용·수리라운드 기록 / cold·warm 차이가
+  보이나 / 폰에서 판단 가능한가 / 오답노트·비평노트 후보가 남나.
+- 잘 돌면 → 카드 수·반복 수·모델 비교를 늘린다(캠페인2~).
 
-### 모듈 구성
-```
-bank_schema.py    task_card v1 + validation (고정 어휘 외 거부, 동의어 금지)
-bank_db.py        SQLite CRUD + 중복 감지(goal 정규화 해시 + 제목 유사도)
-bank_generate.py  설계자 호출 + 분포 밸런서(부족 태그×레벨 우선) + 파싱 재요청 1회
-bank_llm.py       provider 분리: gemma(기존 LLMClient) / gemini(B3에서 추가)
-bank_report.py    태그×레벨 매트릭스 채움 현황 (콜 0) + 대시보드 섹션(B2 이후)
-```
+### 구현 순서 (checklist.md가 정본)
+1. 카드 6개 정의(bank 스키마로) → 2. cold/warm mode 분리(**최우선 코딩**) →
+3. run metadata 필드 추가 → 4. 라벨 5개 적용 → 5. 점수 2종 기록 →
+6. 폰 감사 요약 생성 → 7. 12런 실행 → 8. 결과 보고 카드/라벨/요약 포맷 수정.
 
-### 단계 (완료 기준)
-- **B0 스키마+DB** (콜 0, 첫 작업, 배치와 무관)
-  완료: 예시 카드 통과 + 외부태그·중복·스키마누락 전부 거부 테스트 통과
-- **B1 31B 파일럿 50장** (콜 ~60, 무료)
-  완료: validation 통과율 ≥90% + **사용자가 샘플 10장 폰 검토 OK** → 스키마 수정
-- **B2 실행 검증 + 접점 연결** (코드 완료, 캠페인 실행 대기)
-  카드 20~30장을 한 장씩 단발 런으로 완주 → observability와 조인해 **태그별 붕괴 지점 첫 데이터**.
-  완료: task_id가 index↔bank 왕복 조회 + 태그별 결과 리포트 → **스키마 v1 확정**.
-  - **측정 환경**: batch.py를 거치지 않고 `bank_run.py`로 단발 런(배치 improve 차단).
-    런 안 비평루프는 유지(정상 루프 측정). 격리 worktree `../arag-bank`(브랜치
-    `bank-b2-env`)에서 실행 — 학습파일 3종을 빈 상태로 두어 카드별 독립 측정 +
-    본진 비오염. `--task-id` 접점만 본진 main에 머지됨(코어 로직 무변경).
-  - 왜 worktree: lessons/critique_notes/evaluator_mistakes 경로가 PROJECT_ROOT
-    하드코딩이라 플래그로 못 끈다. 코어 수정 없이 격리하려면 별도 체크아웃이 정답.
-- **B3 Gemini 대량 생산** (크레딧 시작): 3.5 Flash 1,000~2,000장, 부족 조합 우선
-- **B4 3.1 Pro 검수**: 고난도 200~300 + 검수 300~500, source_model 분리(편향 비교)
-- **B5 관측판 확장**: 태그별 성공률·artifact_score, 모델별 붕괴 태그 조합
+> **가장 먼저 할 코딩**: cold mode에서 lessons/critique_notes 주입을 확실히 끄기
+> (주입 지점 = `phase_design._load_lessons`, `phase_implement._load_notes`).
+> 이게 안 되면 cold/warm 비교 자체가 무효.
 
-### 사용자 결정 지점
-- B1 종료 시: 샘플 10장 검토 (폰, 5분)
-- B3 진입 전: Gemini 키·크레딧 확인 + 1차 생산량 (1,000 vs 2,000)
-
-### 위험 대응
-쓰레기통화 → B1·B2 소량-검증-수정 강제, **대량 생산은 B2 끝나기 전 금지** /
-모델 편향 → source_model 분리(B0부터) / 태그 혼란 → 고정어휘 외 검증 거부(B0부터) /
-정본 충돌 → run_results는 파생 뷰로만(B0 결정)
-
----
-
-## 4. 프롬프트 실험 대기열 (본체, 배치당 1개)
-
-> 실험 규칙·측정 결과는 HANDOFF "실험 기록"에. 여기엔 **다음에 할 후보**만.
-
-1. **improve 계획 프롬프트 다이어트** — 30,000자 도달 + "no usable plan" 중단
-   누적 5건+. 컨텍스트 계측상 전 단계 최대(평균 22K자). 설계 전문+전체 코드를
-   다 싣는 구조를 슬림화
-2. **XML 태그 구획화** — 대문자 헤더(`ORIGINAL DESIGN:`)를 `<design_contract>` 류
-   태그로. gemma 4 효과 미검증이므로 단독 실험 + 한 방 수정률 전후 비교.
-   기대 효과 지점: 수리 프롬프트의 에러로그·파일·지시 경계 혼동
-3. **outcome 중심 checks 강화** — stdout 매칭↓, 파일·JSON 내용 확인 선호
-4. **비평가 UNKNOWN/NOCHANGE 출구** — 리뷰어가 계속 SUGGEST면 추가 조임
-
-### 계약 협상 (2차 후보로만)
-26B 자유 질의가 아니라 "정적 모호성 감지(콜 0) → 걸리면 31B 1회 재설계" 형태.
-covered_by 커버리지 정적 검증과 함께 검토.
+## 7. 이번 단계에서 안 할 것 (스코프 보호)
+full factorial grid / synthetic 벤치마크 / reference 구현 대량작성 / 세밀 taxonomy /
+처음부터 m×k 반복 / 통계 엄밀성 과몰입 / 업무자동화 중심 카드풀.
