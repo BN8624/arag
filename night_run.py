@@ -18,7 +18,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from config import PROJECT_ROOT
+from config import PROJECT_ROOT, force_utf8_stdout
 
 GEN_31B = "gemma-4-31b-it"
 LEDGER = PROJECT_ROOT / "runs" / "night_ledger.jsonl"
@@ -103,11 +103,12 @@ def campaign(db, count: int, budget_sec: float, runner=_runner,
 
 
 def main(argv=None) -> int:
+    force_utf8_stdout()  # Windows cp949 콘솔에서 유니코드 출력 크래시 방지
     args = list(argv if argv is not None else sys.argv[1:])
     hours = float(args[0]) if args else 6.0
     count = int(args[1]) if len(args) > 1 else 9999
     from bank_db import BankDB
-    print(f"[NIGHT] 31B 단독 cold/warm 캠페인 시작 — 예산 {hours}h")
+    print(f"[NIGHT] 31B 단독 cold/warm 캠페인 시작 - 예산 {hours}h")
     with BankDB() as db:
         if db.count() == 0:
             print("[ERROR] design_bank.sqlite 비어있음")
