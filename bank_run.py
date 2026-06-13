@@ -88,16 +88,24 @@ def run_cards(db, count: int, runner=_default_runner,
 
 
 def main(argv=None) -> int:
-    """CLI: python bank_run.py [N] [--min-level L] [--skip-exec]  — bank에서 N장 실행."""
+    """CLI: python bank_run.py [N] [--min-level L] [--mode cold|warm] [--skip-exec].
+
+    --min-level는 bank_run이 소비, 나머지 플래그(값 포함)는 orchestrator로 그대로 전달.
+    """
     args = list(argv if argv is not None else sys.argv[1:])
     min_level = 1
     if "--min-level" in args:
         i = args.index("--min-level")
         min_level = int(args[i + 1])
         del args[i:i + 2]
-    extra = [a for a in args if a.startswith("--")]
-    pos = [a for a in args if not a.startswith("--")]
-    count = int(pos[0]) if pos else 20
+    # count = 첫 정수 위치인자. 나머지(플래그+값)는 orchestrator로 그대로 넘긴다.
+    count = 20
+    for i, a in enumerate(args):
+        if a.isdigit():
+            count = int(a)
+            del args[i]
+            break
+    extra = args
     from bank_db import BankDB
     from run_index import load_index
 
