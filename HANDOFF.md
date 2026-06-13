@@ -11,7 +11,15 @@
   (`observability.py`) 적용됨.
 - **Design Bank B0 완료**: `bank_schema.py`(task_card v1 + 고정어휘 검증, 외부태그 거부)
   + `bank_db.py`(SQLite CRUD + goal해시·제목유사도 중복감지). 콜 0, 본체 비오염.
-  신규 테스트 18개. 다음은 B1(31B 파일럿 50장) — PLAN §3.
+- **B1 완료**: `bank_llm.py`(GemmaDesigner=31B) + `bank_generate.py`(밸런서+재요청).
+  31B로 카드 49장 생성, 검증 통과율 100%, 레벨 9/10/10/10/10 분산. `design_bank.sqlite`.
+- **B2 코드 완료**: `--task-id` 접점(orchestrator, level과 동일 패턴) + `bank_run.py`
+  (카드 단발 런, batch 미사용→배치 improve 차단) + `bank_report.py`(태그/레벨 조인 리포트).
+- **B2 측정 환경 = 격리 worktree** `../arag-bank` (브랜치 `bank-b2-env`).
+  결정: ① 정상 비평루프 유지(--rounds 기본) ② 배치 improve 차단(batch.py 미사용)
+  ③ 학습파일 3종(lessons/critique_notes/evaluator_mistakes) **빈 상태**로 격리
+  → 카드별 독립·재현 측정 + 본진 비오염. PROJECT_ROOT가 worktree라 runs/도 자동 분리.
+  테스트 합계 265개 통과(tests/ 한정).
 - **누적**: 82런, 성공 51 / 실패 31 (인프라 13 = 42%, junk 2 = 6.5%),
   artifact 평균 4.03, 유용 부산물당 $0.0194, 누적 $1.45.
 
@@ -24,9 +32,11 @@
 
 ## 다음 액션 (택1)
 
-1. **Design Bank B1** (31B 파일럿 50장 생성, 콜 ~60 무료) — PLAN §3.
-   완료기준: validation 통과율 ≥90% + 사용자 샘플 10장 폰 검토 OK. `bank_generate.py` 신규.
-2. readme 실험 배치 **재가동** (새벽 지나 26B 안정 시) → NOCHANGE·README 지적률 측정.
+1. **B2 캠페인 실행** — `../arag-bank`에서 `python bank_run.py 20` (또는 30).
+   카드 한 장씩 단발 런 → `python bank_report.py`로 태그별 붕괴 지점 첫 데이터.
+   콜·시간 큰 작업(26B+31B, 도커). 끝나면 **스키마 v1 확정** 판단.
+   ※ 본진(C:\Users\USER\arag)이 아니라 **worktree에서** 돌릴 것.
+2. readme 실험 배치 **재가동** (26B 13시 이후 안정 확인됨) → NOCHANGE·README 지적률.
 3. 프롬프트 실험 다음 후보 (PLAN §4): improve 계획 다이어트.
 
 ## 먼저 읽을 것
