@@ -1,6 +1,6 @@
 """관측 체계 0단계 (콜 0, 읽기 전용): 실패 분류 + 부산물 점수.
 
-ARAG_LOOP_OBSERVABILITY_PRINCIPLES.md 9.1~9.3 구현:
+관측 원칙(PLAN.md §1) 구현 — 실패 분류 + 부산물 점수:
 - limit_type: 실패의 상위 원인 (MODEL/LOOP/SPEC/INFRA + UNKNOWN)
   애매한 실패를 4분류에 욱여넣지 않는다 — UNKNOWN 비율 자체가 taxonomy
   보강 신호다.

@@ -109,4 +109,5 @@ python -m pytest tests -q
 - gemma 4 26B/31B 조합 고정 — 다른 모델 조합에서의 역할 분리 효과는 미검증
 - 단일 PC 운영 전제 (CI 없음, 런타임 상태 JSON을 저장소에 커밋하는 개인 프로젝트 방식)
 
-구조와 규칙은 [CLAUDE.md](CLAUDE.md), 진행 기록은 [Progress.md](Progress.md) 참고.
+지침은 [CLAUDE.md](CLAUDE.md), 계획은 [PLAN.md](PLAN.md), 진행 상태는
+[HANDOFF.md](HANDOFF.md) 참고.

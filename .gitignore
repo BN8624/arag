@@ -221,3 +221,5 @@ __marimo__/
 runs/
 # 종료 예약 런타임 플래그 (대시보드가 만들고 지움)
 STOP_AFTER_RUN
+
+.tmp/
