@@ -6,23 +6,27 @@
 ## 지금 어디 (2026-06-13)
 
 - **본체 완성·가동 중**: 설계→구현→게이트(정적+Docker)→채점→비평→개선 루프 +
-  배치 모드 + 폰 대시보드. 테스트 231개 통과.
+  배치 모드 + 폰 대시보드. 테스트 249개 통과(tests/ 한정 실행).
 - **2차 방향 확정**: 관측 데이터 중심 실험 장치로 재정의. 관측 체계 0단계
-  (`observability.py`) 적용됨. Design Bank는 PLAN의 B0부터 별도 모듈로 시작 대기.
+  (`observability.py`) 적용됨.
+- **Design Bank B0 완료**: `bank_schema.py`(task_card v1 + 고정어휘 검증, 외부태그 거부)
+  + `bank_db.py`(SQLite CRUD + goal해시·제목유사도 중복감지). 콜 0, 본체 비오염.
+  신규 테스트 18개. 다음은 B1(31B 파일럿 50장) — PLAN §3.
 - **누적**: 82런, 성공 51 / 실패 31 (인프라 13 = 42%, junk 2 = 6.5%),
   artifact 평균 4.03, 유용 부산물당 $0.0194, 누적 $1.45.
 
 ## 돌고 있는 것
 
-- **readme-usability 실험 배치** (20회차, 2026-06-13 08:22 시작). 26B 새벽 불안정으로
-  중간 infra-outage 가능 — 대시보드 "배치 사고" 띠로 확인.
+- **배치 없음**. readme-usability 배치(08:22 시작)는 09:00 `infra-outage`로 종료 —
+  20개 요청 중 4개만 완주(성공 1, improve 1). README 가설은 표본 부족으로 미측정 → 재가동 필요.
 - 26B(generator)가 새벽 시간대 500을 자주 뱉음 (3일째 패턴). `watch_resume.py`로
   복구 감시 가능.
 
 ## 다음 액션 (택1)
 
-1. **Design Bank B0** (스키마+DB, 콜 0, 배치와 무관) — PLAN §3. 바로 가능.
-2. readme 실험 배치 결과 분석 → NOCHANGE 등장·README 지적률 측정.
+1. **Design Bank B1** (31B 파일럿 50장 생성, 콜 ~60 무료) — PLAN §3.
+   완료기준: validation 통과율 ≥90% + 사용자 샘플 10장 폰 검토 OK. `bank_generate.py` 신규.
+2. readme 실험 배치 **재가동** (새벽 지나 26B 안정 시) → NOCHANGE·README 지적률 측정.
 3. 프롬프트 실험 다음 후보 (PLAN §4): improve 계획 다이어트.
 
 ## 먼저 읽을 것

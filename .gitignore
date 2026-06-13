@@ -223,3 +223,6 @@ runs/
 STOP_AFTER_RUN
 
 .tmp/
+
+# Design Bank: 생성 데이터 (카드 누적 — 정본은 별도 export)
+design_bank.sqlite
