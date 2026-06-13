@@ -82,6 +82,15 @@ Gemma 4 출시 2026-04-02. ARAG가 쓰는 두 모델:
   → 콜당 finish_reason/토큰 계측(#1) 필요. thinking 제어로 완화 가능성 → 측정 후보(PLAN §4).
 - 26B 새벽 500 지속(2026-06-14 00시대 실패율 ~66%) → 프로브 천장탐색은 13시 이후 재실행.
 
+### thinking OFF 실측 (2026-06-14, generator 26B, system_instruction로 끔)
+- **OFF가 진짜 먹음 — thoughts 토큰 완전 0.** AI Studio가 thinking을 강제하지 않음.
+- n=80→out 3,710 / n=260→8,025(580줄) / n=360→**9,822(700줄)**, 전부 thinking=0, **안 잘림**.
+- total<10k로 32k 예산 여유 넘침 → **OFF에선 단일파일 출력 천장이 사실상 비문제.**
+  잘림(MAX_TOKENS) 위험은 thinking ON 폭주에만 존재(n=40 think=24k→total 27k).
+- ⚠️ 이건 **용량·비용** 결론. **품질(추론 필요한 구현 정답률)은 미측정** → ON/LOW/OFF
+  품질 비교가 PLAN §8 1번. "OFF가 좋다" 단정 금지.
+- 남은 프로브: ON 천장 + LOW (13시 이후), 그리고 실제 카드 ON vs OFF 품질 비교.
+
 ## 미해결 (다음 세션이 먼저 답할 것)
 - temperature 고정값(추천 0.2) + AI Studio gemma의 temperature/seed 지원 여부(코드 확인).
 - prototype_score_auto / failure_usefulness_auto 기계 산출 규칙(observability 재사용).
