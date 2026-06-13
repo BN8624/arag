@@ -91,6 +91,16 @@ Gemma 4 출시 2026-04-02. ARAG가 쓰는 두 모델:
   품질 비교가 PLAN §8 1번. "OFF가 좋다" 단정 금지.
 - 남은 프로브: ON 천장 + LOW (13시 이후), 그리고 실제 카드 ON vs OFF 품질 비교.
 
+### 천장 조사 종결 (2026-06-14) — "출력 천장은 제약이 아니다"
+- 31B off n=350 → 출력 23,300토큰(72KB, ~2,400줄) **STOP**(안 잘림). 천장 ≥ n=350.
+- 31B on n=280 → total 15,823(42KB), thinking 1,874, **STOP**. ON도 여유 많음.
+- 현실 카드 파일은 20~80줄(n환산 ~5~12) → **천장의 5%도 안 씀.** 천장 = 비제약.
+- thinking 끄기 모델 의존: **26B off=thoughts 0(완전)**, **31B off=여전히 1~2k(부분).**
+- thinking 폭주(분산)는 **26B 현상**(n=40→24k), 31B는 큰 n에서도 ~1.5~1.9k로 얌전.
+- **결론: thinking 기본 ON 유지. OFF는 운영모드에서 제외(존재이유=천장 fear가 거짓판명).**
+  실제 폭주(26B)는 콜당 finish_reason 계측이 런 중에 잡음. on/low 품질비교는 저우선.
+- 프로브 도구: probe_output_limit.py(모드별), probe_ceiling.py(큰 n). 일회성 연구용.
+
 ## 미해결 (다음 세션이 먼저 답할 것)
 - temperature 고정값(추천 0.2) + AI Studio gemma의 temperature/seed 지원 여부(코드 확인).
 - prototype_score_auto / failure_usefulness_auto 기계 산출 규칙(observability 재사용).
