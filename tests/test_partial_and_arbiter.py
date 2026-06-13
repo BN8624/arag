@@ -282,6 +282,19 @@ def test_llm_recording(tmp_path):
     assert first["response"] == "the response"  # response는 전문 (재생용)
 
 
+def test_llm_recording_tokens_and_finish_reason(tmp_path):
+    """콜당 토큰·finish_reason이 녹음된다 (출력한도·분산성 잘림 관측용)."""
+    from llm import LLMClient
+    client = LLMClient.__new__(LLMClient)
+    client.record_path = tmp_path / "llm_calls.jsonl"
+    client._record("generator", "gemma-4-26b-a4b-it", "p", "code",
+                   tokens={"input": 50, "output": 8000, "thinking": 0},
+                   finish_reason="FinishReason.MAX_TOKENS")
+    rec = json.loads(client.record_path.read_text(encoding="utf-8").splitlines()[0])
+    assert rec["tokens"] == {"input": 50, "output": 8000, "thinking": 0}
+    assert rec["finish_reason"] == "FinishReason.MAX_TOKENS"
+
+
 def test_llm_recording_disabled_by_default(tmp_path):
     from llm import LLMClient
     client = LLMClient.__new__(LLMClient)

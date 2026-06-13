@@ -1,0 +1,106 @@
+# context-notes.md — PLAN 2 결정 로그
+
+> 작업 중 내린 결정과 그 이유. 계속 append. 다음 세션이 재유도 없이 이어가게.
+> 명세 = [PLAN.md](PLAN.md), 체크리스트 = [checklist.md](checklist.md).
+
+## 2026-06-13 — 방향 대전환: 벤치마크 → 프로토타입 측정
+
+### 왜 갈아엎었나
+B2 캠페인(8장)을 복구·완주한 뒤 데이터를 점검하다 측정 자체가 못 미더운 걸 발견.
+- 격리 깨짐: worktree 학습파일이 비어있지 않아(lessons 2, critique 2) 카드 독립성 붕괴.
+  모든 런에 "lessons injected" 찍힘 → 1번 카드와 41번 카드가 다른 조건.
+- 표본 n=1: "L3부터 붕괴"의 근거가 MODEL_LIMIT 단 1건. 일화지 데이터 아님.
+- 인프라 노이즈 42%, 매 세션 프롬프트 변경으로 분모가 계속 갈림.
+
+### 결정 1 — 엔진은 유지, 측정만 리셋
+엔진(오케스트레이터·게이트·observability)은 멀쩡(테스트 265 통과). 문제는 데이터.
+→ 처음부터 재작성 거부. `_exploration/20260613/`로 기존 데이터 격리(삭제 아님,
+엔진 디버깅엔 가치). worktree clean slate.
+
+### 결정 2 — 엄밀 벤치마크 descope
+파일수/계약수/도메인/oracle강도 축 + m×k 격자 + synthetic grid 설계를 논의했으나
+"도구가 목적을 잡아먹는다"고 판단. ARAG의 원래 목표는 **프로토타입 생성기**지
+벤치마크 연구가 아님. 무거운 측정 설계는 **보류**(폐기 아님).
+
+### 결정 3 — 핵심 측정 = cold vs warm
+같은 카드/모델/예산/프롬프트에서 노트 유무만 변경 → 오답노트/비평노트 효과 측정.
+이게 ARAG의 "누적 학습이 저가 모델을 끌어올리나"라는 진짜 질문에 정렬.
+
+### 결정 4 — 카드풀 = 게임/앱 6개
+사용자(바이브코더)가 결과를 눈으로 판단 가능하고 흥미로운 주제로. 업무자동화
+카드(CSV/영수증/로그)는 주 카드에서 제외. 6개: 숫자야구 / 퀴즈+JSON / 가위바위보리그 /
+미니상점 / 아이템강화 / 자동전투RPG. 덱빌딩·방치형은 L3 확장으로 보류.
+
+### 결정 5 — 첫 단계는 셰이크다운 12런
+결론이 아니라 **장치 검증**. 6카드 × cold/warm × 1회. 깨끗한 라벨·비용·요약이
+나오는지부터 확인하고 규모를 키운다.
+
+### 코드 사실 (확인됨)
+- 단발 런 노트 주입 지점은 **2곳뿐**: `phase_design._load_lessons`(lessons),
+  `phase_implement._load_notes`(critique_notes). evaluator_mistakes는 배치 경로
+  (`analyze_batch.harvest`)에서만 수확 → 단발 런 cold mode는 이 2곳만 끄면 됨.
+- 측정·코드 실행은 격리 worktree `../arag-bank`(브랜치 bank-b2-env). 카드 저장소는
+  `bank_*.py` + `design_bank.sqlite` 재사용.
+
+### 결정 6 — warm 순서 확정 + 셰이크다운 성격 명시
+순서: cold 6런(노트 OFF, 후보 수확) → 수확 노트 USE/HOLD/DROP 분류 → USE만 warm
+적재 → warm 6런(노트 ON, 같은 카드 재시도). **이 셰이크다운은 노트 효과의 정식
+측정이 아니라 파이프라인 검증.** same-card warm은 자기참조 편향이 있어 효과가
+과대평가됨 → 정식 일반화 측정은 캠페인2(cross-card warm)로 분리.
+
+### 결정 7 — warm 노트 품질 필터(USE/HOLD/DROP)
+cold 실패를 아무거나 넣으면 잘못된 비평·과적합 패치·틀린 원인분석이 warm을 오염.
+적재 전 3종 분류(기계 자동 → 폰 감사 변경 가능). USE만 주입.
+
+### 결정 8 — 점수 2단계 + fingerprint 가볍게
+점수는 *_auto(기계)/*_user(사람)로 분리, human_audit_status로 상태 추적.
+protocol_version은 앵커, protocol_fingerprint는 조건을 펼친 객체(해시 시스템 X —
+산으로 안 가게. 나중에 접으면 됨).
+
+## 2026-06-14 — Gemma 4 팩트 (공식 모델카드 검증) + 출력한도 실측
+
+### 모델 팩트 (ai.google.dev/gemma/docs/core/model_card_4)
+Gemma 4 출시 2026-04-02. ARAG가 쓰는 두 모델:
+- **26B-A4B (generator)**: MoE 총25.2B/활성3.8B. 입력 **텍스트+이미지+비디오**(~60s 1fps).
+  컨텍스트 **256K**. **음성 ❌.**
+- **31B (critic)**: Dense. 입력 텍스트+이미지+비디오. 컨텍스트 256K. **음성 ❌.**
+- 음성(audio)은 작은 모델(E2B·E4B·12B)에만. **PDF/문서는 "비전으로 이미지처럼 읽기"**지
+  파일시스템 읽기 아님 → "코더가 워크스페이스 파일을 읽는다"는 여전히 불가(내용 인라인 필요).
+- function calling + structured JSON 출력 네이티브 (design.json 계약 강제에 쓸 여지).
+
+### thinking은 제어 가능 (핵심 레버)
+- 켜기: 시스템 프롬프트 맨 앞 `<|think|>` 토큰. 끄기: 토큰 제거. **config 파라미터 아님,
+  시스템 프롬프트 기반.** LOW: 표준 토큰 없음, SI로 "효율적으로 생각" → thinking ~20%↓.
+- ⚠️ AI Studio 관리형 엔드포인트는 thinking 기본 ON으로 보임(설정 없이도 thoughts 토큰 다수).
+  → OFF가 실제로 0이 되는지는 **실측 필요**.
+
+### 출력 한도 실측 (콜당, probe_output_limit.py)
+- 공식 출력 토큰 max는 문서에 없음. 실측: 콜당 total ~27k까지 STOP(잘림 없음) 관측.
+- **thinking이 출력 생성의 75~83%(런합계), 단일콜에선 88%까지.** 단 **크기에 비례 안 함** —
+  n=40 think=23,755(폭주) vs n=60 think=4,174, n=80 think=3,099. **분산이 본질.**
+- 결론: 위험은 "출력 크기 천장"이 아니라 **thinking 폭주로 인한 분산성 잘림(MAX_TOKENS)**.
+  → 콜당 finish_reason/토큰 계측(#1) 필요. thinking 제어로 완화 가능성 → 측정 후보(PLAN §4).
+- 26B 새벽 500 지속(2026-06-14 00시대 실패율 ~66%) → 프로브 천장탐색은 13시 이후 재실행.
+
+### thinking OFF 실측 (2026-06-14, generator 26B, system_instruction로 끔)
+- **OFF가 진짜 먹음 — thoughts 토큰 완전 0.** AI Studio가 thinking을 강제하지 않음.
+- n=80→out 3,710 / n=260→8,025(580줄) / n=360→**9,822(700줄)**, 전부 thinking=0, **안 잘림**.
+- total<10k로 32k 예산 여유 넘침 → **OFF에선 단일파일 출력 천장이 사실상 비문제.**
+  잘림(MAX_TOKENS) 위험은 thinking ON 폭주에만 존재(n=40 think=24k→total 27k).
+- ⚠️ 이건 **용량·비용** 결론. **품질(추론 필요한 구현 정답률)은 미측정** → ON/LOW/OFF
+  품질 비교가 PLAN §8 1번. "OFF가 좋다" 단정 금지.
+- 남은 프로브: ON 천장 + LOW (13시 이후), 그리고 실제 카드 ON vs OFF 품질 비교.
+
+### 천장 조사 종결 (2026-06-14) — "출력 천장은 제약이 아니다"
+- 31B off n=350 → 출력 23,300토큰(72KB, ~2,400줄) **STOP**(안 잘림). 천장 ≥ n=350.
+- 31B on n=280 → total 15,823(42KB), thinking 1,874, **STOP**. ON도 여유 많음.
+- 현실 카드 파일은 20~80줄(n환산 ~5~12) → **천장의 5%도 안 씀.** 천장 = 비제약.
+- thinking 끄기 모델 의존: **26B off=thoughts 0(완전)**, **31B off=여전히 1~2k(부분).**
+- thinking 폭주(분산)는 **26B 현상**(n=40→24k), 31B는 큰 n에서도 ~1.5~1.9k로 얌전.
+- **결론: thinking 기본 ON 유지. OFF는 운영모드에서 제외(존재이유=천장 fear가 거짓판명).**
+  실제 폭주(26B)는 콜당 finish_reason 계측이 런 중에 잡음. on/low 품질비교는 저우선.
+- 프로브 도구: probe_output_limit.py(모드별), probe_ceiling.py(큰 n). 일회성 연구용.
+
+## 미해결 (다음 세션이 먼저 답할 것)
+- temperature 고정값(추천 0.2) + AI Studio gemma의 temperature/seed 지원 여부(코드 확인).
+- prototype_score_auto / failure_usefulness_auto 기계 산출 규칙(observability 재사용).

@@ -122,10 +122,12 @@ class LLMClient:
             "critic": {"input": 0, "output": 0, "thinking": 0},
         }
 
-    def _record(self, role: str, model: str, prompt: str, response: str) -> None:
+    def _record(self, role: str, model: str, prompt: str, response: str,
+                tokens: dict | None = None, finish_reason: str | None = None) -> None:
         """콜 1건 녹음. 실패해도 콜을 막지 않는다.
 
         prompt는 크기·머리만 (다이어트 효과 측정용), response는 전문 (replay용).
+        tokens(콜당 input/output/thinking)·finish_reason은 출력한도·분산성 잘림 관측용.
         """
         if not self.record_path:
             return
@@ -135,6 +137,7 @@ class LLMClient:
             entry = {"t": datetime.now().isoformat(timespec="seconds"),
                      "role": role, "model": model,
                      "prompt_chars": len(prompt), "prompt_head": prompt[:300],
+                     "tokens": tokens, "finish_reason": finish_reason,
                      "response": response}
             with open(self.record_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -183,6 +186,7 @@ class LLMClient:
                 )
                 self.call_count += 1
                 usage = getattr(resp, "usage_metadata", None)
+                call_tokens = {"input": 0, "output": 0, "thinking": 0}
                 if usage:
                     by_role = self.tokens_by_role.setdefault(
                         role, {"input": 0, "output": 0, "thinking": 0})
@@ -190,11 +194,17 @@ class LLMClient:
                                       ("output", "candidates_token_count"),
                                       ("thinking", "thoughts_token_count")):
                         n = getattr(usage, attr, 0) or 0
+                        call_tokens[key] = n
                         self.tokens[key] += n
                         by_role[key] += n
+                try:
+                    finish_reason = str(resp.candidates[0].finish_reason)
+                except Exception:  # noqa: BLE001
+                    finish_reason = None
                 text = getattr(resp, "text", None)
                 if text and text.strip():
-                    self._record(role, model, prompt, text)
+                    self._record(role, model, prompt, text, call_tokens,
+                                 finish_reason)
                 if not text or not text.strip():
                     empty_count += 1
                     if empty_count > EMPTY_RETRIES:

@@ -13,6 +13,9 @@ from prompts import extract_code, implement_prompt
 
 class ImplementPhase:
     def _load_notes(self) -> list[str]:
+        if not getattr(self, "notes_enabled", True):  # cold mode: 비평노트 주입 OFF
+            self.log("notes-disabled", store="critique_notes", mode="cold")
+            return []
         try:
             found = critique_notes.find_relevant(self.idea)
             if found:
