@@ -16,10 +16,11 @@
 - [x] 테스트: cold 런에 lessons/critique 주입 0건 단언 (콜 0 mock) — 268 통과
 - [x] 검증: warm 런은 기존대로 주입됨 (회귀 없음)
 
-## 2. 카드 6개 정의 (bank 스키마 재사용)
-- [ ] 깨끗한 `design_bank.sqlite`에 게임/앱 카드 6장 (PLAN §2 표)
-- [ ] card_id 규칙 L1/L2/L3, card_name, card_level 부여
-- [ ] 5·6번 카드: 테스트 모드 seed/deterministic 요구를 카드 명세에 명시
+## 2. 카드 6개 정의 (bank 스키마 재사용) ✅
+- [x] 깨끗한 `design_bank.sqlite`에 게임/앱 카드 6장 (worktree `bank_cards_p2.py`, T-1~6)
+- [x] difficulty_level L1/2/2/2/2/3, 비대화형(stdin 금지)으로 전부 설계
+- [x] 5·6번(강화·전투) + 3번(리그): --seed 결정성 요구를 카드에 명시
+- [x] (추가) llm.py 콜당 토큰·finish_reason 계측 — PLAN §8.2 (분산성 잘림 관측)
 
 ## 3. run metadata 필드 추가
 - [ ] index 기록에 PLAN §4 필드 추가 (protocol_version, protocol_fingerprint,
