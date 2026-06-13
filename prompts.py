@@ -149,8 +149,15 @@ Also produce:
   Keep these at CLI level (commands, produced files, exit codes) - internal
   function behavior and edge cases are covered separately by pytest.
 - "success_signal": ONE command line that exercises a core behavior of the
-  idea (not just --help) plus a substring its output must contain. Its final
+  idea (not just --help) plus what its output must contain. Its final
   step must run the entrypoint, be deterministic, and finish within 30 seconds.
+  CRITICAL - "expect_substring" must literally appear in the output. If the
+  output interleaves labels with values (e.g. "Winner: Hero  Turns: 4"), do NOT
+  write a concatenated label string like "Winner: Turns:" (it never appears).
+  Instead give a LIST of short tokens that each appear, e.g.
+  ["Winner:", "Turns:", "Remaining HP:"] - ALL must be present to pass. Use a
+  plain string only when one exact substring is guaranteed. Prefer fixed labels
+  over values that vary with logic/seed.
 - "mock_fixtures" (ONLY if the idea calls an external service): realistic fake
   API response files, e.g. [{{"path": "mock_response.json", "content": {{...}}}}].
   These files are placed next to the code before verification. Every
