@@ -22,32 +22,31 @@
 - [x] 5·6번(강화·전투) + 3번(리그): --seed 결정성 요구를 카드에 명시
 - [x] (추가) llm.py 콜당 토큰·finish_reason 계측 — PLAN §8.2 (분산성 잘림 관측)
 
-## 3. run metadata 필드 추가
-- [ ] index 기록에 PLAN §4 필드 추가 (protocol_version, protocol_fingerprint,
-      mode, notes_enabled, model_design/impl, final_label, failure_stage,
-      repair_rounds, *_auto/_user 점수, human_audit_status, cost_usd, elapsed_sec)
-- [ ] protocol_fingerprint 객체 주입(해시 X, 조건 펼쳐 기록)
-- [ ] 테스트: 필드 누락 없이 기록되는지
+## 3. run metadata 필드 추가 ✅
+- [x] index에 mode/notes_enabled 기록 (reporting._record_index)
+- [x] 나머지 PLAN §4 필드는 plan2.build_record로 파생(정본 비저장, derived view)
+- [x] protocol_fingerprint 객체 (plan2.protocol_fingerprint, 해시 X)
+- [x] 테스트 (test_plan2)
+- 보류: model_design/impl, elapsed_sec는 derived/렌더에서 보강(elapsed는 events로 추정)
 
-## 4. 결과 라벨 5개 적용
-- [ ] observability limit_type → {PASS, PARTIAL_USEFUL, MODEL_FAIL, INFRA_FAIL,
-      HARNESS_FAIL} 매핑 함수 (콜 0)
-- [ ] 테스트: 각 라벨 케이스 매핑
+## 4. 결과 라벨 5개 적용 ✅
+- [x] limit_type → 5라벨 매핑 (plan2.run_label, 콜0)
+- [x] 테스트: 각 라벨 케이스 (test_plan2)
 
-## 5. 점수 2종 기록 (_auto/_user 2단계)
-- [ ] prototype_score_auto / failure_usefulness_auto 기계 산출
-- [ ] *_user = null + human_audit_status="pending" 슬롯
-- [ ] cost_usd 기존 비용 집계 재사용 확인
+## 5. 점수 2종 기록 (_auto/_user 2단계) ✅
+- [x] prototype_score_auto / failure_usefulness_auto (plan2)
+- [x] *_user = null + human_audit_status="pending" (build_record)
+- [x] cost_usd 재사용
 
-## 5.5 warm 노트 품질 필터 (USE/HOLD/DROP)
-- [ ] cold 수확 노트를 기계 자동 분류(USE/HOLD/DROP)
-- [ ] USE만 warm 저장소 적재
-- [ ] 폰 감사에서 분류 변경 가능
+## 5.5 warm 노트 품질 필터 (USE/HOLD/DROP) ✅
+- [x] 자동 분류 plan2_notes.classify_note (콜0 휴리스틱)
+- [x] partition으로 USE만 추출 (warm 적재는 7단계 실행 시)
+- [x] render_note_audit로 폰에서 변경 가능
 
-## 6. 폰 감사 요약 생성
-- [ ] 런별 산문 1화면 요약 생성기 (PLAN §5 형식) + 사람 체크 3개
-- [ ] 노트 후보 감사 화면(실패/교훈/판정 + USE/HOLD/DROP 체크)
-- [ ] 폰에서 읽기 좋은 출력(ASCII, cp949 안전)
+## 6. 폰 감사 요약 생성 ✅
+- [x] 런별 산문 1화면 plan2_audit.render_audit + 사람 체크 3개
+- [x] 노트 후보 감사 plan2_notes.render_note_audit
+- [x] ASCII/cp949 안전 (유니코드 기호 미사용)
 
 ## 7. 12런 실행 (worktree ../arag-bank)
 - [ ] cold 6런 + 노트 후보 수확
