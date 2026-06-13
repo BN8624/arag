@@ -52,6 +52,14 @@ def test_consecutive_failures_stop(db):
     assert stats["failed"] == 2  # MAX_INFRA_STRIKES=2 에서 멈춤
 
 
+def test_exclude_skips_already_run(db):
+    picked_all = select_cards(db, 8)
+    skip = picked_all[0]
+    picked = select_cards(db, 8, exclude={skip})
+    assert skip not in picked
+    assert len(picked) == 7
+
+
 def test_extra_args_passed(db):
     seen = []
 
