@@ -131,6 +131,26 @@ Gemma 4 출시 2026-04-02. ARAG가 쓰는 두 모델:
   실제 폭주(26B)는 콜당 finish_reason 계측이 런 중에 잡음. on/low 품질비교는 저우선.
 - 프로브 도구: probe_output_limit.py(모드별), probe_ceiling.py(큰 n). 일회성 연구용.
 
+### 결정 13 — 측정도구 버그 2개 발견·수리 (이번 세션 최대 산출)
+카드 5·6 "실패"를 파보니 둘 다 하네스 버그였음.
+- **계약 게이트(gates.py)가 클래스 메서드를 못 봄** → 설계가 `__init__`/`run` 메서드
+  인터페이스를 선언하면 클래스 안에 있어도 false contract-missing(T-5). → 메서드 인식 수정.
+- **success_signal 단일 substring이 brittle**(docker_gate) → 31B가 "Winner: Turns:"처럼
+  라벨 연결 문자열을 쓰면 실제 출력("Winner: Hero")과 절대 안 맞음(T-6: 모델은 성공인데
+  oracle이 틀림). → 토큰 **리스트(전부 포함)** 허용 + schema._expect_ok + design 프롬프트 견고화.
+- **검증**: 수리 후 카드 4·5·6 재측정에서 31B per-file·통짜 **둘 다 3/3 PASS** → 실패는
+  100% 하네스 탓. **반복 교훈: 실패는 모델 탓 전에 하네스/oracle 탓을 의심하라.**
+
+### 결정 14 — 26B=31B(L2-3) + 역할배정 미결(INFRA)
+- **구현 능력: 26B = 31B** (카드 4·5·6 26코더·26통짜 cold 모두 3/3). 싼 손으로 이 난이도 충분.
+- **분해 vs 통짜·노트 cold/warm: 차이 없음** (둘 다/이미 통과 = 천장효과). 아키텍처·노트는
+  이 난이도에서 레버 아님 → 차이는 L4-5 frontier에서만.
+- **역할배정 미측정**: role-26all / role-26head31hands가 **전부 INFRA(아침 API 장애)로 실패**.
+  "26B 머리 무능"으로 *착각했다가 에러 로그 보고 정정* — 측정 안 된 것. API 안정 시 재실행.
+- **next = 난이도 사다리(L4-5)**. 모든 변수가 거기서 비로소 갈림.
+- ⚠️ `auto_ledger.jsonl`은 죽은 auto_campaign 노이즈(06:47 이전) 섞임 — 분석 시 시간 필터.
+
 ## 미해결 (다음 세션이 먼저 답할 것)
-- temperature 고정값(추천 0.2) + AI Studio gemma의 temperature/seed 지원 여부(코드 확인).
-- prototype_score_auto / failure_usefulness_auto 기계 산출 규칙(observability 재사용).
+- **L4-5 카드 제작** (전투 줄기 단계적) — frontier 측정의 전제.
+- **역할배정 재실행** (INFRA로 미측정분).
+- temperature 고정값(추천 0.2) + gemma temperature/seed 지원 여부(미확인).
