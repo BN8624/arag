@@ -45,23 +45,26 @@ frontier"**로 재정의(상위모델 에스컬레이션 영구 폐기). 측정 
   관측값 신뢰, 실측은 카드에 저장 말고 계산, `spec_complete`로 난이도 vs 출제불량 분리.
 - **로그 정교화**: index에 critic_model/generator_model/whole/duration_sec + `variance.py`.
 
+## L4 cold/warm 결과 (26all, 완료)
+- **cold 1/3, warm 1/3 → 노트 델타 +0%.** L4 26all은 분산 구간(천장 아님), warm 무효(주입
+  노트가 시그니처·라벨 일반론이라 실패 원인 못 짚음). `variance.py T-000007`로 확인됨.
+
 ## 돌고 있는 것
-- **L4 cold×3+warm×3 (26all)** — `l45_run.py`. cold: rep1 FAIL·rep2 PASS·rep3 진행 → **이미
-  ~50/50 분산 확인**. 끝나면 `python variance.py T-000007`로 cold/warm 통과율·델타.
+**없음.** (브랜치 단일화 완료. 다음 = 31단독 50런 발진.)
 
 ## 다음 액션 (결정17 운영 순서)
-0. **🔧 브랜치 단일화(결정18) — 캠페인 종료 직후 최우선**: 본류 bank-b2-env→main 승격,
-   arag-bank 워크트리 + bank-b2-env 브랜치 제거, 측정데이터 오염분 정리(공정하네스 이후만
-   보존). 이후 main 한 곳에서만 작업. **개인 프로젝트 = 브랜치 main 하나, 새 브랜치 금지.**
-1. **폴백 구현**: `llm.py generate()` — 26B(손) 콜이 백오프·쿼터 소진 후에도 5xx/429면
-   critic 모델(31B)로 1회 재시도. 26단독은 get_model('critic')=26B라 자동 무효. 테스트 추가.
-   ⚠️ **돌던 캠페인 끝난 뒤** 구현(측정 오염 방지).
-2. **최소 스키마 반영**: bank_schema에 옵션 필드 추가(required_behaviors, declared_dependency,
-   state_required, oracle_verified, spec_complete). 기존 8장에 spec_complete/oracle_verified만.
-   difficulty_level은 남기되 난이도 근거로 안 씀.
-3. **8장 × 30~50런**(홈 구성 #4 기준) → 관찰표(pass_rate, variance, failure_types,
-   observed_test_coupling). 회귀분석은 50~100런 후. 30~50런 전엔 새 난이도 이론 추가 금지.
-4. (보류) 아키텍처 사다리 #3 시니어+주니어·국소패치 — frontier 확인된 뒤.
+1. **31단독 50런 발진** — `obs_run.py` (31단독 cold, 8장 라운드로빈, **통짜/분할 라운드 교대**,
+   단발). 26B 야간사망 회피 + L4-5 31단독·아키텍처 데이터 확보. **초반 3~5런 로그 정독 →
+   버그/오라클 이상 교정 후 쭉.** 끝나면 `variance.py`로 카드별·whole별 통과율·분산.
+2. **폴백 구현(보류 가능)**: `llm.py generate()` — 26B(손) 콜이 백오프·쿼터 소진 후에도
+   5xx/429면 critic(31B)로 1회 재시도. 26단독은 get_model('critic')=26B라 자동 무효. 테스트 추가.
+   (31단독 50런엔 26B 없어 무관 — 26B 손 쓰는 홈구성 다시 돌릴 때 필요.)
+3. (보류) 아키텍처 사다리 #3 시니어+주니어·국소패치 — frontier 확인된 뒤.
+
+### 완료된 결정/작업 (이번 세션)
+- ✅ **브랜치 단일화(결정18)**: bank-b2-env→main 흡수, arag-bank 워크트리·브랜치 제거.
+  단일 워크트리 `C:\Users\USER\arag`, 단일 브랜치 main. **개인 프로젝트 = main 하나, 새 브랜치 금지.**
+- ✅ **최소 스키마(결정17)**: bank_schema 옵션필드 + 8장 마이그레이션(T-8만 spec_complete=false).
 
 ## 측정 도구 (콜0)
 - 관측 분류·점수: `observability.py`(limit_type/artifact_score) → `plan2.py`(라벨5/점수_auto/
@@ -69,14 +72,15 @@ frontier"**로 재정의(상위모델 에스컬레이션 영구 폐기). 측정 
 - 분산·노트효과: `variance.py`(조건별 통과율=천장/분산 + cold/warm 델타). index 새 필드
   (critic_model/generator_model/whole/duration_sec)에서 그룹 파생.
 - 출력한도 프로브: `probe_output_limit.py`(모드별), `probe_ceiling.py`(큰 n). 일회성.
-- 캠페인 드라이버(worktree): `night_run.py`(6h cold/warm), `whole_run.py`(통짜 비교),
-  `recheck_run.py`(재측정), `cont_26b.py`(26B 후속), `auto_campaign.py`(무인 순차).
+- 캠페인 드라이버: `obs_run.py`(31단독 관찰 50런, 통짜/분할 교대), `l45_run.py`(L4 cold/warm),
+  `night_run.py`·`whole_run.py`·`recheck_run.py`·`cont_26b.py`·`auto_campaign.py`(과거 캠페인).
 
 ## 기계 정본 (사람 문서보다 우선)
-- 코어: `runs/index.json`(+ mode/notes_enabled/prompt_version 기록), `runs/*/events.jsonl`,
-  `runs/*/llm_calls.jsonl`(콜당 토큰·finish_reason 기록).
-- 측정 환경: 격리 worktree `../arag-bank`(브랜치 `bank-b2-env`). 카드 6장 = `bank_cards_p2.py`.
-  탐색기 데이터는 `_exploration/`(gitignore).
+- 코어: `runs/index.json`(+ critic_model/generator_model/whole/duration_sec/mode/prompt_version),
+  `runs/*/events.jsonl`, `runs/*/llm_calls.jsonl`(콜당 토큰·finish_reason).
+- 환경: **단일 워크트리 `C:\Users\USER\arag`(main)**. 카드 8장 = `bank_cards_p2.py`(L1-3) +
+  `bank_cards_l45.py`(L4-5). DB `design_bank.sqlite`(gitignore). 과거 측정데이터 전체는
+  `arag-bank-data-backup-20260614.zip`(280MB)에 보관 — 라이브 트리엔 index.json만 둠(prune).
 - 캠페인 장부: `runs/night_ledger.jsonl` `whole_ledger.jsonl` `recheck_ledger.jsonl`
   `auto_ledger.jsonl`(⚠️ 06:47 이전 = 죽은 auto_campaign 노이즈, 시간 필터 필요).
 
