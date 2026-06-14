@@ -20,7 +20,9 @@ CARDS = [
                 "자동 전투를 벌인다. 속도 기반 턴 순서, 상태이상(독·기절·방어)이 "
                 "턴마다 적용·감쇠되고, 스킬은 대상 선택 규칙을 따른다. 한쪽이 전멸하면 "
                 "종료하고 전투 리포트(승리 파티·총 턴 수·생존자별 남은 HP·가한 피해)를 출력한다.",
-        "difficulty_level": 4,
+        "difficulty_level": 4,  # 남기되 난이도 근거 아님(결정17)
+        "spec_complete": True,   # goal이 수용기준을 다 담음
+        "oracle_verified": False,  # 사람 행동-검증 후속(샘플)
         "difficulty_tags": ["multi_file_contract", "stateful_io", "numeric_precision",
                             "regression_sensitive", "error_handling"],
         "expected_failure_modes": ["import_mismatch", "signature_drift",
@@ -49,7 +51,9 @@ CARDS = [
                 "저장하고, --load로 이어서 재개한다. 사망 시 메타 자원이 누적되어 다음 "
                 "회차의 시작 능력치를 강화한다(회귀). --run으로 한 회차를 자동 진행하고 "
                 "리포트(도달 층·획득 메타 자원·사망 여부)를 출력한다.",
-        "difficulty_level": 5,
+        "difficulty_level": 5,  # 남기되 난이도 근거 아님(결정17)
+        "spec_complete": False,  # 오라클은 손상세이브 복구 검사, goal엔 손상 언급 없음(출제불량)
+        "oracle_verified": False,
         "difficulty_tags": ["multi_file_contract", "stateful_io", "numeric_precision",
                             "regression_sensitive", "context_heavy", "schema_validation"],
         "expected_failure_modes": ["import_mismatch", "signature_drift",

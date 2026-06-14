@@ -146,6 +146,9 @@ def main() -> int:
     inserted, skipped = [], []
     with BankDB() as db:
         for card in CARDS:
+            # 결정17 최소 스키마: 이 6장은 goal이 수용기준을 다 담음(spec_complete).
+            card.setdefault("spec_complete", True)
+            card.setdefault("oracle_verified", False)  # 사람 행동-검증 후속
             try:
                 tid = db.insert_task(card)
                 inserted.append((tid, card["title"]))
