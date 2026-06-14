@@ -223,6 +223,22 @@ Gemma 4 출시 2026-04-02. ARAG가 쓰는 두 모델:
 1) 최소 스키마 반영 2) 기존 8장에 spec_complete/oracle_verified 추가 3) 8장 30~50런
 4) pass_rate+variance+failure_types+observed_test_coupling 관찰 5) 그 후 난이도 곡선 판단.
 
+### 결정 18 — 브랜치 단일화(main 하나) + 측정데이터 정리 (2026-06-14, 캠페인 종료 후 실행)
+**개인 프로젝트 — 브랜치는 `main` 하나만. 다른 브랜치/워크트리 만들지 않는다.**
+
+- **현 문제(뒤죽박죽 원인)**: 작업 본류가 `bank-b2-env`(arag-bank 워크트리)에 있고(main보다
+  21커밋 앞섬), `main`은 stale + 떠돌이 1커밋(`역할 구성 확정` CLAUDE.md, 오늘 실수로 main에 감).
+  두 워크트리에 CLAUDE/PLAN/HANDOFF/context-notes가 따로 존재해 전부 다름.
+- **합치기 계획(돌던 L4 cold/warm 캠페인 종료 후 실행)**:
+  1. main의 떠돌이 커밋(역할 CLAUDE.md)을 bank로 흡수(merge/cherry-pick).
+  2. **main을 bank-b2-env 내용으로 승격**(본류=main) → 모든 문서·코드 main 한 곳.
+  3. arag-bank 워크트리 + bank-b2-env 브랜치 제거. 이후 `C:\Users\USER\arag`(main) 단일.
+- **측정 데이터 정리 기준**: 오염분 버림 = (a)하네스버그 수리(커밋 78e1204) *이전* 런
+  (b)`auto_ledger.jsonl` 06:47 이전 죽은 auto_campaign 노이즈. **보존** = 공정 하네스(수리 이후)
+  런 + L4-5 frontier 런의 index.json/events/llm_calls. 무거운 workspace/는 재생성 가능하므로
+  버려도 됨. 찝찝하면 별도 압축(zip) 보관 후 정리.
+- ⚠️ runs/·design_bank.sqlite는 untracked → 워크트리 제거 전 보존분을 먼저 빼둘 것.
+
 ## 미해결 (다음 세션이 먼저 답할 것)
 - **L4-5 카드 제작** (전투 줄기 단계적) — frontier 측정의 전제.
 - **L4-5에서 한꺼번에 측정**: 아키텍처(분해/통짜)·노트(cold/warm)·역할배정. 현재 난이도(L2-3)
