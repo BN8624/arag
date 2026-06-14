@@ -1,33 +1,33 @@
-# L4-5 frontier 캠페인: role-26all-cold(전부 26B, fresh 설계, 노트 OFF)부터 진행
-"""PLAN §10 사다리의 L4(T-000007)·L5(T-000008)를 26B 단독 cold로 돌린다.
+# L4 분산/노트효과 측정: role-26all로 cold N회 + warm N회 단발(--no-retry) 반복
+"""L4(T-000007)에서 cold vs warm 통과율을 N회씩 재서 (1)분산 (2)노트 효과(D)를 본다.
 
-미측정으로 남아있던 "26B 머리 능력"을 frontier에서 처음 측정한다.
-설계·시험출제·구현·비평 전부 26B(CRITIC_MODEL=26B), 노트 OFF(cold), fresh(--resume 아님).
-auto_campaign.run_phase(테스트됨)를 그대로 재사용. 한 번에 하나, 인프라 내성.
-장부: runs/auto_ledger.jsonl (phase="role-26all-cold").
+--no-retry로 각 런 = 독립 1점(자동재시도가 fail+pass를 섞지 않게). fresh(설계도 매번 새로).
+역할은 26all(머리·손 둘 다 26B). 끝나면 `python variance.py T-000007`로 통과율·델타 확인.
+장부: runs/auto_ledger.jsonl (phase=L4-26all-cold / L4-26all-warm).
 """
 
 from config import force_utf8_stdout
-from auto_campaign import run_phase, _default_runner, R26, R31
+from auto_campaign import run_phase, _default_runner, R26
 
-CARDS = ["T-000007"]  # L4 재측정 (화이트리스트 유지, 역할 비교)
+CARD = "T-000007"
+N = 3
 
 
 def main() -> int:
     force_utf8_stdout()
     from bank_db import BankDB
     with BankDB() as db:
-        cards = {t: db.get_task(t) for t in CARDS}
-    phases = [
-        ("role-26all-cold", {"GENERATOR_MODEL": R26, "CRITIC_MODEL": R26}),
-        ("role-26head31hands-cold", {"GENERATOR_MODEL": R31, "CRITIC_MODEL": R26}),
-    ]
-    for name, env in phases:
-        print(f"[L45] {name} 시작 — 카드 {CARDS}")
-        st = run_phase(name, env, ["--mode", "cold"], False, {}, cards,
-                       _default_runner)
-        print(f"[L45] {name} 완료 -> {st}")
-    print("[L45] 장부: runs/auto_ledger.jsonl  리포트: python bank_report.py")
+        cards = {CARD: db.get_task(CARD)}
+    env = {"GENERATOR_MODEL": R26, "CRITIC_MODEL": R26}
+    plan = [("L4-26all-cold", ["--mode", "cold", "--no-retry"]),
+            ("L4-26all-warm", ["--mode", "warm", "--no-retry"])]
+    for name, extra in plan:
+        for rep in range(1, N + 1):
+            print(f"[L45] {name} rep {rep}/{N}")
+            st = run_phase(f"{name}", env, extra, False, {}, cards,
+                           _default_runner)
+            print(f"[L45] {name} rep {rep} -> {st}")
+    print("[L45] 완료. 확인: python variance.py T-000007")
     return 0
 
 
