@@ -57,6 +57,7 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
         self.critique_rounds = critique_rounds
         self.skip_exec = skip_exec
         self.deadline = time.monotonic() + max_minutes * 60
+        self.started = time.monotonic()  # 경과시간(duration_sec) 측정 시작점
         self.design: dict | None = None
         self.idea = ""
         self.critique_history: list[dict] = []
