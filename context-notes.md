@@ -186,6 +186,43 @@ Gemma 4 출시 2026-04-02. ARAG가 쓰는 두 모델:
 - ⚠️ CLAUDE.md "표준 라이브러리만(1차)... 2차 화이트리스트"는 현실(이미 화이트리스트 사용,
   rich/click 허용)과 불일치 — 사용자 "확장한 걸로 간다". 문서 정정 필요(별도).
 
+### 결정 17 — 난이도 체계 재정의: 선언 폐기, 측정으로 확정 (2026-06-14)
+사람이 L1~L5를 감으로 붙이던 방식이 주먹구구였음이 드러나(파일수=통제불가, "상태로직이
+어렵다"=하네스버그 오염 관측) 전면 재정의. 클로드+GPT 합의 정본.
+
+**정본 규칙 9개:**
+1. L1~L5 사람 라벨 **폐기**. (difficulty_level 컬럼은 select_cards가 쓰므로 당장 제거 안 하되
+   *난이도 근거로 신뢰하지 않음* — descriptive only.)
+2. **파일 수**는 난이도 변수에서 제외(모델이 카드 무관 2~3파일로 수렴 — 실측됨).
+3. **오라클 엄격도**는 난이도 변수가 아니라 *측정 품질 상수*. 수용 오라클은 **행동만 검증**
+   (파일구조·함수명·구현방식 강제 금지). 단 **정적 계약 게이트는 유지** — 사람이 강제한
+   구조가 아니라 모델이 *스스로 선언한* design.json과 구현의 자기일관성 검사라 정당.
+4. **K(수정 기회)**는 카드 속성 아니라 **런 조건**.
+5. **spec_complexity 손잡이는 전부 가설** — 파일수처럼, 통과율을 실제로 움직이는 것만 살림.
+6. **dependency**: 선언값(declared_dependency)보다 **관측값(observed_test_coupling = 한 수정이
+   여러 수용검사를 동시에 뒤집나)을 더 신뢰**. 상호의존을 1순위 후보로 보되 깨끗한 단일변수
+   격리는 기대 안 함(손잡이들끼리 상관됨).
+7. 실측은 pass_rate만 X → **variance/stability 포함**(오늘 L4가 같은 조건 PASS↔FAIL).
+8. **실측치는 카드에 저장 금지** → 런 로그에서 계산(stale 방지. variance.py + index).
+9. **난이도 vs 출제불량 분리**(제일 중요): 통과율 낮음이 "어려워서"인지 "goal이 흐릿해서"인지
+   구분 못 하면 데이터 오염. → `spec_complete` 필수.
+
+**spec_complete 판정(가볍게):** true = goal에 필수동작 빠짐없이 적힘 + 테스트가 요구하는 핵심
+행동이 goal에 이미 언급됨 + 모호해서 여러 해석 가능하지 않음. false 예 = 테스트엔 저장/복구·
+음수처리 있는데 goal엔 언급 없음 / "적절히 처리"만 있고 기대결과 없음.
+
+**최소 스키마(잠금):**
+- 카드: `card_id, domain, goal, required_behaviors, declared_dependency, state_required,
+  oracle_verified, spec_complete` (실측치 저장 안 함).
+- 런 조건(기존 index/run 로그): `run_id, card_id, git_sha, model_profile, cold_or_warm,
+  max_fix_attempts_K`.
+- 계산(저장 안 함): `pass_rate, variance/stability, avg_cost, avg_time, avg_fix_loops,
+  failure_types, observed_test_coupling`.
+
+**운영 순서:** 초기엔 회귀분석 금지, 관찰표만. **최소 30~50런 전엔 새 난이도 이론 추가 금지.**
+1) 최소 스키마 반영 2) 기존 8장에 spec_complete/oracle_verified 추가 3) 8장 30~50런
+4) pass_rate+variance+failure_types+observed_test_coupling 관찰 5) 그 후 난이도 곡선 판단.
+
 ## 미해결 (다음 세션이 먼저 답할 것)
 - **L4-5 카드 제작** (전투 줄기 단계적) — frontier 측정의 전제.
 - **L4-5에서 한꺼번에 측정**: 아키텍처(분해/통짜)·노트(cold/warm)·역할배정. 현재 난이도(L2-3)

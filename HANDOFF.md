@@ -37,17 +37,28 @@ frontier"**로 재정의(상위모델 에스컬레이션 영구 폐기). 측정 
 공정한 하네스에선 **26B·31B 둘 다 L2-3을 다 한다.** L4도 천장이 아니라 **분산** 구간으로 보임
 (26all PASS 가능). frontier 측정은 이제 **조건별 N회 통과율**로 천장 vs 분산을 갈라야 한다.
 
-## 돌고 있는 것
-- **role-26head31hands-cold (T-000007 L4)** — `l45_run.py`, 재시도 중(130937-retry).
-  26B 머리가 또 rich/click 설계 → 31B 손이 수리 중. API 백오프로 느림. 완료 시 장부
-  `auto_ledger.jsonl` 기록. (이 런은 구버전 reporting.py로 기록돼 새 필드 없음.)
+## 큰 결정 3개 (이번 세션, 정본)
+- **역할 구성 확정(결정16)**: #4 31머리/26손=홈, #1 31단독=폴백(26B 죽으면 31손 자동강등),
+  #2 26단독=낮 연구, #3 26머리/31손=폐기. 무료대체재 없음(Flash Lite=코딩 열위, 비상용도 기각).
+- **난이도 재정의(결정17)**: L1~L5 감 라벨 폐기. 난이도는 선언 아니라 **반복 통과율로 사후 확정**.
+  파일수·"상태로직 어렵다" 폐기. 오라클엄격도=측정품질(행동만 검증), K=런조건, dependency는
+  관측값 신뢰, 실측은 카드에 저장 말고 계산, `spec_complete`로 난이도 vs 출제불량 분리.
+- **로그 정교화**: index에 critic_model/generator_model/whole/duration_sec + `variance.py`.
 
-## 다음 액션
-1. **role-26head31hands(L4) 완료 확인** → 26all과 비교(머리 차이가 rich 선호에서 갈리나).
-2. **조건별 반복 측정(N≥3)**: `variance.py`로 천장/분산 가르기. 한 번 런 결론 금지.
-   분산이면 레버 = "설계 선택 좁히기"(stdlib 강제·plain 출력·`--resume` 설계 고정)지 모델 교체 아님.
-3. **L4-5 warm 캠페인** → `variance.py` (D) 노트델타 계산(지금은 cold만이라 D 비어있음).
-4. (보류) 아키텍처 사다리 #3 시니어+주니어·국소패치 — frontier에서 #2 통짜가 무너질 때만.
+## 돌고 있는 것
+- **L4 cold×3+warm×3 (26all)** — `l45_run.py`. cold: rep1 FAIL·rep2 PASS·rep3 진행 → **이미
+  ~50/50 분산 확인**. 끝나면 `python variance.py T-000007`로 cold/warm 통과율·델타.
+
+## 다음 액션 (결정17 운영 순서)
+1. **폴백 구현**: `llm.py generate()` — 26B(손) 콜이 백오프·쿼터 소진 후에도 5xx/429면
+   critic 모델(31B)로 1회 재시도. 26단독은 get_model('critic')=26B라 자동 무효. 테스트 추가.
+   ⚠️ **돌던 캠페인 끝난 뒤** 구현(측정 오염 방지).
+2. **최소 스키마 반영**: bank_schema에 옵션 필드 추가(required_behaviors, declared_dependency,
+   state_required, oracle_verified, spec_complete). 기존 8장에 spec_complete/oracle_verified만.
+   difficulty_level은 남기되 난이도 근거로 안 씀.
+3. **8장 × 30~50런**(홈 구성 #4 기준) → 관찰표(pass_rate, variance, failure_types,
+   observed_test_coupling). 회귀분석은 50~100런 후. 30~50런 전엔 새 난이도 이론 추가 금지.
+4. (보류) 아키텍처 사다리 #3 시니어+주니어·국소패치 — frontier 확인된 뒤.
 
 ## 측정 도구 (콜0)
 - 관측 분류·점수: `observability.py`(limit_type/artifact_score) → `plan2.py`(라벨5/점수_auto/
