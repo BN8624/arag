@@ -35,6 +35,18 @@ REQUIRED_KEYS = (
     "acceptance_criteria", "success_signal",
 )
 
+
+def _expect_ok(v) -> bool:
+    """expect_substring 유효성: 비어있지 않은 문자열, 또는 비어있지 않은 문자열 리스트.
+
+    리스트는 토큰별 검사(전부 포함)용 — brittle한 라벨-연결 문자열을 피하게 한다.
+    """
+    if isinstance(v, str):
+        return bool(v.strip())
+    if isinstance(v, list):
+        return bool(v) and all(isinstance(x, str) and x.strip() for x in v)
+    return False
+
 MAX_FILES = 10  # 회차당 캡 (가드레일)
 
 
@@ -166,9 +178,9 @@ def validate_shape(design: dict) -> list[str]:
             for i, c in enumerate(checks):
                 if (not isinstance(c, dict)
                         or not isinstance(c.get("command"), str)
-                        or not isinstance(c.get("expect_substring"), str)):
-                    errors.append(f"criteria_checks[{i}] needs string "
-                                  "'command' and 'expect_substring'")
+                        or not _expect_ok(c.get("expect_substring"))):
+                    errors.append(f"criteria_checks[{i}] needs string 'command' "
+                                  "and 'expect_substring' (string or list of strings)")
                 elif ("expect_exit_code" in c
                       and not isinstance(c.get("expect_exit_code"), int)):
                     errors.append(f"criteria_checks[{i}].expect_exit_code "
@@ -180,7 +192,7 @@ def validate_shape(design: dict) -> list[str]:
     else:
         if not isinstance(sig.get("command"), str) or not sig.get("command", "").strip():
             errors.append("success_signal.command must be a non-empty string")
-        if (not isinstance(sig.get("expect_substring"), str)
-                or not sig.get("expect_substring", "").strip()):
-            errors.append("success_signal.expect_substring must be a non-empty string")
+        if not _expect_ok(sig.get("expect_substring")):
+            errors.append("success_signal.expect_substring must be a non-empty "
+                          "string or list of strings")
     return errors

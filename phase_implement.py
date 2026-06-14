@@ -8,7 +8,8 @@ import json
 import critique_notes
 from design_validator import implementation_order
 from phase_common import RunAborted
-from prompts import extract_code, implement_prompt
+from prompts import (extract_code, extract_files, implement_prompt,
+                     implement_whole_prompt)
 
 
 class ImplementPhase:
@@ -26,6 +27,8 @@ class ImplementPhase:
             return []
 
     def _phase_implement(self) -> None:
+        if getattr(self, "whole", False):  # 통짜: 한 콜에 전체 파일 생성
+            return self._phase_implement_whole()
         self._say("[PHASE] implement (26B)")
         self.log("phase", name="implement")
         notes = self._load_notes()
@@ -48,6 +51,28 @@ class ImplementPhase:
             (self.workspace / path).write_text(code, encoding="utf-8")
             written[path] = code
             self.log("file-written", file=path, chars=len(code))
+            self._say(f"  [OK] wrote {path}")
+
+    def _phase_implement_whole(self) -> None:
+        """통짜: 한 콜로 전체 파일을 생성·파싱·기록 (파일별 분해 대신)."""
+        self._say("[PHASE] implement-whole (1 call)")
+        self.log("phase", name="implement-whole")
+        notes = self._load_notes()
+        want = [f["path"] for f in self.design["files"]]
+        files: dict[str, str] = {}
+        for attempt in range(2):  # 누락 시 1회 재요청
+            self._check_time()
+            text = self.llm.generate("generator",
+                                     implement_whole_prompt(self.design, notes=notes))
+            files = extract_files(text)
+            if all(p in files for p in want):
+                break
+        missing = [p for p in want if p not in files]
+        if missing:
+            raise RunAborted(f"whole-implement missing files: {missing}")
+        for path in want:
+            (self.workspace / path).write_text(files[path], encoding="utf-8")
+            self.log("file-written", file=path, chars=len(files[path]))
             self._say(f"  [OK] wrote {path}")
 
     def _write_fixtures(self) -> None:

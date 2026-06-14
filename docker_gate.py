@@ -103,10 +103,12 @@ def run_exec_gate(workdir: Path, success_signal: dict,
             "(infinite loop or waiting for stdin?)", out))
     elif rc != 0:
         issues.append(_exec_issue(f"success-signal command failed (exit {rc})", out))
-    elif expect not in out:
-        issues.append(_exec_issue(
-            f"command succeeded but expected output {expect!r} "
-            "was not found in stdout/stderr", out))
+    else:
+        missing = _substr_missing(out, expect)
+        if missing:
+            issues.append(_exec_issue(
+                f"command succeeded but expected output {missing!r} "
+                "was not found in stdout/stderr", out))
     return issues, "\n\n".join(logs)
 
 
@@ -142,24 +144,38 @@ def run_criteria_checks(workdir: Path, checks: list[dict],
     results: list[dict] = []
     for chk in checks:
         command = str(chk.get("command", "")).strip()
-        expect = str(chk.get("expect_substring", ""))
+        expect = chk.get("expect_substring", "")
         criterion = str(chk.get("criterion", "")) or command
         if not command:
             continue
         rc, out = _run_in_docker(workdir, _as_argv(command), timeout, deps_dir)
         expect_rc = chk.get("expect_exit_code", 0)
+        missing = _substr_missing(out, expect)
         if rc == -1:
             passed, detail = False, f"timed out after {timeout}s"
         elif rc != expect_rc:
             passed, detail = False, f"command failed (exit {rc}, expected {expect_rc})"
-        elif expect and expect not in out:
-            passed, detail = False, f"expected output {expect!r} not found"
+        elif missing:
+            passed, detail = False, f"expected output {missing!r} not found"
         else:
             passed, detail = True, "ok"
         tail = "\n".join(out.strip().splitlines()[-5:])
         results.append({"criterion": criterion, "command": command,
                         "passed": passed, "detail": detail, "output_tail": tail})
     return results
+
+
+def _substr_missing(out: str, expect) -> list[str]:
+    """기대 substring(들)이 출력에 있나 검사. 문자열이면 1개, 리스트면 전부 필요.
+
+    리스트 허용으로 brittle한 라벨-연결 문자열("Winner: Turns:") 대신 토큰별
+    검사("Winner:","Turns:")가 가능 — 실제 값이 끼어들어도 통과 (하네스 버그 수정).
+    빈 기대값은 통과(빈 리스트 반환).
+    """
+    if expect is None or expect == "":
+        return []
+    tokens = expect if isinstance(expect, list) else [expect]
+    return [str(t) for t in tokens if str(t) and str(t) not in out]
 
 
 def _as_argv(command: str) -> list[str]:

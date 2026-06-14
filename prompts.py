@@ -149,8 +149,15 @@ Also produce:
   Keep these at CLI level (commands, produced files, exit codes) - internal
   function behavior and edge cases are covered separately by pytest.
 - "success_signal": ONE command line that exercises a core behavior of the
-  idea (not just --help) plus a substring its output must contain. Its final
+  idea (not just --help) plus what its output must contain. Its final
   step must run the entrypoint, be deterministic, and finish within 30 seconds.
+  CRITICAL - "expect_substring" must literally appear in the output. If the
+  output interleaves labels with values (e.g. "Winner: Hero  Turns: 4"), do NOT
+  write a concatenated label string like "Winner: Turns:" (it never appears).
+  Instead give a LIST of short tokens that each appear, e.g.
+  ["Winner:", "Turns:", "Remaining HP:"] - ALL must be present to pass. Use a
+  plain string only when one exact substring is guaranteed. Prefer fixed labels
+  over values that vary with logic/seed.
 - "mock_fixtures" (ONLY if the idea calls an external service): realistic fake
   API response files, e.g. [{{"path": "mock_response.json", "content": {{...}}}}].
   These files are placed next to the code before verification. Every
@@ -216,6 +223,66 @@ Respond with exactly one Python code block containing the full file:
 # {file_path}
 ...
 ```"""
+
+
+def implement_whole_prompt(design: dict,
+                           notes: list[str] | None = None) -> str:
+    """통짜 구현: 한 콜에 멀티파일 프로젝트 전체를 한 작성자가 일관되게 만든다.
+
+    파일별 분해가 일으키는 파일 간 계약 불일치를 없애려는 변형(아키텍처 실험).
+    """
+    files = design.get("files", [])
+    paths = [f.get("path") for f in files]
+    notes_part = ""
+    if notes:
+        joined = "\n".join(f"- {n}" for n in notes)
+        notes_part = (f"\nA reviewer repeatedly flagged these problems in past "
+                      f"projects. Pre-empt them in your code:\n{joined}\n")
+    return f"""You are a senior developer implementing a COMPLETE multi-file Python
+CLI project in one pass. You hold the whole design in your head, so every file
+must fit together perfectly.
+
+PROJECT DESIGN:
+{json.dumps(design, ensure_ascii=False, indent=2)}
+
+{HARD_RULES}{notes_part}
+Write EVERY file in the design: {paths}.
+
+Output each file as its OWN fenced Python block. The FIRST line of each block
+MUST be a comment with the exact file path. Example:
+
+```python
+# main.py
+<full content of main.py>
+```
+
+```python
+# helper.py
+<full content of helper.py>
+```
+
+Rules:
+- Implement every file FULLY. No stubs, no TODO, no `pass` bodies, no
+  NotImplementedError.
+- Files MUST fit together: imports, class/function names, and signatures must
+  match across files exactly as in the design contract.
+- Import only from the standard library and from the project's own files.
+- Output ALL {len(paths)} files, each in its own block, and nothing else."""
+
+
+def extract_files(text: str) -> dict[str, str]:
+    """통짜 응답에서 파일별로 분리. 각 블록 첫 줄의 `# 경로` 주석으로 파일명 인식."""
+    blocks = re.findall(r"```(?:python|py)?\s*\n(.*?)```", text, re.DOTALL)
+    out: dict[str, str] = {}
+    for b in blocks:
+        b = b.strip()
+        if not b:
+            continue
+        first = b.splitlines()[0].strip()
+        m = re.match(r"#\s*([\w./-]+\.py)\s*$", first)
+        if m:
+            out[m.group(1)] = b + "\n"
+    return out
 
 
 def fix_prompt(file_path: str, all_files: dict[str, str],

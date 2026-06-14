@@ -24,24 +24,50 @@ frontier"**로 재정의(상위모델 에스컬레이션 영구 폐기). 측정 
 - **역할배정 = 미결**: role-26all / role-26head31hands가 **전부 INFRA(아침 API 장애)로 실패**
   → 26B 머리 능력은 *측정 안 됨*. API 안정 시 재실행 필요.
 
+### L4-5 frontier 첫 측정 (2026-06-14, 결정 15)
+- **카드 제작 완료**: T-000007(L4 파티전투), T-000008(L5 세이브 로그라이크). `bank_cards_l45.py`.
+- **🔑 분산(variance) 발견**: L4를 26all-cold로 돌리니 1차 FAIL(26B 설계가 rich/click 끌어와
+  API 오용) → fresh 재측정 PASS(2/2). **같은 조건인데 갈림** = 천장 아니라 설계 선택 흔들림.
+  L5는 26all-cold PASS(4/4). 즉 한 번 런으로 "한다/못한다" 단정은 오판(직전에 그럴 뻔).
+- **로그 정교화 반영**: index.json에 `critic_model`/`generator_model`/`whole`/`duration_sec`
+  추가(역할·아키텍처·시간 정본화). 새 모듈 `variance.py` = 조건별 통과율(C)+노트델타(D).
+  화이트리스트(rich/click)는 유지(사용자 결정). 테스트 298 통과.
+
 ### 결론 한 줄
-공정한 하네스에선 **26B·31B 둘 다 L2-3을 다 한다.** 모든 변수(아키텍처·노트·역할)의 차이는
-**더 어려운 카드(L4-5 frontier)에서만** 드러난다 → 다음 = 난이도 사다리.
+공정한 하네스에선 **26B·31B 둘 다 L2-3을 다 한다.** L4도 천장이 아니라 **분산** 구간으로 보임
+(26all PASS 가능). frontier 측정은 이제 **조건별 N회 통과율**로 천장 vs 분산을 갈라야 한다.
+
+## 큰 결정 3개 (이번 세션, 정본)
+- **역할 구성 확정(결정16)**: #4 31머리/26손=홈, #1 31단독=폴백(26B 죽으면 31손 자동강등),
+  #2 26단독=낮 연구, #3 26머리/31손=폐기. 무료대체재 없음(Flash Lite=코딩 열위, 비상용도 기각).
+- **난이도 재정의(결정17)**: L1~L5 감 라벨 폐기. 난이도는 선언 아니라 **반복 통과율로 사후 확정**.
+  파일수·"상태로직 어렵다" 폐기. 오라클엄격도=측정품질(행동만 검증), K=런조건, dependency는
+  관측값 신뢰, 실측은 카드에 저장 말고 계산, `spec_complete`로 난이도 vs 출제불량 분리.
+- **로그 정교화**: index에 critic_model/generator_model/whole/duration_sec + `variance.py`.
 
 ## 돌고 있는 것
-**없음.** 모든 캠페인 정지·완료. (밤 cold 캠페인, 통짜31B, 26B 이어달리기, recheck 전부 종료.)
+- **L4 cold×3+warm×3 (26all)** — `l45_run.py`. cold: rep1 FAIL·rep2 PASS·rep3 진행 → **이미
+  ~50/50 분산 확인**. 끝나면 `python variance.py T-000007`로 cold/warm 통과율·델타.
 
-## 다음 액션
-1. **L4-5 카드 제작** — 전투/RPG 한 줄기 단계적: L3 자동전투 → **L4 파티전투**(상태이상·턴순서)
-   → **L5 세이브 로그라이크**(절차생성+저장/로드+회귀). 도메인 고정·복잡도만↑. (PLAN §10)
-   여기서 비로소 26B<31B, 노트 효과, 통짜>분해, **역할 차이**가 측정됨.
-2. **모든 변수(아키텍처·노트·역할배정)는 L4-5에서 한꺼번에 측정.** ← 현재 난이도(L2-3)
-   재실행은 의미 없음(다 통과=천장). 역할배정도 frontier에서만 차이가 남.
-3. (보류) 아키텍처 사다리 #3 시니어+주니어·국소패치 — frontier에서 #2 통짜가 무너질 때만.
+## 다음 액션 (결정17 운영 순서)
+0. **🔧 브랜치 단일화(결정18) — 캠페인 종료 직후 최우선**: 본류 bank-b2-env→main 승격,
+   arag-bank 워크트리 + bank-b2-env 브랜치 제거, 측정데이터 오염분 정리(공정하네스 이후만
+   보존). 이후 main 한 곳에서만 작업. **개인 프로젝트 = 브랜치 main 하나, 새 브랜치 금지.**
+1. **폴백 구현**: `llm.py generate()` — 26B(손) 콜이 백오프·쿼터 소진 후에도 5xx/429면
+   critic 모델(31B)로 1회 재시도. 26단독은 get_model('critic')=26B라 자동 무효. 테스트 추가.
+   ⚠️ **돌던 캠페인 끝난 뒤** 구현(측정 오염 방지).
+2. **최소 스키마 반영**: bank_schema에 옵션 필드 추가(required_behaviors, declared_dependency,
+   state_required, oracle_verified, spec_complete). 기존 8장에 spec_complete/oracle_verified만.
+   difficulty_level은 남기되 난이도 근거로 안 씀.
+3. **8장 × 30~50런**(홈 구성 #4 기준) → 관찰표(pass_rate, variance, failure_types,
+   observed_test_coupling). 회귀분석은 50~100런 후. 30~50런 전엔 새 난이도 이론 추가 금지.
+4. (보류) 아키텍처 사다리 #3 시니어+주니어·국소패치 — frontier 확인된 뒤.
 
 ## 측정 도구 (콜0)
 - 관측 분류·점수: `observability.py`(limit_type/artifact_score) → `plan2.py`(라벨5/점수_auto/
   fingerprint, 파생) → `plan2_audit.py`(폰 감사 산문) / `plan2_notes.py`(USE/HOLD/DROP).
+- 분산·노트효과: `variance.py`(조건별 통과율=천장/분산 + cold/warm 델타). index 새 필드
+  (critic_model/generator_model/whole/duration_sec)에서 그룹 파생.
 - 출력한도 프로브: `probe_output_limit.py`(모드별), `probe_ceiling.py`(큰 n). 일회성.
 - 캠페인 드라이버(worktree): `night_run.py`(6h cold/warm), `whole_run.py`(통짜 비교),
   `recheck_run.py`(재측정), `cont_26b.py`(26B 후속), `auto_campaign.py`(무인 순차).

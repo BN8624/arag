@@ -346,11 +346,18 @@ def _check_contracts(trees, design) -> list[dict]:
         top_funcs = {n.name: n for n in tree.body
                      if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
         top_names = _toplevel_names(tree)
+        # 클래스 메서드도 정의로 인정 — 설계가 메서드 인터페이스(__init__/run 등)를
+        # 선언했을 때 클래스 안에 있어도 false contract-missing이 안 나게 (하네스 버그 수정)
+        class_methods = {m.name for node in tree.body
+                         if isinstance(node, ast.ClassDef)
+                         for m in node.body
+                         if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        defined = top_names | class_methods
         for iface in f.get("interfaces", []):
             iname = iface.get("name")
             if not iname:
                 continue
-            if iname not in top_names:
+            if iname not in defined:
                 issues.append(issue(name, 1, "contract-missing",
                                     f"design contract requires '{iname}' "
                                     f"to be defined in {name}"))

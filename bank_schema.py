@@ -117,4 +117,16 @@ def validate_card(card: dict) -> list[str]:
     if score is not None and not isinstance(score, (int, float)):
         errors.append("design_quality_score must be a number or null")
 
+    # 난이도 재정의(결정17) 옵션 필드 — 있으면 타입 검증, 없어도 통과(구버전 카드 호환).
+    # difficulty_level(L1~5)은 남기되 난이도 근거로 안 씀. 난이도는 통과율로 사후 확정.
+    for key in ("required_behaviors", "declared_dependency"):
+        v = card.get(key)
+        if v is not None and (not isinstance(v, int) or isinstance(v, bool)
+                              or v < 0):
+            errors.append(f"{key!r} must be a non-negative integer or null")
+    for key in ("state_required", "oracle_verified", "spec_complete"):
+        v = card.get(key)
+        if v is not None and not isinstance(v, bool):
+            errors.append(f"{key!r} must be a boolean or null")
+
     return errors
