@@ -367,7 +367,11 @@ def build_status(runs_dir: Path | None = None) -> dict:
                                   if e.get("event") == "exec-issues")},
         }
 
-    history = list(reversed(load_index(RUNS_DIR)))
+    # 현재 캠페인(31단독 = 50런 obs)만. 옛 오염런 + 오늘 다른 구성(26all L4 등) 제외해
+    # 카운트·지표가 지금 도는 것과 일치하게. (결정18 index 정리 전 임시 필터.)
+    history = [e for e in reversed(load_index(RUNS_DIR))
+               if e.get("generator_model") == "gemma-4-31b-it"
+               and e.get("critic_model") == "gemma-4-31b-it"]
     total_cost = sum(e.get("cost_usd") or 0 for e in history)
     improvable = [{"run": e["run"], "idea": (e.get("idea") or "")[:60],
                    "score": e.get("score")}
@@ -813,6 +817,10 @@ select{margin-bottom:8px}
     <div class="statwrap"><table class="stats" id="st-level"></table></div>
   </section>
   <section>
+    <div class="sec-head"><h2>관찰: 카드×아키텍처 통과율</h2><span id="st-var-note"></span></div>
+    <div class="statwrap"><table class="stats" id="st-variance"></table></div>
+  </section>
+  <section>
     <div class="sec-head"><h2>개선(improve) 판정</h2><span id="st-imp-note"></span></div>
     <div class="kchips" id="st-improve"></div>
   </section>
@@ -1032,8 +1040,14 @@ function fmtDur(s){
   return (s/3600).toFixed(1)+'시간';
 }
 
+const LVL = {'T-000001':1,'T-000002':2,'T-000003':2,'T-000004':2,
+             'T-000005':2,'T-000006':3,'T-000007':4,'T-000008':5};
+
 function rowHtml(e){
   const sc = e.score||{};
+  const lvb = (e.task_id && LVL[e.task_id])
+    ? '<span style="color:#9adfbd;font-weight:600;margin-right:5px">L'
+      + LVL[e.task_id] + '</span>' : '';
   const infra = /API call failed|INTERNAL|네트워크/.test(String(e.status||''));
   let pill, pcls;
   if(sc.total!=null && sc.passed!=null){
@@ -1046,7 +1060,7 @@ function rowHtml(e){
   const cost = e.cost_usd!=null ? '$'+e.cost_usd.toFixed(3) : '-';
   const tag = e.improved_from ? ' <span style="color:var(--blue)">개선판</span>' : '';
   return '<div class="runrow"><span class="score '+pcls+'">'+pill+'</span>'
-    + '<span class="idea">'+esc(e.idea||e.run)+tag+'</span>'
+    + '<span class="idea">'+lvb+esc(e.idea||e.run)+tag+'</span>'
     + '<span class="meta mono">'+esc(String(e.t||'').slice(5,16))
     + ' · '+cost+' · 수리 '+fx
     + ' · <a href="/api/report?run='+esc(e.run)+'&html=1">REPORT</a>'
@@ -1089,6 +1103,27 @@ function renderStats(r){
        + '<td>'+Math.round(100*byL[l].ok/byL[l].n)+'%</td></tr>';
   }
   document.getElementById('st-level').innerHTML = h2;
+  // 관찰: 카드×아키텍처 통과율 (분할 vs 통짜) — 결정17 frontier 관찰
+  const byCard = {}; let cardN=0, cardOk=0;
+  for(const e of hist){
+    if(!e.task_id) continue;
+    // 현재 31단독 관찰 캠페인만 (오늘 26all L4 등 다른 구성과 안 섞이게)
+    if(e.generator_model!=='gemma-4-31b-it'||e.critic_model!=='gemma-4-31b-it') continue;
+    cardN++; if(e.ok) cardOk++;
+    const c = byCard[e.task_id] = byCard[e.task_id]||{pf:{p:0,n:0},wh:{p:0,n:0}};
+    const slot = e.whole ? c.wh : c.pf;
+    slot.n++; if(e.ok) slot.p++;
+  }
+  const cell = s => s.n ? (s.p+'/'+s.n+' '+Math.round(100*s.p/s.n)+'%') : '-';
+  let hv = '<tr><th>카드</th><th>분할</th><th>통짜</th></tr>';
+  for(const c of Object.keys(byCard).sort()){
+    const b = byCard[c];
+    hv += '<tr><td>'+esc(c.slice(-2))+'</td><td>'+cell(b.pf)+'</td>'
+       + '<td>'+cell(b.wh)+'</td></tr>';
+  }
+  document.getElementById('st-variance').innerHTML = hv;
+  document.getElementById('st-var-note').textContent =
+    cardN+'런 · 전체 '+(cardN?Math.round(100*cardOk/cardN):0)+'%';
   // improve 판정
   const iv = {IMPROVED:0,'NO-GAIN':0,REGRESSED:0};
   let impTotal = 0;
