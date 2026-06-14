@@ -229,3 +229,6 @@ design_bank.sqlite
 
 # PLAN2: 프로토콜 이전 탐색 데이터 격리 보관 (로컬 전용, 결과 아님)
 _exploration/
+
+# 런타임 생성 오답노트 (런마다 갱신, 정본은 백업/export)
+lessons.json
