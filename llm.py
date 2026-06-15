@@ -1,7 +1,7 @@
 """API 콜 래퍼. 쿼터 4원칙 중 1·4를 여기서 강제한다.
 
 - 순차 호출 (단일 스레드 전제, 동시 호출 없음)
-- 콜 간 최소 간격 4초 (RPM 15 보호)
+- 슬라이딩 윈도우 RPM 리미터 (키별 60초 14건, RPM 15 보호)
 - 429 백오프 재시도 (RPM/RPD 구분)
 - 500/502/503/504 + 네트워크 에러 재시도
 - 빈 응답 재시도
@@ -12,49 +12,34 @@ import re
 import socket
 import threading
 import time
+from collections import deque
 from contextlib import contextmanager
 from queue import Queue
 
 from config import get_api_key, get_api_keys, get_model
 
-# 동적 페이서: 키별 간격을 429에 반응해 자동 조절(AIMD). 건강하면 하한(=풀속도),
-# 429 맞으면 그 키만 곱연산으로 물러서고, 콜이 성공하면 천천히 하한으로 회복한다.
-# 4.0초=정확히 15/분(RPM 상한 절벽)이라 500 폭풍 땐 경계 429가 난다 → 그때만 감속.
-MIN_INTERVAL_SEC = 4.0   # 하한: 건강한 창의 풀속도(15/분)
-MAX_INTERVAL_SEC = 10.0  # 상한: 폭풍 시 자동 감속 한계(6/분)
-_INTERVAL_BUMP = 1.5     # 429 시 곱연산 증가(빠르게 물러섬)
-_INTERVAL_DECAY = 0.25   # 콜 성공 시 가산 감소(천천히 회복)
+# 슬라이딩 윈도우 RPM 리미터: 키별로 최근 WINDOW_SEC초 안에 보낸 요청 수를 세서,
+# 상한(RPM_TARGET)에 차 있으면 가장 오래된 요청이 창을 빠질 때까지만 대기한다.
+# 여유 있으면 대기 0(풀속도). 429를 *맞기 전에* 막고, 평상시엔 최대 허용속도로 돈다.
+# RPM 상한 15에 여유 1을 둬 14로 잡는다(버스트·시계 지터 마진).
+RPM_TARGET = 14          # 키당 60초 윈도우 허용 요청 수(상한 15 - 여유 1)
+WINDOW_SEC = 60.0        # RPM 측정 윈도우
 
-# 키별 페이서: 콜 간 최소 간격을 *키마다 따로* 강제한다(워커=키 병렬 안전).
-# 키마다 쿼터(RPM 15)가 독립이므로 페이서도 키별 락·last로 나눈다. 같은 키의
-# 콜은 MIN_INTERVAL_SEC 간격으로 직렬화되지만, 다른 키는 서로 안 막아 진짜 병렬로 겹친다.
-# (단일키 모드면 키 1개짜리 페이서 = 기존 전역 페이서와 동일 동작.)
+# 키마다 쿼터(RPM 15)가 독립이므로 페이서도 키별 락·윈도우로 나눈다. 같은 키의 콜만
+# 직렬화·계수되고, 다른 키는 서로 안 막아 진짜 병렬로 겹친다.
+# (단일키 모드면 키 1개짜리 페이서 = 전역 리미터와 동일 동작.)
 _pacer_registry_lock = threading.Lock()  # _pacers dict 자체를 보호
-_pacers: dict[str, dict] = {}             # api_key -> {"lock": Lock, "last": float}
+_pacers: dict[str, dict] = {}             # api_key -> {"lock": Lock, "calls": deque}
 
 
 def _get_pacer(api_key: str) -> dict:
-    """api_key에 대응하는 페이서(락+마지막콜시각)를 반환한다(없으면 생성)."""
+    """api_key에 대응하는 페이서(락+최근콜 타임스탬프 윈도우)를 반환한다(없으면 생성)."""
     with _pacer_registry_lock:
         pacer = _pacers.get(api_key)
         if pacer is None:
-            pacer = {"lock": threading.Lock(), "last": 0.0,
-                     "interval": MIN_INTERVAL_SEC}
+            pacer = {"lock": threading.Lock(), "calls": deque()}
             _pacers[api_key] = pacer
         return pacer
-
-
-def _nudge_interval(api_key: str, *, hit_limit: bool) -> None:
-    """키의 동적 간격을 조절한다. 429면 곱연산↑(빠르게 물러섬),
-    콜 성공이면 가산↓(천천히 하한으로 회복). 키마다 독립."""
-    pacer = _get_pacer(api_key)
-    with pacer["lock"]:
-        if hit_limit:
-            pacer["interval"] = min(MAX_INTERVAL_SEC,
-                                    pacer["interval"] * _INTERVAL_BUMP)
-        else:
-            pacer["interval"] = max(MIN_INTERVAL_SEC,
-                                    pacer["interval"] - _INTERVAL_DECAY)
 
 # 오픈라우터 유료 단가 (USD / 1M tokens, 2026-06 기준). thinking은 출력으로 과금.
 # 실제 사용은 AI Studio 무료지만, "유료였다면 얼마"를 REPORT에 환산 표기한다.
@@ -253,16 +238,21 @@ class LLMClient:
         return costs
 
     def _wait_interval(self) -> None:
-        """이 클라이언트가 쥔 키의 페이서를 잡고 콜 간 4초 간격을 보장한다.
-        키별 락이라 같은 키의 콜만 직렬화되고, 다른 키 워커는 안 막힌다."""
+        """이 클라이언트가 쥔 키의 슬라이딩 윈도우를 잡고, 최근 60초 요청이 상한
+        (RPM_TARGET)에 차 있으면 가장 오래된 요청이 창을 빠질 때까지만 대기한다.
+        여유 있으면 대기 0(풀속도). 키별 락이라 다른 키 워커는 안 막힌다."""
         pacer = _get_pacer(getattr(self, "_api_key", ""))
         with pacer["lock"]:
+            win = pacer["calls"]
             now = time.monotonic()
-            wait = pacer["last"] + pacer["interval"] - now
-            if wait > 0:
-                time.sleep(wait)
+            while win and win[0] <= now - WINDOW_SEC:  # 창 밖 요청 폐기
+                win.popleft()
+            if len(win) >= RPM_TARGET:                 # 상한 차면 한 슬롯 빌 때까지
+                time.sleep(win[0] + WINDOW_SEC - now)
                 now = time.monotonic()
-            pacer["last"] = now
+                while win and win[0] <= now - WINDOW_SEC:
+                    win.popleft()
+            win.append(now)
 
     def generate(self, role: str, prompt: str, temperature: float | None = None) -> str:
         """role('generator'|'critic')의 모델로 1콜. 텍스트를 반환한다.
@@ -338,7 +328,6 @@ class LLMClient:
                           f"(attempt {empty_count}/{EMPTY_RETRIES})")
                     time.sleep(wait)
                     continue
-                _nudge_interval(getattr(self, "_api_key", ""), hit_limit=False)
                 return text
             except EmptyResponse:
                 raise
@@ -351,8 +340,6 @@ class LLMClient:
                         raise DailyQuotaExceeded(
                             f"daily quota exhausted for {model}: {err}"
                         ) from err
-                    _nudge_interval(getattr(self, "_api_key", ""),
-                                    hit_limit=True)  # 이 키만 감속
                     wait = BACKOFF_RPM_SEC * (2 ** attempt)
                     print(f"[WAIT] rate limited (429), retrying in {wait:.0f}s "
                           f"(attempt {attempt + 1}/{MAX_RETRIES})")

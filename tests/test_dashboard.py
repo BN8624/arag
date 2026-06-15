@@ -169,13 +169,13 @@ def test_launch_clears_stop_flag(tmp_path, monkeypatch):
 def test_humanize_korean_factory_lines():
     cases = [
         ({"t": "2026-06-11T19:00:01", "event": "phase", "name": "design"},
-         "[31B] 설계 시작"),
+         "[머리] 설계 시작"),
         ({"t": "x", "event": "phase", "name": "critique", "round": 1, "total": 2},
          "품질심사 1/2라운드"),
         ({"t": "x", "event": "file-written", "file": "main.py"},
-         "[26B] 부품 제작: main.py"),
+         "[손] 부품 제작: main.py"),
         ({"t": "x", "event": "exec-issues", "target": "main.py"},
-         "[26B] main.py 수리"),
+         "[손] main.py 수리"),
         ({"t": "x", "event": "scoreboard", "passed": 4, "total": 5}, "4/5"),
         ({"t": "x", "event": "critique-lgtm"}, "LGTM"),
         ({"t": "x", "event": "aborted", "reason": "stuck"}, "라인 정지"),

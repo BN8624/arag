@@ -54,9 +54,10 @@ def test_get_api_keys_raises_when_none(monkeypatch):
         config.get_api_keys()
 
 
-# --- 키별 페이서: 같은 키만 직렬, 다른 키는 독립 ---
+# --- 슬라이딩 윈도우 RPM 리미터: 여유 있으면 대기 0, 상한 차면 슬롯 빌 때까지 ---
 
-def test_pacer_same_key_serialized_diff_key_independent(monkeypatch):
+def test_pacer_no_wait_under_limit_then_blocks_at_limit(monkeypatch):
+    """상한 미만이면 대기 0, RPM_TARGET째에 도달하면 가장 오래된 슬롯 만료까지 대기."""
     llm._pacers.clear()
     state = {"t": 1000.0, "slept": []}
     monkeypatch.setattr(llm.time, "monotonic", lambda: state["t"])
@@ -67,36 +68,43 @@ def test_pacer_same_key_serialized_diff_key_independent(monkeypatch):
     monkeypatch.setattr(llm.time, "sleep", fake_sleep)
 
     a = object.__new__(LLMClient); a._api_key = "A"
-    b = object.__new__(LLMClient); b._api_key = "B"
-
-    a._wait_interval()              # 키A 첫 콜: 대기 없음
+    for _ in range(llm.RPM_TARGET):     # 14건: 전부 대기 없이 통과
+        a._wait_interval()
     assert state["slept"] == []
-    a._wait_interval()              # 키A 두 번째: 4초 직렬화
-    assert state["slept"] == [4.0]
-    b._wait_interval()              # 키B 첫 콜: A와 독립 → 대기 없음
-    assert state["slept"] == [4.0]
+    a._wait_interval()                  # 15번째: 첫 콜(t=1000)이 빠질 때까지 = 60초
+    assert state["slept"] == [llm.WINDOW_SEC]
 
 
-# --- 동적 페이서(AIMD): 429면 곱연산↑, 성공이면 가산↓, 키마다 독립 ---
-
-def test_dynamic_pacer_aimd_clamps_and_recovers():
+def test_pacer_per_key_independent(monkeypatch):
+    """한 키가 상한에 차도 다른 키는 즉시(독립 윈도우)."""
     llm._pacers.clear()
-    k = "K"
-    assert llm._get_pacer(k)["interval"] == llm.MIN_INTERVAL_SEC  # 하한서 시작
-    for _ in range(10):                       # 429 누적 → 상한 클램프
-        llm._nudge_interval(k, hit_limit=True)
-    assert llm._get_pacer(k)["interval"] == llm.MAX_INTERVAL_SEC
-    for _ in range(100):                      # 성공 누적 → 하한 회복
-        llm._nudge_interval(k, hit_limit=False)
-    assert llm._get_pacer(k)["interval"] == llm.MIN_INTERVAL_SEC
+    state = {"t": 1000.0, "slept": []}
+    monkeypatch.setattr(llm.time, "monotonic", lambda: state["t"])
+    monkeypatch.setattr(llm.time, "sleep",
+                        lambda s: (state["slept"].append(s),
+                                   state.__setitem__("t", state["t"] + s)))
+
+    a = object.__new__(LLMClient); a._api_key = "A"
+    b = object.__new__(LLMClient); b._api_key = "B"
+    for _ in range(llm.RPM_TARGET):
+        a._wait_interval()              # 키A를 상한까지 채움
+    b._wait_interval()                  # 키B 첫 콜: A와 독립 → 대기 없음
+    assert state["slept"] == []
 
 
-def test_dynamic_pacer_per_key_isolation():
-    """한 키가 429로 감속해도 다른 키는 하한(풀속도) 유지."""
+def test_pacer_window_expiry_frees_slot(monkeypatch):
+    """창(60초)이 지난 오래된 요청은 폐기돼 다시 풀속도."""
     llm._pacers.clear()
-    llm._nudge_interval("slow", hit_limit=True)
-    assert llm._get_pacer("slow")["interval"] > llm.MIN_INTERVAL_SEC
-    assert llm._get_pacer("fast")["interval"] == llm.MIN_INTERVAL_SEC
+    state = {"t": 1000.0}
+    monkeypatch.setattr(llm.time, "monotonic", lambda: state["t"])
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+
+    a = object.__new__(LLMClient); a._api_key = "A"
+    for _ in range(llm.RPM_TARGET):
+        a._wait_interval()
+    state["t"] += llm.WINDOW_SEC + 1    # 창을 통째로 넘김
+    a._wait_interval()                  # 전부 만료 → 대기 없이 통과
+    assert len(llm._get_pacer("A")["calls"]) == 1
 
 
 # --- KeyPool: 체크아웃·반납·고갈 블록 ---
