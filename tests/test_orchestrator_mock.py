@@ -113,6 +113,36 @@ def test_design_retry_on_invalid(tmp_path):
     assert orch.run("tiny todo cli") is True
 
 
+def test_golden_oracle_override(tmp_path):
+    """golden_from: 설계는 모델 것이되 오라클(success_signal + test_acceptance)만 골든으로."""
+    golden = tmp_path / "golden"
+    (golden / "workspace").mkdir(parents=True)
+    (golden / "design.json").write_text(json.dumps({
+        "success_signal": {"command": "python main.py --scenario 1",
+                           "expect_substring": ["winner:", "turns: 23"]},
+        "criteria_checks": [{"criterion": "golden-c",
+                             "command": "python main.py --scenario 1",
+                             "expect_substring": "winner:"}]}), encoding="utf-8")
+    (golden / "workspace" / "test_acceptance.py").write_text(
+        "# GOLDEN ORACLE\n", encoding="utf-8")
+
+    orch = Orchestrator(MockLLM(critic=[], generator=[]), tmp_path / "run",
+                        skip_exec=True, golden_from=golden)
+    orch.design = make_design()  # 모델 설계(자기 success_signal을 가짐)
+    orch._apply_golden_oracle()
+
+    # 오라클만 골든으로 교체됨
+    assert orch.design["success_signal"]["expect_substring"] == ["winner:", "turns: 23"]
+    assert orch.design["criteria_checks"][0]["criterion"] == "golden-c"
+    assert (orch.workspace / "test_acceptance.py").read_text(
+        encoding="utf-8") == "# GOLDEN ORACLE\n"
+    # 설계 파일도 갱신
+    saved = json.loads((orch.run_dir / "design.json").read_text(encoding="utf-8"))
+    assert saved["success_signal"]["expect_substring"] == ["winner:", "turns: 23"]
+    # 모델 설계의 파일 구조는 보존(오라클만 바꿈)
+    assert [f["path"] for f in orch.design["files"]] == ["main.py", "core.py"]
+
+
 def test_infra_failure_skips_lesson(tmp_path, monkeypatch):
     """인프라 장애(API 5xx 소진)는 오답노트를 안 남긴다 — 설계 풀 오염 방지."""
     import orchestrator as om

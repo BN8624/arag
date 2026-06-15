@@ -49,7 +49,8 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
                  resume_from: Path | None = None,
                  improve_from: Path | None = None, feedback: str = "",
                  level: int | None = None, task_id: str | None = None,
-                 notes_enabled: bool = True, whole: bool = False):
+                 notes_enabled: bool = True, whole: bool = False,
+                 golden_from: Path | None = None):
         self.llm = llm
         self.run_dir = Path(run_dir)
         self.workspace = self.run_dir / "workspace"
@@ -83,6 +84,9 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
         self.notes_enabled = notes_enabled  # cold=False: 오답/비평노트 주입 OFF
         self.mode = "warm" if notes_enabled else "cold"  # PLAN2 cold/warm 측정
         self.whole = whole  # True: 통짜(한 콜에 전체 파일) 구현 — 분해 대신
+        # golden_from: 풀 파이프라인에서 설계는 모델 것(오답노트 반영)으로 두되
+        # *오라클만* 골든으로 고정(success_signal + test_acceptance.py) — warm 측정용
+        self.golden_from = Path(golden_from) if golden_from else None
         self._prev_score: int | None = None   # improve: 직전 런의 통과 수
         self._old_commands: set[str] = set()  # improve: 기존 기준의 커맨드
         self._events = (self.run_dir / "events.jsonl").open("a", encoding="utf-8")
@@ -126,6 +130,8 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
             else:
                 self._phase_design(idea, self._load_lessons(idea))
                 self._phase_tests()
+                if self.golden_from:
+                    self._apply_golden_oracle()
             if not self.improve_from:
                 self._phase_implement()
             self._write_fixtures()
@@ -186,6 +192,32 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
             return False
         finally:
             self._events.close()
+
+    # ------------------------------------------------------------ golden oracle
+
+    def _apply_golden_oracle(self) -> None:
+        """설계(모델 것, 오답노트 반영)는 그대로 두고 *오라클만* 골든으로 고정한다.
+
+        success_signal·criteria_checks를 골든 design.json에서 가져와 덮고, 골든
+        test_acceptance.py를 워크스페이스에 복사한다. 골든 오라클은 행동검증
+        (main.py --scenario 실행→stdout 대조)이라 설계 구조와 무관하게 재사용된다.
+        → warm 측정에서 '오답노트가 설계를 개선하나'를 같은 잣대(골든)로 잰다.
+        """
+        gdesign = json.loads(
+            (self.golden_from / "design.json").read_text(encoding="utf-8"))
+        if gdesign.get("success_signal"):
+            self.design["success_signal"] = gdesign["success_signal"]
+        if gdesign.get("criteria_checks"):
+            self.design["criteria_checks"] = gdesign["criteria_checks"]
+        (self.run_dir / "design.json").write_text(
+            json.dumps(self.design, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        gtest = self.golden_from / "workspace" / "test_acceptance.py"
+        if gtest.exists():
+            (self.workspace / "test_acceptance.py").write_text(
+                gtest.read_text(encoding="utf-8"), encoding="utf-8")
+        self.log("golden-oracle-applied", golden=str(self.golden_from))
+        self._say("  [GOLDEN] oracle pinned (success_signal + test_acceptance.py)")
 
     # ------------------------------------------------------------ lessons
 
