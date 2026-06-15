@@ -80,7 +80,6 @@ def harvest(runs_dir: Path, path: Path | None = None) -> list[dict]:
     try:
         runs_dir = Path(runs_dir)
         entries = load_index(runs_dir)
-        by_run = {str(e.get("run", "")): e for e in entries}
         mistakes: list[dict] = []
         for e in entries:
             run = str(e.get("run", ""))
