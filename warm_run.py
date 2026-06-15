@@ -27,7 +27,7 @@ from config import PROJECT_ROOT, force_utf8_stdout, get_api_keys
 CARD = "T-000012"                       # 통합 frontier 카드
 GOLDEN_DIR = PROJECT_ROOT / "frozen" / "T-000012"  # 골든 오라클(design.json + test_acceptance.py)
 MODEL_31 = "gemma-4-31b-it"             # 31solo
-MAX_MINUTES = 60                        # 풀 파이프라인(설계+구현+게이트+비평)이라 넉넉히
+MAX_MINUTES = 180                       # 풀 파이프라인 + 5xx 폭풍 무한재시도를 견디게 넉넉히
 LEDGER = PROJECT_ROOT / "runs" / "warm_ledger.jsonl"
 
 _log_lock = threading.Lock()
