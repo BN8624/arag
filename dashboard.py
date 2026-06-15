@@ -367,11 +367,8 @@ def build_status(runs_dir: Path | None = None) -> dict:
                                   if e.get("event") == "exec-issues")},
         }
 
-    # 현재 캠페인(31단독 = 50런 obs)만. 옛 오염런 + 오늘 다른 구성(26all L4 등) 제외해
-    # 카운트·지표가 지금 도는 것과 일치하게. (결정18 index 정리 전 임시 필터.)
-    history = [e for e in reversed(load_index(RUNS_DIR))
-               if e.get("generator_model") == "gemma-4-31b-it"
-               and e.get("critic_model") == "gemma-4-31b-it"]
+    # index가 이미 신-시대로 prune됨(결정18, 104→56) → 별도 필터 불필요. 전체 표시.
+    history = list(reversed(load_index(RUNS_DIR)))
     total_cost = sum(e.get("cost_usd") or 0 for e in history)
     improvable = [{"run": e["run"], "idea": (e.get("idea") or "")[:60],
                    "score": e.get("score")}
