@@ -79,8 +79,9 @@ turns는 **엔티티가 행동할 차례를 받은 횟수**다. 빙결로 스킵
 (spd<100이라 초기 여러 틱은 아무도 행동 못 해 turns가 0인 채로 지나간다). max_turns는 이 turns 상한.
 
 == CLI / 출력 포맷 — 정확히 ==
-실행: `python main.py --scenario N`  (N ∈ {1,2,3,4}). 각 시나리오는 아래 고정 파티를 만들어
-한 판을 돌린 뒤, 정확히 이 포맷으로(소문자, 콜론+공백) stdout에 출력한다:
+실행: `python main.py --scenario N`  (N ∈ {1,2,3,4}). 진입점 파일명은 정확히 `main.py`.
+각 시나리오는 아래 고정 파티를 만들어 한 판을 돌린 뒤, 정확히 이 포맷으로(소문자, 콜론+공백)
+stdout에 출력한다:
   winner: <hero|enemy|draw>
   turns: <정수>
   그 다음 등록 순서대로 각 엔티티 한 줄씩: `<id>: <남은 hp>`  (heroes 먼저, 그 뒤 enemies)
@@ -120,9 +121,15 @@ turns는 **엔티티가 행동할 차례를 받은 횟수**다. 빙결로 스킵
 [scenario 3] winner: hero  turns: 19  hero1: 90 hero2: 100 hero3: 20  enemy1: 0 enemy2: 0 enemy3: 0
 [scenario 4] winner: hero  turns: 29  hero1: 18 hero2: 0  hero3: 0    enemy1: 0 enemy2: 0 enemy3: 0
 
-오라클은 위 골든의 정확 일치다(winner + turns + 엔티티별 final hp). 너의 acceptance_criteria와
-criteria_checks는 각 시나리오마다 이 정확한 출력 값을 단언해야 한다(라벨만이 아니라 골든 숫자까지).
-멀티파일로 분해하라(상태이상 / 스킬 / 전투 / 진입점)."""
+오라클(게이트)은 위 골든의 정확 일치다(winner + turns + 엔티티별 final hp). 4 시나리오가 전부
+게이트되도록 success_signal을 *반드시* 다음과 같이 설계하라:
+- success_signal.command = "python main.py --scenario 1 && python main.py --scenario 2 &&
+  python main.py --scenario 3 && python main.py --scenario 4"  (4개를 && 로 체인)
+- success_signal.expect_substring = 위 4 골든의 *모든 토큰*을 담은 리스트. 즉 각 시나리오의
+  "winner: ..." 1개 + "turns: ..." 1개 + 엔티티별 "<id>: <hp>" 줄 전부를 토큰으로 넣어라
+  (4 시나리오 합쳐 토큰 약 20여 개). 전부 출력에 나타나야 통과(하나라도 빠지면 실패).
+또한 acceptance_criteria와 criteria_checks도 각 시나리오마다 이 정확한 값을 단언하라(라벨이 아니라
+골든 숫자까지). 멀티파일로 분해하라(상태이상 / 스킬 / 전투 / 진입점)."""
 
 CARDS = [
     {
@@ -150,9 +157,12 @@ CARDS = [
         "anti_goals": ["대화형 input() 금지", "외부 패키지 금지", "무작위/seed로 파티 생성 금지(파티는 고정 데이터)",
                        "단일파일 금지"],
         "notes_for_evaluator": "PAMPHLET 전체 조립. 결정20 통합 frontier 카드 — 단일 모듈은 select-best가 "
-                               "이미 깸. 검수(2026-06-15) 반영: HP클램프 명시(가짜FAIL 차단), 확장B로 "
+                               "이미 깸. 검수(2026-06-15) 반영: ①HP클램프 명시(가짜FAIL 차단). ②확장B로 "
                                "freeze/poison/shock/매트릭스/감전배수/빙결스킵이 실제 골든에서 발동(시드 스캔, "
-                               "10현상 커버). scenario 1/2/3/4=seed 53/3/0/45. 골든은 game/(test 14/14)에서 생성, 사람 검증됨. "
+                               "10현상 커버). scenario 1/2/3/4=seed 53/3/0/45. ③오라클 게이팅 고침: criteria_checks는 "
+                               "비게이트 채점표이고 출제 프롬프트가 CLI happy-path 테스트를 막으므로, 4 시나리오 정확일치를 "
+                               "success_signal(4개 && 체인 + 전체 골든 토큰 리스트)로 강제 — 이래야 게이트가 실제로 4 골든을 "
+                               "검증(arbiter 영향도 안 받음). 골든은 game/(test 14/14)에서 생성, 사람 검증됨. "
                                "4 시나리오(승자/크기 다양) 정확 일치라 우연 PASS 사실상 0.",
         "required_behaviors": 6,
         "declared_dependency": 8,
