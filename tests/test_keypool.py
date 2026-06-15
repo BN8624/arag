@@ -77,6 +77,28 @@ def test_pacer_same_key_serialized_diff_key_independent(monkeypatch):
     assert state["slept"] == [4.0]
 
 
+# --- 동적 페이서(AIMD): 429면 곱연산↑, 성공이면 가산↓, 키마다 독립 ---
+
+def test_dynamic_pacer_aimd_clamps_and_recovers():
+    llm._pacers.clear()
+    k = "K"
+    assert llm._get_pacer(k)["interval"] == llm.MIN_INTERVAL_SEC  # 하한서 시작
+    for _ in range(10):                       # 429 누적 → 상한 클램프
+        llm._nudge_interval(k, hit_limit=True)
+    assert llm._get_pacer(k)["interval"] == llm.MAX_INTERVAL_SEC
+    for _ in range(100):                      # 성공 누적 → 하한 회복
+        llm._nudge_interval(k, hit_limit=False)
+    assert llm._get_pacer(k)["interval"] == llm.MIN_INTERVAL_SEC
+
+
+def test_dynamic_pacer_per_key_isolation():
+    """한 키가 429로 감속해도 다른 키는 하한(풀속도) 유지."""
+    llm._pacers.clear()
+    llm._nudge_interval("slow", hit_limit=True)
+    assert llm._get_pacer("slow")["interval"] > llm.MIN_INTERVAL_SEC
+    assert llm._get_pacer("fast")["interval"] == llm.MIN_INTERVAL_SEC
+
+
 # --- KeyPool: 체크아웃·반납·고갈 블록 ---
 
 def test_keypool_distinct_keys_and_return():
