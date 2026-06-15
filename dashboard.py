@@ -58,18 +58,18 @@ def _read_events(run_dir: Path) -> list[dict]:
 
 # 정적 문구 (이벤트 -> 한 줄 한국어). 동적 값이 필요한 건 _humanize의 if가 처리.
 _EVENT_TEXT = {
-    "tests": "[31B] 검수 시험지 출제 중",
-    "tests-written": "[31B] 검수 시험지 완성",
+    "tests": "[머리] 검수 시험지 출제 중",
+    "tests-written": "[머리] 검수 시험지 완성",
     "tests-skipped": "검수 시험지 생략 (실행 게이트 없음)",
-    "tests-syntax-error": "[31B] 시험지에 오타 -> 다시 출제",
-    "tests-regen": "시험지 자체가 불량 -> [31B] 재작성 요청",
-    "tests-regen-written": "[31B] 시험지 수리 완료",
-    "tests-regen-no-code": "[31B] 시험지 수리 실패 - 기존 시험지 유지",
-    "tests-regen-syntax-error": "[31B] 수리본에 오타 - 기존 시험지 유지",
-    "arbitration-unparseable": "[31B] 중재 판정문을 못 읽음 - 중재 무산",
+    "tests-syntax-error": "[머리] 시험지에 오타 -> 다시 출제",
+    "tests-regen": "시험지 자체가 불량 -> [머리] 재작성 요청",
+    "tests-regen-written": "[머리] 시험지 수리 완료",
+    "tests-regen-no-code": "[머리] 시험지 수리 실패 - 기존 시험지 유지",
+    "tests-regen-syntax-error": "[머리] 수리본에 오타 - 기존 시험지 유지",
+    "arbitration-unparseable": "[머리] 중재 판정문을 못 읽음 - 중재 무산",
     "critique-skipped-perfect": "검수 만점 - 품질심사 생략하고 바로 출하",
-    "critique-lgtm": "[31B] 품질심사 합격(LGTM) - 조기 출하",
-    "critique-unparseable": "[31B] 심사평을 못 읽음 - 현재 빌드 유지",
+    "critique-lgtm": "[머리] 품질심사 합격(LGTM) - 조기 출하",
+    "critique-unparseable": "[머리] 심사평을 못 읽음 - 현재 빌드 유지",
     "rollback": "수리하다 라인이 깨짐 -> 직전 합격품으로 복원",
     "score-regression": "수리 후 점수 하락 -> 직전 합격품으로 복원",
     "salvaged": "도중 중단 - 마지막 합격품으로 출하",
@@ -85,14 +85,14 @@ _EVENT_TEXT = {
     "index-recorded": "생산 장부에 기록",
     "design-resumed": "이전 설계도 재사용 (resume)",
     "tests-resumed": "이전 시험지 재사용 (resume)",
-    "fix-no-code": "[26B] 수리 응답에 코드 없음",
-    "revise-no-code": "[26B] 수정 응답에 코드 없음",
+    "fix-no-code": "[손] 수리 응답에 코드 없음",
+    "revise-no-code": "[손] 수정 응답에 코드 없음",
 }
 
 _PHASE_TEXT = {
-    "design": "[31B] 설계 시작",
-    "tests": "[31B] 검수 시험지 출제 시작",
-    "implement": "[26B] 제작 시작",
+    "design": "[머리] 설계 시작",
+    "tests": "[머리] 검수 시험지 출제 시작",
+    "implement": "[손] 제작 시작",
 }
 
 
@@ -103,34 +103,34 @@ def _humanize(e: dict) -> str:
     if kind == "phase":
         name = e.get("name", "")
         if name == "critique":
-            text = f"[31B] 품질심사 {e.get('round', '?')}/{e.get('total', '?')}라운드 시작"
+            text = f"[머리] 품질심사 {e.get('round', '?')}/{e.get('total', '?')}라운드 시작"
         else:
             text = _PHASE_TEXT.get(name, f"단계 시작: {name}")
     elif kind == "design-accepted":
-        text = f"[31B] 설계도 승인 - 부품 {len(e.get('files', []))}개"
+        text = f"[머리] 설계도 승인 - 부품 {len(e.get('files', []))}개"
     elif kind == "design-rejected":
-        text = f"[31B] 설계도 반려 ({e.get('attempt', '?')}차) -> 재설계"
+        text = f"[머리] 설계도 반려 ({e.get('attempt', '?')}차) -> 재설계"
     elif kind == "file-written":
-        text = f"[26B] 부품 제작: {e.get('file', '?')}"
+        text = f"[손] 부품 제작: {e.get('file', '?')}"
     elif kind == "file-fixed":
-        text = f"[26B] 부품 수리: {e.get('file', '?')}"
+        text = f"[손] 부품 수리: {e.get('file', '?')}"
     elif kind == "file-revised":
-        text = f"[26B] 심사 지적 반영: {e.get('file', '?')}"
+        text = f"[손] 심사 지적 반영: {e.get('file', '?')}"
     elif kind == "fixture-written":
         text = f"모의 자재 배치: {e.get('file', '?')}"
     elif kind == "static-issues":
-        text = f"검수(도면 대조): 불량 {len(e.get('issues', []))}건 -> [26B] 수리"
+        text = f"검수(도면 대조): 불량 {len(e.get('issues', []))}건 -> [손] 수리"
     elif kind == "exec-issues":
-        text = f"검수(시운전): 실패 -> [26B] {e.get('target', '?')} 수리"
+        text = f"검수(시운전): 실패 -> [손] {e.get('target', '?')} 수리"
     elif kind == "scoreboard":
         text = f"최종 검수 점수: {e.get('passed', '?')}/{e.get('total', '?')}"
     elif kind == "partial-pass":
         pct = round(float(e.get("rate", 0)) * 100)
         text = f"부분 합격 출하 ({pct}% 통과) - 남은 기준은 개선 대상으로"
     elif kind == "arbitration":
-        text = ("[31B] 중재: 시험지가 과했다 -> 시험지 수정"
+        text = ("[머리] 중재: 시험지가 과했다 -> 시험지 수정"
                 if e.get("blame") == "test"
-                else "[31B] 중재: 코드가 계약 위반 -> 표적 수리")
+                else "[머리] 중재: 코드가 계약 위반 -> 표적 수리")
     elif kind == "packages-installed":
         text = "자재 입고: " + ", ".join(e.get("packages", []))
     elif kind == "lessons-injected":
@@ -1045,17 +1045,17 @@ function render(r){
   const last = tail.length ? tail[tail.length-1] : '';
   let actor = null;
   if(runOn){
-    if(last.indexOf('[26B]')>=0) actor='26';
-    else if(last.indexOf('[31B]')>=0) actor='31';
+    if(last.indexOf('[손]')>=0) actor='손';
+    else if(last.indexOf('[머리]')>=0) actor='머리';
     else actor='sys';
   }
-  const text = last.replace(/^\\S+\\s+/,'').replace('[26B] ','').replace('[31B] ','');
+  const text = last.replace(/^\\S+\\s+/,'').replace('[손] ','').replace('[머리] ','');
   let nsActor = null, nsText = '대기';
   if(runOn){
-    nsActor = actor==='26' ? '26' : actor==='31' ? '31' : null;
+    nsActor = actor==='손' ? '손' : actor==='머리' ? '머리' : null;
     nsText = text || '진행 중';
   } else if(batchOn){
-    nsActor = '31';
+    nsActor = '머리';
     nsText = '회차 준비 중 — '+(bt.phase||'');
   } else if(last){
     nsText = '대기 — 마지막: '+text;
@@ -1105,7 +1105,7 @@ function render(r){
     const hot = i===0 && runOn;
     return '<div class="ev'+(hot?' hot':'')+'"><span class="t">'
       + esc(line.slice(0,8))+'</span><span>'
-      + esc(line.slice(10).replace('[26B] ','26B가 ').replace('[31B] ','31B가 '))
+      + esc(line.slice(10).replace('[손] ','손이 ').replace('[머리] ','머리가 '))
       + (hot ? ' <b class="elapsed" id="ev-elapsed"></b>' : '')
       + '</span></div>';
   }).join('');
@@ -1149,7 +1149,7 @@ function ptile(x){
   const badge = {run:'도는중',pass:'통과',fail:'실패',done:'완료'}[x.state]||x.state;
   const sc = x.score && x.score.total!=null ? x.score.passed+'/'+x.score.total : '';
   const last = esc(String(x.last||'').slice(10)
-    .replace('[26B] ','').replace('[31B] ',''));
+    .replace('[손] ','').replace('[머리] ',''));
   const stage = esc(x.stage||'') + (x.stage_note?' · '+esc(x.stage_note):'');
   return '<div class="ptile '+x.state+'">'
     + '<div class="pt-head"><span class="pt-att mono">'+esc(x.attempt)+'</span>'
@@ -1194,7 +1194,7 @@ function renderParallel(r){
 
 function setNow(actor, text, lv, on){
   const a = document.getElementById('ns-actor');
-  a.textContent = actor ? actor+'B' : '—';
+  a.textContent = actor ? actor : '—';
   a.className = 'actor'+(on?' on':'');
   document.getElementById('ns-text').textContent = text;
   const chip = document.getElementById('ns-chip');
