@@ -98,6 +98,12 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
     def _say(self, msg: str) -> None:
         print(msg, flush=True)
 
+    def _mlabel(self, role: str) -> str:
+        """단계 로그에 실제 사용 모델명을 찍는다 (역할별 하드코딩 라벨 대체).
+        구성(31단독·26단독·혼합)에 따라 모델이 바뀌므로 고정 '(26B)'는 거짓말이 된다."""
+        from config import get_model
+        return get_model(role)
+
     def _check_time(self) -> None:
         if time.monotonic() > self.deadline:
             raise RunAborted("time budget exhausted")

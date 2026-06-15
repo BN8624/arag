@@ -34,7 +34,7 @@ class ImprovePhase:
         self._prev_score = self._prev_passed(prev)
         self._old_commands = {str(c.get("criterion", "")) or str(c.get("command", ""))
                               for c in old_design.get("criteria_checks") or []}
-        self._say(f"[PHASE] improve from {prev.name} (31B) - "
+        self._say(f"[PHASE] improve from {prev.name} ({self._mlabel('critic')}) - "
                   f"previous score {self._prev_score}")
         self.log("phase", name="improve", from_run=prev.name,
                  prev_score=self._prev_score)
@@ -103,7 +103,7 @@ class ImprovePhase:
                                         for c in plan.get("changes", [])])
 
         # 변경 계획 적용: 기존 파일은 표적 수정, 새 파일은 구현
-        self._say("[PHASE] apply improvement changes (26B)")
+        self._say(f"[PHASE] apply improvement changes ({self._mlabel('generator')})")
         self.log("phase", name="implement")
         for change in plan.get("changes", []):
             self._check_time()

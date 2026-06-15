@@ -29,7 +29,7 @@ class ImplementPhase:
     def _phase_implement(self) -> None:
         if getattr(self, "whole", False):  # 통짜: 한 콜에 전체 파일 생성
             return self._phase_implement_whole()
-        self._say("[PHASE] implement (26B)")
+        self._say(f"[PHASE] implement ({self._mlabel('generator')})")
         self.log("phase", name="implement")
         notes = self._load_notes()
         order = implementation_order(self.design)

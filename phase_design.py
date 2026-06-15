@@ -32,7 +32,7 @@ class DesignPhase:
             return []
 
     def _phase_design(self, idea: str, lesson_texts: list[str] | None = None) -> None:
-        self._say("[PHASE] design (31B)")
+        self._say(f"[PHASE] design ({self._mlabel('critic')})")
         self.log("phase", name="design")
         errors: list[str] = []
         for attempt in range(DESIGN_ATTEMPTS):

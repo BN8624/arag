@@ -26,7 +26,8 @@ class CritiquePhase:
                         else self.critique_rounds)
         for round_no in range(1, total_rounds + 1):
             self._check_time()
-            self._say(f"[PHASE] critique round {round_no}/{total_rounds} (31B)")
+            self._say(f"[PHASE] critique round {round_no}/{total_rounds} "
+                      f"({self._mlabel('critic')})")
             self.log("phase", name="critique", round=round_no,
                      total=total_rounds)
             self.critique_rounds_used = round_no
@@ -45,7 +46,8 @@ class CritiquePhase:
             if not flagged:
                 self._say("  [SKIP] critique flagged no existing files")
                 return
-            self._say(f"  [REVISE] {len(flagged)} file(s) flagged (26B)")
+            self._say(f"  [REVISE] {len(flagged)} file(s) flagged "
+                      f"({self._mlabel('generator')})")
             for f in flagged:
                 self._check_time()
                 self._revise_file(f["path"], f.get("issues", []))

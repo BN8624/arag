@@ -15,7 +15,7 @@ class TestsPhase:
         """31B가 설계 계약 기반 pytest 출제. 실패해도 회차는 계속 (테스트 없이 진행)."""
         if self.skip_exec:
             return  # 실행 게이트가 없으면 pytest를 돌릴 곳도 없다
-        self._say("[PHASE] write acceptance tests (31B)")
+        self._say(f"[PHASE] write acceptance tests ({self._mlabel('critic')})")
         self.log("phase", name="tests")
         import ast as ast_mod
         for attempt in range(2):
