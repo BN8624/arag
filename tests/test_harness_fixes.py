@@ -62,6 +62,29 @@ def test_contract_accepts_class_methods(tmp_path):
     assert missing == [], f"메서드를 못 찾아 false contract-missing: {missing}"
 
 
+def _design_qualified_method():
+    """계약이 메서드를 'Simulator.run'처럼 클래스명으로 정규화해 부르는 경우
+    (T-000012 design.json이 'BattleSimulator.run'으로 부른 실제 케이스)."""
+    d = _design_method()
+    for f in d["files"]:
+        if f["path"] == "core.py":
+            f["interfaces"] = [
+                {"kind": "class", "name": "Simulator"},
+                {"kind": "function", "name": "Simulator.__init__",
+                 "signature": "def __init__(self, budget: int)"},
+                {"kind": "function", "name": "Simulator.run",
+                 "signature": "def run(self) -> dict"}]
+    return d
+
+
+def test_contract_accepts_qualified_method_names(tmp_path):
+    (tmp_path / "core.py").write_text(CORE_WITH_METHOD, encoding="utf-8")
+    (tmp_path / "main.py").write_text(MAIN_USES, encoding="utf-8")
+    issues = run_static_gate(tmp_path, _design_qualified_method())
+    missing = [i for i in issues if i["kind"] == "contract-missing"]
+    assert missing == [], f"정규화 메서드명을 못 찾아 false contract-missing: {missing}"
+
+
 # ---- Fix 2: success_signal substring 리스트(전부 포함) ----
 
 def test_substr_missing_string_and_list():

@@ -347,11 +347,17 @@ def _check_contracts(trees, design) -> list[dict]:
                      if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
         top_names = _toplevel_names(tree)
         # 클래스 메서드도 정의로 인정 — 설계가 메서드 인터페이스(__init__/run 등)를
-        # 선언했을 때 클래스 안에 있어도 false contract-missing이 안 나게 (하네스 버그 수정)
-        class_methods = {m.name for node in tree.body
-                         if isinstance(node, ast.ClassDef)
-                         for m in node.body
-                         if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        # 선언했을 때 클래스 안에 있어도 false contract-missing이 안 나게 (하네스 버그 수정).
+        # 계약이 메서드를 'run'(맨이름)으로도, 'BattleSimulator.run'(정규화)으로도 부를 수
+        # 있으므로 두 형태 모두 정의로 등록한다.
+        class_methods = set()
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for m in node.body:
+                if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    class_methods.add(m.name)
+                    class_methods.add(f"{node.name}.{m.name}")
         defined = top_names | class_methods
         for iface in f.get("interfaces", []):
             iname = iface.get("name")
