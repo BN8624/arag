@@ -176,16 +176,32 @@ class LLMClient:
             _pacer_last_call_at = now
 
     def generate(self, role: str, prompt: str, temperature: float | None = None) -> str:
-        """role('generator'|'critic')의 모델로 1콜. 텍스트를 반환한다."""
+        """role('generator'|'critic')의 모델로 1콜. 텍스트를 반환한다.
+
+        가용성 폴백(결정16): generator(손) 콜이 429/5xx 재시도 소진으로 죽으면 critic
+        모델로 1회 강등 재시도한다. 폴백 대상이 generator와 같으면(31단독·26단독) no-op.
+        """
         if self.max_calls is not None and self.call_count >= self.max_calls:
             raise CallBudgetExceeded(
                 f"call budget exhausted ({self.call_count}/{self.max_calls})"
             )
-        model = get_model(role)
         config = {}
         if temperature is not None:
             config["temperature"] = temperature
+        model = get_model(role)
+        try:
+            return self._generate_with(role, model, prompt, config)
+        except RuntimeError as err:  # 429/5xx 재시도 소진 (다른 에러는 그대로 전파)
+            fallback = get_model("critic")
+            if role != "generator" or fallback == model:
+                raise  # 손 콜이 아니거나 강등 대상이 같음(31단독/26단독) → no-op
+            print(f"[FALLBACK] {model} infra-exhausted -> demoting to "
+                  f"{fallback} (1 try): {err}")
+            return self._generate_with(role, fallback, prompt, config)
 
+    def _generate_with(self, role: str, model: str, prompt: str,
+                       config: dict) -> str:
+        """주어진 model로 재시도 루프 1회분(429/5xx 백오프)을 돈다."""
         last_err: Exception | None = None
         empty_count = 0
         for attempt in range(MAX_RETRIES + 1):
