@@ -1,7 +1,22 @@
 # HANDOFF.md — 진행상황 스냅샷
 
-> 새 세션은 이 파일 먼저. 지침 = [CLAUDE.md](CLAUDE.md), 계획 = [PLAN.md](PLAN.md),
-> 결정 로그 = [context-notes.md](context-notes.md), 체크리스트 = [checklist.md](checklist.md).
+## ▶ 새 세션 여기부터 (3단계만)
+1. **읽기**: 이 파일의 `지금 어디` + `다음 액션` 두 섹션만. 그거면 바로 시작 가능.
+2. **지금 할 일 (한 줄)**: **조립 카드 제작 = 통합 frontier.** PAMPHLET 전체 + seeds 1/3/5/7 골든을
+   카드 goal에 넣고(오라클=A: winner+turns+final_hp 일치), `select_run.py`로 저항 검증.
+   상세는 아래 `다음 액션` 1번. 규칙은 `game/PAMPHLET.md`, 골든은 `python game/main.py --seed N`.
+3. **막히면**: "왜 이렇게 정했나"는 `context-notes.md` 결정번호로, "큰 방향"은 `PLAN.md`.
+
+**문서 용도 (필요할 때만 펼쳐라):**
+| 문서 | 용도 | 언제 |
+|---|---|---|
+| **HANDOFF.md** (여기) | 현재 상태 + 다음 할 일 | **항상 먼저** |
+| CLAUDE.md | 프로젝트 규칙·제약(어떻게 일할지) | 처음 1회 |
+| context-notes.md | 결정 로그(왜 이렇게 됐나, 결정 1~20) | 특정 결정 궁금할 때 |
+| PLAN.md | 큰 명세·로드맵 | 방향 의심될 때 |
+| game/PAMPHLET.md | RPG 규칙·데이터계약·AI정책 | 조립카드/모듈 작업 시 |
+| checklist.md | 세부 체크리스트 | 진행 추적 |
+
 > 최신 상태만 둔다. 상세 프로즈는 git 히스토리·context-notes에.
 
 ## 지금 어디 (2026-06-15)
