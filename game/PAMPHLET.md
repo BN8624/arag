@@ -74,6 +74,10 @@ Event: dict
   - **"폭발" detonate**: 단독 base 20. **actor.last_skill=="ignite"면 base 50 + 화상 부여.**
   - **"준비" charge**: 자신 강화 표식(다음 연계타 2회). base 0.
   - **"연계타" combo_strike**: base 12. **actor.last_skill=="charge"면 2회 타격.**
+  - **"서리" frost**: base 4 + target에 빙결 부여(1턴).
+  - **"맹독" venom**: base 3 + target에 중독 부여(turns 3, stacks 2).
+  - **"감전탄" shock_bolt**: base 6 + target에 감전 부여(2턴). 부여 자체 타격엔 감전배수 미적용(이후 타격부터).
+  - (피해 스킬은 모두 §2.3 기본 피해식·감전배수·콤보 사슬 규칙을 공유. 상태부여는 피해 적용 후 apply_status로.)
 
 ## 3. 모듈 지도 + 진입 시그니처 (조립 계약)
 - `entities.py`: `Entity`, `Status` 정의 + `make_entity(...)->Entity`.

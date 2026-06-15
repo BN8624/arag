@@ -74,6 +74,41 @@ def test_combo_detonate_after_ignite():
     assert before - t2.hp == 70
 
 
+def test_frost_applies_freeze():
+    a = _e(atk=20)
+    t = make_entity("t", "T", "enemy", 200, 0, 0, 5)
+    resolve_skill(a, t, "frost")
+    assert get_status(t, "freeze") is not None
+    assert 200 - t.hp == 24                 # 20+4-0
+
+
+def test_venom_applies_poison_two_stacks():
+    a = _e(atk=20)
+    t = make_entity("t", "T", "enemy", 200, 0, 0, 5)
+    resolve_skill(a, t, "venom")
+    assert get_status(t, "poison").stacks == 2
+    assert 200 - t.hp == 23                 # 20+3-0
+
+
+def test_shock_bolt_applies_shock_then_amplifies():
+    a = _e(atk=20)
+    t = make_entity("t", "T", "enemy", 200, 0, 0, 5)
+    resolve_skill(a, t, "shock_bolt")       # 20+6-0=26, 감전 부여(이 타격엔 미적용)
+    assert get_status(t, "shock") is not None
+    assert 200 - t.hp == 26
+    before = t.hp
+    resolve_skill(a, t, "combo_strike")     # 다음 타격은 감전 ×1.25: (20+12)*1.25=40
+    assert before - t.hp == 40
+
+
+def test_skill_frost_blocked_by_burn():
+    a = _e(atk=20)
+    t = make_entity("t", "T", "enemy", 200, 0, 0, 5)
+    resolve_skill(a, t, "ignite")           # burn 부여
+    resolve_skill(a, t, "frost")            # 화상 보유 → 빙결 무효
+    assert get_status(t, "freeze") is None
+
+
 def test_combo_strike_double_after_charge():
     a = _e(atk=20)
     t = make_entity("t", "T", "enemy", 200, 0, 0, 5)

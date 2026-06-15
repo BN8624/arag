@@ -12,15 +12,15 @@ from combat import run_battle
 # (name, max_hp, atk, defense, spd, skills)
 HERO_POOL = [
     ("Pyro", 90, 18, 4, 12, ["ignite", "detonate", "combo_strike"]),
-    ("Frost", 100, 14, 6, 10, ["ignite", "charge", "combo_strike"]),
-    ("Volt", 85, 16, 3, 15, ["ignite", "detonate", "charge", "combo_strike"]),
-    ("Tank", 140, 12, 9, 7, ["charge", "combo_strike", "ignite"]),
+    ("Frost", 100, 14, 6, 10, ["frost", "ignite", "combo_strike"]),
+    ("Volt", 85, 16, 3, 15, ["shock_bolt", "venom", "combo_strike"]),
+    ("Tank", 140, 12, 9, 7, ["charge", "combo_strike", "venom"]),
 ]
 ENEMY_POOL = [
-    ("Goblin", 70, 13, 3, 11, ["combo_strike", "ignite"]),
-    ("Orc", 120, 17, 6, 8, ["detonate", "combo_strike"]),
-    ("Imp", 60, 15, 2, 14, ["ignite", "detonate"]),
-    ("Golem", 160, 14, 11, 5, ["combo_strike", "charge"]),
+    ("Goblin", 70, 13, 3, 11, ["venom", "combo_strike"]),
+    ("Orc", 120, 17, 6, 8, ["shock_bolt", "detonate", "combo_strike"]),
+    ("Imp", 60, 15, 2, 14, ["ignite", "frost", "detonate"]),
+    ("Golem", 160, 14, 11, 5, ["combo_strike", "charge", "frost"]),
 ]
 
 

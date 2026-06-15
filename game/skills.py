@@ -1,4 +1,4 @@
-# 스킬/콤보 — 점화·폭발·준비·연계타 (PAMPHLET §2.3). 콤보는 actor.last_skill로 판정
+# 스킬/콤보 — 점화·폭발·준비·연계타·서리·맹독·감전탄 (PAMPHLET §2.3). 콤보는 actor.last_skill로 판정
 """resolve_skill이 피해 계산(감전 배수 포함)·콤보 강화·상태부여·last_skill 갱신을 처리한다."""
 
 from entities import Entity
@@ -35,6 +35,18 @@ def resolve_skill(actor: Entity, target: Entity, skill: str) -> list:
         else:
             d = _hit(actor, target, 20)
             events.append(_ev("skill", actor.id, target.id, d, "detonate"))
+    elif skill == "frost":
+        d = _hit(actor, target, 4)
+        events.append(_ev("skill", actor.id, target.id, d, "frost"))
+        events += apply_status(target, "freeze", 1)
+    elif skill == "venom":
+        d = _hit(actor, target, 3)
+        events.append(_ev("skill", actor.id, target.id, d, "venom"))
+        events += apply_status(target, "poison", 3, stacks=2)
+    elif skill == "shock_bolt":
+        d = _hit(actor, target, 6)
+        events.append(_ev("skill", actor.id, target.id, d, "shock_bolt"))
+        events += apply_status(target, "shock", 2)
     elif skill == "charge":
         events.append(_ev("skill", actor.id, actor.id, 0, "charge"))
     elif skill == "combo_strike":
