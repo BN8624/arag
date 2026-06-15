@@ -15,7 +15,7 @@ from datetime import datetime
 from config import PROJECT_ROOT, force_utf8_stdout
 from auto_campaign import run_phase, _default_runner, R31
 
-CARDS = ["T-000009", "T-000010"]  # 깊이-frontier 후보(결정19 B) — select-best 저항 검증
+CARDS = ["T-000011"]  # RPG 상태이상 모듈 저항 검증
 CAP = 8  # 카드당 최대 시도
 LEDGER = PROJECT_ROOT / "runs" / "select_ledger.jsonl"
 
