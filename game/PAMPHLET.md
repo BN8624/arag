@@ -59,6 +59,13 @@ Event: dict
 - 빙결 상태로 행동 차례가 오면 **행동 스킵 + gauge=0 + freeze turns−1**.
 - 한쪽 팀 전멸 시 종료. max_turns 초과 시 무승부.
 
+### 2.2.1 AI 정책 (결정적 — combat.py)
+- **대상**: 상대 팀 생존자 중 HP 최저(동률이면 인덱스 낮은 쪽).
+- **스킬**: 각 엔티티 skills 로테이션 순환(rotation_index, 매 행동 다음 스킬).
+- **턴 처리 순서**: tick_start(화상) → (빙결이면 스킵·gauge=0·freeze−1·last_skill=None /
+  아니면 gauge−=100 후 대상선택·스킬해소) → tick_end(중독·감전). 화상 tick은 빙결이어도 발생.
+- 피격(스킬 피해)을 받으면 그 대상의 last_skill=None(콤보 사슬 끊김).
+
 ### 2.3 스킬/콤보 (모듈: skills.py)
 - 기본 피해 계산: `dmg = max(1, atk + skill.base - target.defense)` → 감전 시 ×1.25(내림).
 - 각 엔티티 `last_skill` 기억. 피격·스킵 등 *스킬 외 사건*으로 끊기면 None.
