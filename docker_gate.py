@@ -8,6 +8,7 @@
 stdlib-only 규격이라 가능), 컨테이너는 --rm으로 자동 정리.
 """
 
+import re
 import shlex
 import subprocess
 import sys
@@ -119,8 +120,8 @@ def run_exec_gate(workdir: Path, success_signal: dict,
         missing = _substr_missing(out, expect)
         if missing:
             issues.append(_exec_issue(
-                f"command succeeded but expected output {missing!r} "
-                "was not found in stdout/stderr", out))
+                "command ran but golden output mismatch — fix these values:\n"
+                + _golden_diff(out, missing), out))
     return issues, "\n\n".join(logs)
 
 
@@ -188,6 +189,30 @@ def _substr_missing(out: str, expect) -> list[str]:
         return []
     tokens = expect if isinstance(expect, list) else [expect]
     return [str(t) for t in tokens if str(t) and str(t) not in out]
+
+
+def _golden_diff(out: str, missing: list[str], max_lines: int = 12) -> str:
+    """빠진 기대 토큰('key: value')별로 출력의 실제 값을 찾아 expected-vs-actual을
+    국소화한다. '없는 substring' 통짜 대신 어느 값이 어긋났는지(예: turns 23↔25)를
+    바로 보여줘 자가수정이 통합 수치버그를 좁혀 잡게 한다."""
+    lines: list[str] = []
+    for tok in missing[:max_lines]:
+        m = re.match(r"^\s*(.+?)\s*:\s*(.+?)\s*$", tok)
+        if not m:                                  # 'key: value' 모양이 아니면 그대로
+            lines.append(f"  expected {tok!r} - not found in output")
+            continue
+        key, exp = m.group(1), m.group(2)
+        got = list(dict.fromkeys(                  # 같은 key의 실제 값들(중복 제거)
+            re.findall(rf"{re.escape(key)}\s*:\s*(\S+)", out)))
+        if got:
+            shown = got[0] if len(got) == 1 else got
+            lines.append(f"  {key}: expected {exp!r}, got {shown!r}")
+        else:
+            lines.append(f"  {key!r} not present in output (expected {exp!r})")
+    extra = len(missing) - max_lines
+    if extra > 0:
+        lines.append(f"  ... (+{extra} more mismatches)")
+    return "\n".join(lines)
 
 
 def _as_argv(command: str) -> list[str]:

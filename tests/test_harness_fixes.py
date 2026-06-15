@@ -101,6 +101,20 @@ def test_substr_missing_string_and_list():
     assert docker_gate._substr_missing(out, "") == []
 
 
+def test_golden_diff_localizes_expected_vs_actual():
+    """빠진 'key: value' 토큰을 실제 출력값과 대조해 국소화한다."""
+    out = "winner: enemy\nturns: 25\nenemy2: 152\nturns: 17"
+    diff = docker_gate._golden_diff(
+        out, ["turns: 23", "enemy2: 160", "winner: hero"])
+    # 어긋난 값이 expected↔got으로 보여야 한다
+    assert "expected '23'" in diff and "'25'" in diff      # turns(여러 값)
+    assert "enemy2: expected '160', got '152'" in diff     # 단일 값
+    assert "winner: expected 'hero', got 'enemy'" in diff
+    # 출력에 아예 없는 key는 그렇게 표시
+    nd = docker_gate._golden_diff(out, ["score: 9"])
+    assert "not present in output" in nd
+
+
 # ---- Fix 2c: 스키마가 리스트 expect_substring 허용 ----
 
 def test_schema_expect_ok():
