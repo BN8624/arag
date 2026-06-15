@@ -3,6 +3,10 @@
 > 지침은 [CLAUDE.md](CLAUDE.md), 진행상황은 [HANDOFF.md](HANDOFF.md),
 > 진행 체크리스트는 [checklist.md](checklist.md), 결정 로그는 [context-notes.md](context-notes.md).
 > 이 문서는 **앞으로 할 일과 그 명세**만 담는다. 끝난 일은 HANDOFF로 간다.
+>
+> ⚠️ **최신 방향은 여기 아님**: 이 문서는 PLAN 2(게임/앱 cold/warm) 시점 명세다. 이후 **통합
+> frontier로 전환**(조립카드 T-000012, select-best, frontier=틱 스케줄러)됐다 — context-notes
+> 결정20·21·24 + HANDOFF가 정본. §1 cold/warm·§9 아키텍처 사다리는 여전히 유효한 로드맵.
 
 ## 0. 최종 목표 (2026-06-13 재확정)
 

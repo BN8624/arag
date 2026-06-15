@@ -399,10 +399,12 @@ thinking이 비용·시간 지배(회차당 25~48k), 출력 잘림 0.
 실패경로에서 record_lesson(기본 LESSONS_PATH) 호출, 통합테스트가 매 실행마다 실제파일 오염(key_usage
 오염과 동일 부류=테스트 격리 누락 + 기본인자 import-바인딩 함정). 고침: conftest LESSONS_PATH 격리 +
 load_lessons/record_lesson 호출시점 해소 + 6자미만 더미 가드 + 청소 74→54(백업 bak-prejunk).
-잔여 동일패턴 config.load_env(ENV_PATH)는 읽기·실제config라 무해(방치).
+잔여 동일패턴(load_env·_name_used·by_run)도 전수검토에서 마저 정리(커밋 44dbd41·a8b233b).
+전수검토 총평: bare except 0·mutable default 0·syntax 0 — 성숙한 코드, 활성 루프 실질버그 없음.
 
 ## 미해결 (다음 세션이 먼저 답할 것)
-- **L4-5 카드 제작** (전투 줄기 단계적) — frontier 측정의 전제.
-- **L4-5에서 한꺼번에 측정**: 아키텍처(분해/통짜)·노트(cold/warm)·역할배정. 현재 난이도(L2-3)
-  재측정은 무의미(다 통과=천장) — 역할배정 재실행도 L4-5에서만.
+- **4home 비용 측정**(원래 목표): 안정 시간대(26 안 죽는 때)에 `select_run T-000012 4home <width>` →
+  31solo 베이스라인과 비용↔통과율 비교. RPD 트래커가 키 소진 자동관리. 26 사망시간이면 보류.
+- **warm 캠페인**: 누적 노트(lessons/critique_notes)로 cold 대비 델타(노트 효과 정식 측정).
 - temperature 고정값(추천 0.2) + gemma temperature/seed 지원 여부(미확인).
+- **형태 확장(별도 축)**: 어댑터 → 2D 방치형(game/ 정본 재사용).
