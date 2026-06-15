@@ -4,11 +4,12 @@
 > 결정 로그 = [context-notes.md](context-notes.md), 체크리스트 = [checklist.md](checklist.md).
 > 최신 상태만 둔다. 상세 프로즈는 git 히스토리·context-notes에.
 
-## 지금 어디 (2026-06-14)
+## 지금 어디 (2026-06-15)
 
-**방향 대전환 완료.** 벤치마크/Design-Bank 중심에서 **"무료 gemma × 오케스트레이션의
-frontier"**로 재정의(상위모델 에스컬레이션 영구 폐기). 측정 장치를 PLAN 2로 재설계하고,
-어려운 카드(L2-3 게임/앱)로 첫 실측을 돌렸다.
+**층1(능력매핑) 완료, 층2(오케스트레이션) 착수 중.** 50런으로 harness_lift +48%p 확인,
+select-best가 단일카드 frontier를 1~2번에 넘음 → **난이도=창발적 통합**임을 발견. 그래서
+모듈식 RPG(`game/` 골든 레퍼런스)를 세우고, 다음은 **조립 카드**로 진짜 통합 frontier를 찾는다.
+(배경: 벤치마크/Design-Bank → "무료 gemma × 오케스트레이션 frontier"로 재정의됨, 상위모델 폐기.)
 
 ### 이번 세션 핵심 결과 (카드 4·5·6, 공정 하네스)
 - **🔴 측정도구 버그 2개 발견·수리 (최대 산출)**: 과거 "모델 실패"의 상당수가 하네스 버그였음.
@@ -58,29 +59,40 @@ frontier"**로 재정의(상위모델 에스컬레이션 영구 폐기). 측정 
 - **레벨≠난이도 확정**: L3(T-6)=100% > L2 둘(T-2·T-5)=50%대, L5(T-8)>L4(T-7).
 - **T-7·T-5 실패 = 진짜 모델 한계**(pytest 로직 실패, 상태/확률). 하네스 깨끗 = free win 없음.
 
+## select-best 결과 = frontier가 확률임 (결정20)
+- select-best(retry+게이트선택 cap8)이 **모든 단일카드를 1~2번에 깸**: T5·T7·T8(1~2), 새 T9수식·
+  T10정규식·T11상태모듈(전부 1). T7 16%도 retry로 싸게 넘음.
+- **난이도 세 번 틀리고 얻음**: ≠검사수 ≠깊이 ≠신규규칙. **난이도=창발적 통합**(여러 시스템이
+  여러 턴 함께 돌며 동시에 맞아야). 단일 모듈은 다 쉽다(명시적이면 모델은 번역만).
+
+## 모듈식 RPG 착수 → `game/` 폴더 (측정과 분리, 결정20)
+- **`game/` = 게임 정본 + 골든 오라클 소스.** PAMPHLET.md(신규규칙·계약·AI정책) + 레퍼런스
+  구현(entities/status/skills/combat/main) + test_reference 10/10 통과 검증. 결정적.
+- 골든 예: seed1→영웅14턴 / seed3→적33턴 / seed7→영웅10턴. (`cd game && python main.py --seed N`)
+- 모델엔 비노출(정답지). 껍데기(에셋)는 나중 어댑터.
+
 ## 돌고 있는 것
-- **층2-a select-best(select_run.py)** — 약한칸 T-5·T-7·T-8을 31단독 cold로 통과까지 반복(cap8),
-  "몇 번에 깨지나" 측정 + 노트 축적. 대시보드 http://100.89.73.83:8400 (31단독 필터).
+**없음.** (대시보드 서버만 8400에 떠있음 — http://100.89.73.83:8400, 31단독 필터.)
 
-## 로드맵 (결정 19 — 확정 순서)
-**층1(능력매핑) 끝. 층2(오케스트레이션)=본론. warm은 노트 최대축적 위해 맨 뒤.**
-1. ✅ 50런 분석 / ✅ index 정리(104→56, 백업 2중).
-2. **층2-a select-best**(진행중) — 오케스트레이션 *바닥선*(무식한 retry로 T-7 몇 번/얼마에 깸).
-3. **폴백 구현**(`llm.py`): 26B(손) 5xx/429 소진 시 31B 1회 강등. 26단독은 자동 no-op. **시니어+
-   주니어 전에 필수**(26B 야간내성). select-best 끝난 뒤 편집(도는 측정 밑 코드 안 건드림).
-4. **층2-b 시니어+주니어 = 26 주니어 / 31 시니어** (★확정. 31단독은 비용비대칭 없어 무의미).
-   질문: 싼 구성이 select-best(31단독) 바닥선보다 *적은 비용*으로 T-7 깨나? 이기면 오케스트레이션
-   진짜 값 증명. (국소패치도 여기 후보.)
-5. **warm 캠페인**(맨 뒤): 누적 노트로 31단독 cold(70%) 대비 델타. T-5·T-7을 노트가 구하나.
-6. **형태 확장(별도 축)**: 어댑터 → 2D **방치형**. 행동=gemma+오라클, 에셋=나중 바인딩.
+## 다음 액션 (★다음 세션 여기부터)
+1. **조립 카드 제작 = 통합 frontier** (결정20). goal에 PAMPHLET 전체 자체포함 + **seeds 1/3/5/7
+   골든을 박고 오라클=A(winner+turns+final_hp 일치)**. B(트레이스)는 기각(과잉제약). 만든 뒤
+   `select_run.py`로 저항 검증. **cap 안에 못 깨면 드디어 진짜 frontier.**
+   - 골든은 `game/main.py --seed N`으로 그때그때 재생성(레퍼런스가 정본).
+2. **frontier 확정 후** → **폴백 구현**(`llm.py` 26B 5xx/429 소진 시 31B 1회 강등, 26단독 no-op,
+   테스트) → **시니어+주니어(26주니어/31시니어)**: select-best 바닥선보다 *싸게* 통합 깨나.
+3. **warm 캠페인**(맨 뒤): 누적 노트로 cold(70%) 대비 델타. T-5·T-7을 노트가 구하나.
+4. **형태 확장(별도 축)**: 어댑터 → 2D 방치형.
 
-> 전략 사실(결정19): "팔 제품"은 자꾸 녹음(도구=commodity, VOCR=해결). ARAG 가치 = 산출물 아닌
-> **연구/방법론/검증하네스/벤치마크.** 실무 문제(VOCR류)가 또 생기면 검증된 레시피 재적용이 최고가치.
+## 카드 현황 (design_bank.sqlite, 10장 — gitignore라 bank_cards_*.py로 재빌드)
+- T-1~8: L1-5 게임/앱(bank_cards_p2/l45). T-9 수식·T-10 정규식(bank_cards_l6). T-11 상태모듈(bank_cards_rpg).
+- **T-9~11 = 단일관심사라 쉬움**(select-best 1번). 진짜 frontier는 *조립 카드*(아직 미제작).
 
 ### 완료된 결정/작업 (이번 세션)
-- ✅ **브랜치 단일화(결정18)**: bank-b2-env→main 흡수, arag-bank 워크트리·브랜치 제거.
-  단일 워크트리 `C:\Users\USER\arag`, 단일 브랜치 main. **개인 프로젝트 = main 하나, 새 브랜치 금지.**
-- ✅ **최소 스키마(결정17)**: bank_schema 옵션필드 + 8장 마이그레이션(T-8만 spec_complete=false).
+- ✅ **브랜치 단일화(결정18)**: 단일 워크트리 `C:\Users\USER\arag`, main 하나. 새 브랜치 금지.
+- ✅ **최소 스키마(결정17)** / ✅ 50런·select-best 측정 / ✅ index 정리(104→56, 백업: zip +
+  index.json.bak-preprune) / ✅ game/ 레퍼런스+골든.
+> 전략(결정19): 팔 제품은 자꾸 녹음. ARAG 가치=연구/방법론/검증하네스/벤치마크.
 
 ## 측정 도구 (콜0)
 - 관측 분류·점수: `observability.py`(limit_type/artifact_score) → `plan2.py`(라벨5/점수_auto/
@@ -88,8 +100,10 @@ frontier"**로 재정의(상위모델 에스컬레이션 영구 폐기). 측정 
 - 분산·노트효과: `variance.py`(조건별 통과율=천장/분산 + cold/warm 델타). index 새 필드
   (critic_model/generator_model/whole/duration_sec)에서 그룹 파생.
 - 출력한도 프로브: `probe_output_limit.py`(모드별), `probe_ceiling.py`(큰 n). 일회성.
-- 캠페인 드라이버: `obs_run.py`(31단독 관찰 50런, 통짜/분할 교대), `l45_run.py`(L4 cold/warm),
+- 캠페인 드라이버: `select_run.py`(★층2 select-best: 통과까지 반복·cap·"몇번에 깸"),
+  `obs_run.py`(31단독 관찰 50런, 통짜/분할 교대), `l45_run.py`(L4 cold/warm),
   `night_run.py`·`whole_run.py`·`recheck_run.py`·`cont_26b.py`·`auto_campaign.py`(과거 캠페인).
+- 게임 정본·골든: `game/`(레퍼런스 RPG, `python game/main.py --seed N`로 골든 생성).
 
 ## 기계 정본 (사람 문서보다 우선)
 - 코어: `runs/index.json`(+ critic_model/generator_model/whole/duration_sec/mode/prompt_version),
