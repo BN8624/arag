@@ -232,3 +232,8 @@ _exploration/
 
 # 런타임 생성 오답노트 (런마다 갱신, 정본은 백업/export)
 lessons.json
+
+# 로컬 백업·런타임 산출물(추적 금지)
+arag-bank-data-backup-*.zip
+critique_notes.json
+.claude/
