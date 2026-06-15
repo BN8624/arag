@@ -11,35 +11,33 @@
   26→31 순차라 충돌 없음. 시도끼리 완전 독립). 노브 둘 분리 — ①키풀크기(쿼터상한, ≤11)
   ②도커 세마포어(PC RAM 상한, 4~6부터 실측).
 
-## 0. 선결 확인 (코딩 전)
-- [ ] `.env`에 키 11개를 어떤 이름으로 넣을지 확정 (예: `GOOGLE_API_KEY_1..11` 또는 콤마구분
-      `GOOGLE_API_KEYS=`). 키 1개만 있을 때 기존 동작 유지(하위호환) 보장.
-- [ ] Docker Desktop WSL2 현재 VM = 8.2GB/12CPU(.wslconfig 없음, 기본). 컨테이너캡 없음 확인됨.
-- [ ] 도커 동시성 시작값 = 4 (8GB ÷ 512MB = 16 여유, 보수적으로 4부터 올림).
+## 0. 선결 확인 (코딩 전) — 완료
+- [x] `.env` 키 형식 확정 = `GOOGLE_API_KEY_1..11`(한 줄당 하나, 번호 suffix). 기존 로더가
+      줄당 KEY=VALUE 파싱이라 로더 변경 0. 단일 `GOOGLE_API_KEY` 폴백 유지(하위호환).
+      .env.example 11슬롯으로 갱신. **키 11개 전부 실통과 확인(11/11 OK).**
+- [x] Docker Desktop WSL2 현재 VM = 8.2GB/12CPU(.wslconfig 없음, 기본).
+- [x] 도커 동시성 시작값 = **2**로 확정(호스트 16GB·피크80%, 도커단계는 짧아 병목 아님 → 보수적).
 
-## 1. 키풀 + 키별 페이서 (llm.py) — 측정 무관, 먼저
-- [ ] `.env` 로더가 키 리스트를 읽어 풀(Queue) 구성. 1개뿐이면 그 1개로 동작(no-op 확장).
-- [ ] 전역 페이서 1개(`_pacer_lock`/`_pacer_last_call_at`) → **키별 dict**(키마다 락·last_call).
-      워커수>키수여도 페이서가 RPM 막음(그냥 느려짐) = 안전.
-- [ ] LLMClient가 키 1개에 바인딩(생성 시 풀에서 체크아웃 or 인자로 주입). 그 클라이언트의
-      26·31 콜 전부 그 키로 + 그 키 페이서 사용.
-- [ ] 폴백(generator→critic 강등)은 **같은 키 안에서** 모델만 바꾸게 유지(결정16 불변).
-- [ ] 테스트: 키 N개 풀에서 동시 워커 N개가 서로 다른 키 잡는지 / 키별 4초 간격 지키는지 /
-      키 1개일 때 기존과 동일한지(회귀).
+## 1. 키풀 + 키별 페이서 (llm.py) — 완료 (커밋 6592927)
+- [x] `config.get_api_keys()`: `GOOGLE_API_KEY_1..N` 숫자순 수집, 없으면 단일키 폴백.
+- [x] 전역 페이서 → **키별 페이서**(`_get_pacer(key)`: 키마다 락·last). 같은 키만 4초 직렬,
+      다른 키는 독립. 단일키면 기존 전역 페이서와 동일 동작.
+- [x] `LLMClient(api_key=)` 키 바인딩. 그 키로만 26·31 콜 + 그 키 페이서.
+- [x] 폴백(generator→critic 강등)은 같은 키 안 모델만 바꿈(결정16 불변).
+- [x] `KeyPool`(Queue 체크아웃/반납) 추가. 테스트 8(숫자정렬/폴백/플레이스홀더제외/페이서
+      독립/풀 distinct·고갈블록·기본).
 
-## 2. 연속 리필 풀 (select_run.py) — 웨이브배리어 제거
-- [ ] 현재 웨이브배리어(`for fut in futs: fut.result()` 후 다음 웨이브) → **일감 전부 한 번에
-      제출**, 풀 크기=키풀크기. 슬롯 비면 자동 다음 당김(ThreadPoolExecutor 기본 동작).
-- [ ] early-stop: 첫 통과 나오면 미시작 시도 취소(`future.cancel()`)·진행분만 흘려보냄.
-      "누적 시도수" 의미 유지(장부 cracked_at/attempts).
-- [ ] 워커 시작 시 키풀에서 키 체크아웃 → 끝나면 반납(컨텍스트매니저). 워커당 정확히 키 1개.
-- [ ] arm 인자(이미 추가됨: 31solo/4home) + 새 인자 width(동시 워커수, 기본=키수 or CAP).
+## 2. 연속 리필 풀 (select_run.py) — 완료 (커밋 0e96eb0)
+- [x] 웨이브배리어 제거 → CAP개 한 번에 제출, width 슬롯 자동 리필(`as_completed`).
+- [x] early-stop: 첫 통과 시 미시작 `future.cancel()`, 도는 건 흘려보냄. attempts=실제로 돈 수.
+- [x] 워커=키: 시작 시 `KeyPool.checkout()` → 끝나면 반납(컨텍스트매니저).
+- [x] arm 인자 + 새 인자 width(argv[3], 기본=min(키수,CAP)). 테스트 1(early-stop 취소).
 
-## 3. 도커 세마포어 + 컨테이너 캡 (docker_gate.py)
-- [ ] `threading.Semaphore(N_DOCKER)`를 게이트 진입에 걸어 동시 컨테이너 ≤ N(기본 4).
-      세마포어는 모듈 전역 1개(모든 워커 공유). select_run에서 N 주입 가능하게.
-- [ ] `docker run`에 `--memory=512m --cpus=1` 추가(폭주 1개가 VM 독식 못 하게).
-- [ ] 테스트: 세마포어가 동시 진입 수 제한하는지(mock) / --memory 인자 들어가는지.
+## 3. 도커 세마포어 + 컨테이너 캡 (docker_gate.py) — 완료 (커밋 227587e)
+- [x] 모듈 전역 `Semaphore(N_DOCKER=2)`를 `_run_in_docker` 진입에 걸어 동시 컨테이너 ≤ N.
+      `set_docker_concurrency(n)`로 주입(select_run argv[4]=n_docker, 기본 2).
+- [x] `docker run`에 `--memory=512m --cpus=1` 추가.
+- [x] 테스트 2(세마포어 동시진입 제한 mock / --memory·--cpus 인자 검증). 전체 313 통과.
 
 ## 4. 전31 재측정 (인프라 위에서, 안정 시간대)
 - [ ] arm=31solo로 select-best 재실행 = 신뢰 베이스라인 재확인(26 사망시간 회피).
