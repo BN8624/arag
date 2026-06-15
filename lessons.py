@@ -23,7 +23,8 @@ MAX_INJECT = 3      # 설계 프롬프트에 넣을 교훈 최대 개수
 MAX_LESSONS = 200   # 파일 비대 방지 (넘치면 오래된 것부터 버림)
 
 
-def load_lessons(path: Path = LESSONS_PATH) -> list[dict]:
+def load_lessons(path: Path | None = None) -> list[dict]:
+    path = LESSONS_PATH if path is None else path  # 기본값은 호출시점에(격리 반영)
     if not Path(path).exists():
         return []
     try:
@@ -77,11 +78,12 @@ def find_relevant(idea: str, lessons: list[dict] | None = None,
 
 
 def record_lesson(llm, idea: str, failure_summary: str,
-                  path: Path = LESSONS_PATH) -> dict | None:
+                  path: Path | None = None) -> dict | None:
     """실패 증거를 31B에게 주고 교훈 1건을 뽑아 lessons.json에 저장.
 
     실패해도 회차 종료를 막지 않도록 None을 반환할 뿐 예외를 내지 않는다.
     """
+    path = LESSONS_PATH if path is None else path  # 기본값은 호출시점에(격리 반영)
     prompt = f"""A fully automated code-generation pipeline failed while building a
 prototype for this idea:
 
@@ -106,7 +108,8 @@ Respond with a single JSON object (no prose, no fences):
         lesson_text = str(parsed.get("lesson", "")).strip()
         keywords = [str(k).strip().lower() for k in parsed.get("keywords", [])
                     if str(k).strip()]
-        if not lesson_text:
+        # 더미·퇴행 응답 거름: 실제 교훈은 한 문장이라 6자 미만은 쓰레기
+        if len(lesson_text) < 6 or lesson_text.lower() in {"n/a", "none", "todo"}:
             return None
         entry = {
             "t": datetime.now().isoformat(timespec="seconds"),

@@ -21,6 +21,16 @@ def _isolate_key_usage(tmp_path, monkeypatch):
     monkeypatch.setattr(key_usage, "USAGE_PATH",
                         tmp_path / "key_usage.json")
 
+
+@pytest.fixture(autouse=True)
+def _isolate_lessons(tmp_path, monkeypatch):
+    """테스트가 실제 lessons.json을 오염시키지 않게 격리.
+
+    오케스트레이터 통합 테스트가 실패 경로에서 record_lesson(기본 경로)을 불러
+    더미 교훈을 실제 파일에 쌓던 누수를 막는다(전수조사 발견)."""
+    import lessons
+    monkeypatch.setattr(lessons, "LESSONS_PATH", tmp_path / "lessons.json")
+
 GOOD_CORE = '''\
 import json
 from pathlib import Path
