@@ -11,11 +11,23 @@ stdlib-only 규격이라 가능), 컨테이너는 --rm으로 자동 정리.
 import shlex
 import subprocess
 import sys
+import threading
 import uuid
 from pathlib import Path
 
 IMAGE = "python:3.12-slim"
 EXEC_TIMEOUT_SEC = 30
+
+# 동시 컨테이너 상한(병렬 인프라, 결정22). 도커 단계는 짧아 병목이 아니므로
+# 보수적으로 2부터. 모든 워커가 공유하는 모듈 전역 세마포어 1개.
+N_DOCKER = 2
+_docker_sem = threading.Semaphore(N_DOCKER)
+
+
+def set_docker_concurrency(n: int) -> None:
+    """동시 컨테이너 상한을 바꾼다. 워커 시작 *전*에 한 번 호출(select_run에서 주입)."""
+    global _docker_sem
+    _docker_sem = threading.Semaphore(n)
 
 
 def _hidden_console_kwargs() -> dict:
@@ -198,6 +210,7 @@ def _run_in_docker(workdir: Path, argv: list[str], timeout: int,
     cmd = [
         "docker", "run", "--rm", "--name", name,
         "--network", "none",
+        "--memory", "512m", "--cpus", "1",  # 폭주 1개가 VM 독식 못 하게 (결정22)
         "-v", f"{workdir}:/app", "-w", "/app",
     ]
     if deps_dir is not None:
@@ -207,21 +220,22 @@ def _run_in_docker(workdir: Path, argv: list[str], timeout: int,
         # 컨테이너 안 coreutils timeout이 1차 방어선, subprocess timeout이 안전망
         IMAGE, "timeout", str(timeout), *argv,
     ]
-    try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=timeout + 60,  # +60: 컨테이너 기동 여유
-            stdin=subprocess.DEVNULL, **_hidden_console_kwargs(),
-        )
-        out = (result.stdout or "") + (result.stderr or "")
-        if result.returncode == 124:  # coreutils timeout의 시간 초과 코드
-            return -1, out
-        return result.returncode, out
-    except subprocess.TimeoutExpired as err:
-        subprocess.run(["docker", "kill", name], capture_output=True,
-                       stdin=subprocess.DEVNULL, **_hidden_console_kwargs())
-        partial = ""
-        for chunk in (err.stdout, err.stderr):
-            if chunk:
-                partial += chunk if isinstance(chunk, str) else chunk.decode("utf-8", "replace")
-        return -1, partial
+    with _docker_sem:  # 동시 컨테이너 수 제한 (게이트 진입에서 막음)
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=timeout + 60,  # +60: 컨테이너 기동 여유
+                stdin=subprocess.DEVNULL, **_hidden_console_kwargs(),
+            )
+            out = (result.stdout or "") + (result.stderr or "")
+            if result.returncode == 124:  # coreutils timeout의 시간 초과 코드
+                return -1, out
+            return result.returncode, out
+        except subprocess.TimeoutExpired as err:
+            subprocess.run(["docker", "kill", name], capture_output=True,
+                           stdin=subprocess.DEVNULL, **_hidden_console_kwargs())
+            partial = ""
+            for chunk in (err.stdout, err.stderr):
+                if chunk:
+                    partial += chunk if isinstance(chunk, str) else chunk.decode("utf-8", "replace")
+            return -1, partial

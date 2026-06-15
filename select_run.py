@@ -76,7 +76,8 @@ def main(argv=None) -> int:
     import sys
     force_utf8_stdout()
     # argv[1]=frozen 디렉토리명(기본 T-000012=설계A), argv[2]=arm(기본 31solo),
-    # argv[3]=width(동시 워커수, 기본=키수와 CAP 중 작은 쪽).
+    # argv[3]=width(동시 워커수, 기본=키수와 CAP 중 작은 쪽),
+    # argv[4]=n_docker(동시 컨테이너 상한, 기본 2 — 도커는 짧아 병목 아님).
     args = list(argv or sys.argv[1:])
     frozen = (args[0:1] or ["T-000012"])[0]
     arm = (args[1:2] or ["31solo"])[0]
@@ -91,13 +92,16 @@ def main(argv=None) -> int:
     keys = get_api_keys()
     pool = KeyPool(keys)
     width = int(args[2]) if len(args) > 2 else min(len(keys), CAP)
+    n_docker = int(args[3]) if len(args) > 3 else 2
+    import docker_gate
+    docker_gate.set_docker_concurrency(n_docker)  # 워커 시작 전 1회 주입
 
     from bank_db import BankDB
     with BankDB() as db:
         cards = {t: db.get_task(t) for t in CARDS}
 
     print(f"[SELECT] select-best(cap {CAP}, width {width}/{len(keys)}키, "
-          f"{MAX_MINUTES}분/시도) "
+          f"도커{n_docker}동시, {MAX_MINUTES}분/시도) "
           f"arm={arm}({ARMS[arm]['GENERATOR_MODEL']}/{ARMS[arm]['CRITIC_MODEL']}) "
           f"cold — 약한칸 {CARDS}, 고정설계={frozen}")
 
@@ -133,7 +137,8 @@ def main(argv=None) -> int:
         _log({"t": datetime.now().isoformat(timespec="seconds"), "task_id": tid,
               "frozen": frozen, "arm": arm, "models": ARMS[arm],
               "cracked_at": cracked_at, "attempts": started,
-              "cap": CAP, "parallel": width, "keys": len(keys)})
+              "cap": CAP, "parallel": width, "keys": len(keys),
+              "n_docker": n_docker})
         msg = (f"{cracked_at}번째 시도에서 통과(누적 {started})" if cracked_at
                else f"{CAP}번 내 실패(누적 {started})")
         print(f"[SELECT] {tid} -> {msg}")
