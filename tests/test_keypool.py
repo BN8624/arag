@@ -10,7 +10,7 @@ import pytest
 
 import config
 import llm
-from llm import KeyPool, LLMClient
+from llm import AllKeysExhausted, KeyPool, LLMClient
 
 
 # --- config.get_api_keys: .env 키 리스트 로더 ---
@@ -101,3 +101,35 @@ def test_keypool_default_uses_config(monkeypatch):
     monkeypatch.setattr(llm, "get_api_keys", lambda: ["x", "y", "z"])
     pool = KeyPool()
     assert pool.size == 3
+
+
+# --- RPD 소진 인지 체크아웃 (결정23) ---
+
+def test_keypool_skips_exhausted_key(monkeypatch):
+    """소진된 키는 건너뛰고 여유 있는 키를 빌려준다."""
+    import key_usage
+    # k1만 모델 m에 대해 소진
+    monkeypatch.setattr(key_usage, "is_exhausted",
+                        lambda key, model: key == "k1")
+    pool = KeyPool(["k1", "k2"], models=["m"])
+    seen = set()
+    for _ in range(4):
+        with pool.checkout() as k:
+            seen.add(k)
+    assert seen == {"k2"}          # 소진된 k1은 절대 안 빌려줌
+
+
+def test_keypool_all_exhausted_raises(monkeypatch):
+    import key_usage
+    monkeypatch.setattr(key_usage, "is_exhausted", lambda key, model: True)
+    pool = KeyPool(["k1", "k2"], models=["m"])
+    with pytest.raises(AllKeysExhausted):
+        with pool.checkout():
+            pass
+
+
+def test_keypool_no_models_skips_rpd_check():
+    """models 미지정이면 RPD 검사 안 함(하위호환)."""
+    pool = KeyPool(["k1", "k2"])    # models=None
+    with pool.checkout() as a, pool.checkout() as b:
+        assert {a, b} == {"k1", "k2"}

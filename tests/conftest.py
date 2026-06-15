@@ -13,6 +13,14 @@ def _isolate_critique_notes(tmp_path, monkeypatch):
     monkeypatch.setattr(critique_notes, "NOTES_PATH",
                         tmp_path / "critique_notes.json")
 
+
+@pytest.fixture(autouse=True)
+def _isolate_key_usage(tmp_path, monkeypatch):
+    """테스트가 실제 runs/key_usage.json을 오염시키지 않게 격리(결정23)."""
+    import key_usage
+    monkeypatch.setattr(key_usage, "USAGE_PATH",
+                        tmp_path / "key_usage.json")
+
 GOOD_CORE = '''\
 import json
 from pathlib import Path

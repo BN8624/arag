@@ -48,25 +48,53 @@ BACKOFF_500_SEC = 5.0    # 서버 에러: 5→10→20→40s
 EMPTY_RETRIES = 2        # 빈 응답 재시도 상한
 
 
+class AllKeysExhausted(Exception):
+    """캠페인이 쓰는 모든 키×모델이 오늘 RPD 한도에 닿음(태평양 자정 후 자동 복귀)."""
+
+
 class KeyPool:
     """API 키 풀(Queue). 워커가 키 하나를 체크아웃해 LLMClient에 바인딩하고
     끝나면 반납한다(워커=키). 키 N개면 동시 N워커만 키를 쥐고, 초과 워커는
     빈 키가 날 때까지 블록한다. 키 1개면 사실상 직렬(=단일키 모드).
+
+    models를 주면 RPD 소진(결정23) 키를 스킵한다 — 캠페인이 쓰는 모델 중 하나라도
+    오늘 한도에 닿은 키는 빌려주지 않고, 전부 소진이면 AllKeysExhausted.
     """
 
-    def __init__(self, keys: list[str] | None = None):
+    def __init__(self, keys: list[str] | None = None,
+                 models: list[str] | None = None):
         keys = keys if keys is not None else get_api_keys()
         if not keys:
             raise RuntimeError("KeyPool needs at least one API key")
+        self._keys = list(keys)
         self._q: Queue = Queue()
         for k in keys:
             self._q.put(k)
         self.size = len(keys)
+        self.models = list(models or [])
+
+    def _exhausted(self, key: str) -> bool:
+        if not self.models:
+            return False
+        import key_usage
+        return any(key_usage.is_exhausted(key, m) for m in self.models)
+
+    def _all_exhausted(self) -> bool:
+        return bool(self.models) and all(self._exhausted(k) for k in self._keys)
 
     @contextmanager
     def checkout(self, timeout: float | None = None):
-        """키 하나를 빌린다(컨텍스트 종료 시 자동 반납). 빈 키가 없으면 블록."""
-        key = self._q.get(timeout=timeout)
+        """소진 안 된 키 하나를 빌린다(종료 시 자동 반납). 빈 키 없으면 블록,
+        모든 키 소진이면 AllKeysExhausted."""
+        while True:
+            key = self._q.get(timeout=timeout)
+            if not self._exhausted(key):
+                break
+            self._q.put(key)            # 소진 키는 큐 끝으로 되돌림(다음/다음날 재평가)
+            if self._all_exhausted():
+                raise AllKeysExhausted(
+                    f"all {self.size} keys hit RPD for models {self.models}")
+            time.sleep(0.2)             # 일부만 소진일 때 타이트 루프 완화
         try:
             yield key
         finally:
@@ -254,6 +282,12 @@ class LLMClient:
                     config=config or None,
                 )
                 self.call_count += 1
+                # 이 키×모델의 오늘(태평양) RPD를 1 올린다 — 풀의 소진 판정 근거.
+                try:
+                    import key_usage
+                    key_usage.record(getattr(self, "_api_key", ""), model)
+                except Exception:  # noqa: BLE001 - 계측 실패가 콜을 막지 않게
+                    pass
                 usage = getattr(resp, "usage_metadata", None)
                 call_tokens = {"input": 0, "output": 0, "thinking": 0}
                 if usage:

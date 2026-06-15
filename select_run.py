@@ -88,9 +88,11 @@ def main(argv=None) -> int:
     for k, v in ARMS[arm].items():
         os.environ[k] = v
 
-    from llm import KeyPool
+    from llm import AllKeysExhausted, KeyPool
     keys = get_api_keys()
-    pool = KeyPool(keys)
+    # 이 arm이 쓰는 모델들(소진 판정 단위) — RPD 한도 닿은 키를 풀이 스킵(결정23)
+    models = sorted(set(ARMS[arm].values()))
+    pool = KeyPool(keys, models=models)
     width = int(args[2]) if len(args) > 2 else min(len(keys), CAP)
     n_docker = int(args[3]) if len(args) > 3 else 2
     import docker_gate
@@ -104,12 +106,15 @@ def main(argv=None) -> int:
           f"도커{n_docker}동시, {MAX_MINUTES}분/시도) "
           f"arm={arm}({ARMS[arm]['GENERATOR_MODEL']}/{ARMS[arm]['CRITIC_MODEL']}) "
           f"cold — 약한칸 {CARDS}, 고정설계={frozen}")
+    import key_usage
+    print(key_usage.report())  # 시작 전 오늘(태평양) RPD 현황
 
     started_lock = threading.Lock()
     for tid in CARDS:
         idea = cards[tid]["goal"]
         cracked_at = None
         started = 0  # 실제로 키를 잡고 돈 시도 수(취소된 건 제외) = 누적 시도수
+        exhausted = False
 
         def worker(attempt: int, _tid=tid, _idea=idea) -> bool:
             # 워커=키: 풀에서 키 하나를 빌려 그 키로만 26·31 콜, 끝나면 반납
@@ -127,6 +132,13 @@ def main(argv=None) -> int:
                     ok = fut.result()
                 except CancelledError:
                     continue
+                except AllKeysExhausted as err:  # 모든 키 RPD 소진 → 중단(자정 후 복귀)
+                    exhausted = True
+                    print(f"[SELECT] {tid} 중단: {err}")
+                    for f in futs:
+                        if not f.done():
+                            f.cancel()
+                    break
                 if ok and cracked_at is None:
                     cracked_at = a
                     # 첫 통과 — 아직 시작 안 한 시도는 취소(콜 절약), 도는 건 흘려보냄
@@ -138,10 +150,15 @@ def main(argv=None) -> int:
               "frozen": frozen, "arm": arm, "models": ARMS[arm],
               "cracked_at": cracked_at, "attempts": started,
               "cap": CAP, "parallel": width, "keys": len(keys),
-              "n_docker": n_docker})
-        msg = (f"{cracked_at}번째 시도에서 통과(누적 {started})" if cracked_at
-               else f"{CAP}번 내 실패(누적 {started})")
+              "n_docker": n_docker, "exhausted": exhausted})
+        if exhausted:
+            msg = f"모든 키 RPD 소진으로 중단(누적 {started})"
+        elif cracked_at:
+            msg = f"{cracked_at}번째 시도에서 통과(누적 {started})"
+        else:
+            msg = f"{CAP}번 내 실패(누적 {started})"
         print(f"[SELECT] {tid} -> {msg}")
+    print(key_usage.report())  # 끝난 뒤 오늘(태평양) RPD 현황
     print("[SELECT] 완료. 장부: runs/select_ledger.jsonl")
     return 0
 
