@@ -70,7 +70,8 @@ class CritiquePhase:
                     return
                 self._snapshot(f"critique-round-{round_no}-pass")
                 # 수정이 게이트·채점표를 통과해 살아남음 = 검증된 비평 -> 비평노트 수확
-                n = critique_notes.record_notes(self.idea, flagged)
+                n = critique_notes.record_notes(
+                    self.idea, flagged, card=getattr(self, "task_id", None))
                 if n:
                     self.log("critique-notes-recorded", count=n)
             else:

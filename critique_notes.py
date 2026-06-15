@@ -22,6 +22,7 @@ from datetime import datetime
 from pathlib import Path
 
 from config import PROJECT_ROOT
+from schema import extract_json
 
 NOTES_PATH = PROJECT_ROOT / "critique_notes.json"
 MAX_INJECT = 3      # 구현 프롬프트에 넣을 노트 최대 개수
@@ -50,10 +51,11 @@ def _norm(issue: str) -> str:
 
 
 def record_notes(idea: str, flagged: list[dict],
-                 path: Path | None = None) -> int:
+                 path: Path | None = None, card: str | None = None) -> int:
     """살아남은 비평의 파일별 지적을 저장. 기록된 건수를 반환.
 
     flagged: [{"path": "main.py", "issues": ["...", ...]}, ...]
+    card: 이 노트가 나온 task_card. 주입 시 같은 카드끼리만 쓰도록 스코프.
     실패해도 회차를 막지 않도록 예외를 내지 않는다.
     """
     try:
@@ -66,7 +68,7 @@ def record_notes(idea: str, flagged: list[dict],
                 issue_text = str(issue).strip()
                 if not issue_text:
                     continue
-                entries.append({"t": now, "idea": idea,
+                entries.append({"t": now, "idea": idea, "card": card,
                                 "path": file_path, "issue": issue_text})
                 added += 1
         if added:
@@ -80,14 +82,18 @@ def record_notes(idea: str, flagged: list[dict],
 
 def find_relevant(idea: str, notes: list[dict] | None = None,
                   max_n: int = MAX_INJECT,
-                  path: Path | None = None) -> list[str]:
+                  path: Path | None = None,
+                  card: str | None = None) -> list[str]:
     """주입할 노트를 점수순으로 최대 max_n개 반환.
 
     점수 = 아이디어와의 키워드 겹침 + 반복 빈도.
     겹침이 없어도 FREQ_FLOOR회 이상 반복된 지적은 보편 규칙으로 보고 주입.
+    card 지정 시 같은 카드의 노트만 본다(타 카드 트집 누수 차단).
     """
     if notes is None:
         notes = load_notes(path)
+    if card is not None:                       # 카드 스코프: 같은 카드 노트만
+        notes = [n for n in notes if n.get("card") == card]
     idea_tokens = _tokens(idea)
 
     freq: dict[str, int] = {}
@@ -111,6 +117,54 @@ def find_relevant(idea: str, notes: list[dict] | None = None,
         scored.append((ov * 2 + min(count, 5), first_text[key]))
     scored.sort(key=lambda x: -x[0])
     return [text for _, text in scored[:max_n]]
+
+
+def record_impl_note(llm, idea: str, failure_summary: str,
+                     card: str | None = None,
+                     path: Path | None = None) -> dict | None:
+    """실행 게이트 실패(골든 수치 불일치/크래시) 증거를 31B에게 주고, 다음 회차
+    *구현자*가 따를 **코드레벨** 규칙 1건을 뽑아 비평노트에 저장한다.
+
+    설계 노트(lessons)는 '뭐가 깨지나'를 설계에 알려주지만, 통합 frontier의 병목은
+    옳은 스펙을 수치-정확 코드로 옮기는 구현이다. 이 노트는 그 실패를 구현 단계로
+    되먹인다(런 간 학습). 실패해도 회차를 막지 않도록 None만 반환한다.
+    """
+    prompt = f"""An automated pipeline IMPLEMENTED a multi-file program from a
+correct design, but it FAILED acceptance — the code ran but produced wrong
+output, or crashed. This is an implementation bug, not a design flaw.
+
+IDEA: {idea}
+
+FAILURE EVIDENCE (golden output mismatch / traceback):
+{failure_summary}
+
+Write ONE concrete, code-level rule the implementer should follow next time to
+produce correct output. Focus on HOW to implement: control-flow ordering,
+off-by-one, when state is updated (e.g. counter increment timing, status tick
+order, clamping), not on file/module structure. Be specific to the symptom.
+
+Respond with a single JSON object (no prose, no fences):
+{{"keywords": ["3-8 lowercase topic words for matching similar ideas"],
+  "note": "one or two sentences, concrete and actionable for the coder"}}"""
+    try:
+        raw = extract_json(llm.generate("critic", prompt))
+        if not raw:
+            return None
+        parsed = json.loads(raw)
+        note_text = str(parsed.get("note", "")).strip()
+        if len(note_text) < 6 or note_text.lower() in {"n/a", "none", "todo"}:
+            return None
+        entry = {"t": datetime.now().isoformat(timespec="seconds"),
+                 "idea": idea, "card": card, "path": "(impl)",
+                 "issue": note_text}
+        entries = load_notes(path)
+        entries.append(entry)
+        Path(path or NOTES_PATH).write_text(
+            json.dumps(entries[-MAX_NOTES:], ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        return entry
+    except Exception:  # noqa: BLE001 - 노트 실패가 회차 보고를 막으면 안 됨
+        return None
 
 
 def frequent_candidates(min_count: int = 5,

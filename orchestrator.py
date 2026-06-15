@@ -28,6 +28,7 @@ from pathlib import Path
 from config import PROJECT_ROOT, STOP_FILE, force_utf8_stdout
 from docker_gate import _hidden_console_kwargs, docker_available
 from gates import format_issues
+import critique_notes
 from lessons import record_lesson
 from llm import CallBudgetExceeded
 from phase_common import (DEFAULT_MAX_CALLS, DEFAULT_MAX_MINUTES,  # noqa: F401
@@ -236,6 +237,19 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
                 self._say("[NOTE] failure lesson recorded to lessons.json")
         except Exception:  # noqa: BLE001
             pass
+        # 실행 게이트 실패(코드는 돌았으나 골든 불일치/크래시)는 *구현* 병목이다 —
+        # 코드레벨 진단을 비평노트(구현 단계 주입)에 카드-스코프로 되먹인다(런 간 학습).
+        if any(i.get("kind") == "exec-fail" for i in self._last_issues):
+            try:
+                note = critique_notes.record_impl_note(
+                    self.llm, idea, self._failure_summary(reason),
+                    card=self.task_id)
+                if note:
+                    self.log("impl-note-recorded", note=note["issue"],
+                             card=self.task_id)
+                    self._say("[NOTE] impl-failure note recorded to critique_notes")
+            except Exception:  # noqa: BLE001
+                pass
 
     def _failure_summary(self, reason: str) -> str:
         parts = [f"failure reason: {reason}"]

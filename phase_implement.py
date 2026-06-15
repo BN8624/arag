@@ -18,7 +18,8 @@ class ImplementPhase:
             self.log("notes-disabled", store="critique_notes", mode="cold")
             return []
         try:
-            found = critique_notes.find_relevant(self.idea)
+            found = critique_notes.find_relevant(
+                self.idea, card=getattr(self, "task_id", None))
             if found:
                 self.log("critique-notes-injected", count=len(found), notes=found)
                 self._say(f"[NOTE] {len(found)} critique note(s) injected")

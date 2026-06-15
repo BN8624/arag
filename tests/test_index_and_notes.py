@@ -110,6 +110,56 @@ def test_find_relevant_frequency_floor(tmp_path):
     assert found == ["validate inputs before processing"]
 
 
+def test_find_relevant_card_scope(tmp_path):
+    """card 지정 시 같은 카드 노트만 본다 (타 카드·무카드 트집 누수 차단)."""
+    path = tmp_path / "notes.json"
+    critique_notes.record_notes(
+        "battle sim", [{"path": "engine.py", "issues": ["fix turn order"]}],
+        path=path, card="T-12")
+    critique_notes.record_notes(
+        "battle sim", [{"path": "x.py", "issues": ["unrelated card trifle"]}],
+        path=path, card="T-99")
+    critique_notes.record_notes(
+        "battle sim", [{"path": "y.py", "issues": ["legacy no-card note"]}],
+        path=path, card=None)
+    found = critique_notes.find_relevant("battle sim", path=path, card="T-12")
+    assert found == ["fix turn order"]                 # 같은 카드만
+    # card 미지정이면 기존 동작(카드 무시, 키워드)
+    allf = critique_notes.find_relevant("battle sim", path=path)
+    assert "unrelated card trifle" in allf and "legacy no-card note" in allf
+
+
+def test_record_impl_note_from_failure(tmp_path):
+    """실행 실패 증거 -> 31B 진단 -> 카드-스코프 구현노트 저장, 구현 주입에 잡힘."""
+    path = tmp_path / "notes.json"
+
+    class FakeLLM:
+        def generate(self, role, prompt):
+            return ('{"keywords": ["turn", "counter"], "note": "increment the '
+                    'turn counter after end-of-turn effects, not before"}')
+
+    e = critique_notes.record_impl_note(
+        FakeLLM(), "battle sim", "golden mismatch: turns expected 23 got 25",
+        card="T-12", path=path)
+    assert e and e["card"] == "T-12" and "counter" in e["issue"]
+    found = critique_notes.find_relevant("battle sim turn counter",
+                                         path=path, card="T-12")
+    assert any("counter" in n for n in found)
+
+
+def test_record_impl_note_rejects_dummy(tmp_path):
+    """빈/더미 진단은 저장 안 함 (풀 오염 방지)."""
+    path = tmp_path / "notes.json"
+
+    class DummyLLM:
+        def generate(self, role, prompt):
+            return '{"keywords": [], "note": "n/a"}'
+
+    assert critique_notes.record_impl_note(
+        DummyLLM(), "x", "evidence", card="T-1", path=path) is None
+    assert not path.exists() or critique_notes.load_notes(path) == []
+
+
 def test_frequent_candidates(tmp_path):
     path = tmp_path / "notes.json"
     for _ in range(5):
