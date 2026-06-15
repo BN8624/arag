@@ -169,8 +169,14 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
             import traceback
             tb = traceback.format_exc()
             # 콜 래퍼가 재시도를 다 쓰고 죽었다 = 인프라 장애.
-            # 같은 장애에 재도전 콜을 더 태우지 않도록 표시한다 (브레이커)
-            if "API call failed after" in str(err):
+            # 같은 장애에 재도전 콜을 더 태우지 않도록 표시한다 (브레이커).
+            # API 소진뿐 아니라 일일쿼터·429·5xx·네트워크 절단도 인프라로 본다
+            # (모델·설계 실패가 아니므로 오답노트도 안 남긴다 — _record_failure가 스킵).
+            err_str = str(err).lower()
+            if any(m in err_str for m in (
+                    "api call failed after", "daily quota", "quota exhausted",
+                    "resource_exhausted", "429", "500 internal", "internal error",
+                    "connection reset", "connection aborted", "deadline")):
                 self.infra_error = True
             self.log("error", reason=str(err), traceback=tb)
             self._record_failure(idea, f"{err}\n{tb}")
@@ -184,6 +190,11 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
     # ------------------------------------------------------------ lessons
 
     def _record_failure(self, idea: str, reason: str) -> None:
+        # 인프라 장애(API 5xx/네트워크 소진)는 모델·설계 실패가 아니다 — 오답노트에
+        # 남기면 "다른 LLM으로 폴백하라" 류 파이프라인 교훈이 설계 풀을 오염시킨다.
+        if self.infra_error:
+            self._say("[NOTE] infra failure - skipping lesson (not a design fault)")
+            return
         try:
             entry = record_lesson(self.llm, idea, self._failure_summary(reason))
             if entry:

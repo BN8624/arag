@@ -111,3 +111,30 @@ def test_design_retry_on_invalid(tmp_path):
     )
     orch = Orchestrator(llm, tmp_path / "run", skip_exec=True)
     assert orch.run("tiny todo cli") is True
+
+
+def test_infra_failure_skips_lesson(tmp_path, monkeypatch):
+    """인프라 장애(API 5xx 소진)는 오답노트를 안 남긴다 — 설계 풀 오염 방지."""
+    import orchestrator as om
+    called = []
+    monkeypatch.setattr(om, "record_lesson", lambda *a, **k: called.append(1))
+    orch = Orchestrator(MockLLM(critic=[], generator=[]),
+                        tmp_path / "run", skip_exec=True)
+    orch.infra_error = True
+    orch._record_failure("idea", "API call failed after 4 retries: 500 INTERNAL")
+    assert called == []  # 인프라 실패 → record_lesson 호출 안 됨
+
+
+def test_model_failure_records_lesson(tmp_path, monkeypatch):
+    """모델·설계 실패는 오답노트를 남긴다(인프라 아님)."""
+    import orchestrator as om
+    called = []
+    monkeypatch.setattr(om, "record_lesson",
+                        lambda *a, **k: called.append(1) or
+                        {"keywords": ["k"], "lesson": "do X"})
+    orch = Orchestrator(MockLLM(critic=[], generator=[]),
+                        tmp_path / "run", skip_exec=True)
+    orch.infra_error = False
+    orch.design = make_design()
+    orch._record_failure("idea", "gates not passed after self-fix budget")
+    assert called == [1]  # 능력 실패 → record_lesson 호출됨
