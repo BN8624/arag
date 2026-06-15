@@ -1,65 +1,55 @@
-# checklist.md — PLAN 2 셰이크다운 (12런)
+# checklist.md — 병렬 인프라(키풀·연속리필·도커캡) + 전31 재측정
 
-> 명세 = [PLAN.md](PLAN.md), 결정 로그 = [context-notes.md](context-notes.md).
-> 끝나면 체크. 한 단계씩, 끝나면 멈추고 보고.
+> 결정 로그 = [context-notes.md](context-notes.md) 결정22. 큰 방향 = [PLAN.md](PLAN.md).
+> 끝나면 체크. 한 단계씩, 끝나면 멈추고 보고. 측정 변수 오염 금지 — 인프라 먼저 박고 그 위에서 측정.
 
-## 0. 선결 결정 (착수 전)
-- [x] warm 순서 확정 = cold→수확→정리(USE/HOLD/DROP)→warm 적재→warm 재시도 (PLAN §1)
-- [x] 셰이크다운 = 효과 정식측정 아님, 파이프라인 검증 (PLAN §1 ⚠️ 명시)
-- [ ] temperature 고정값 확정 (추천 0.2, 변동 최소화)
-- [ ] AI Studio gemma가 temperature/seed를 받는지 코드로 확인 (못 받으면 seed=null)
+## 배경 (왜 이걸 하나)
+- 4home(26손/31머리) 1키 측정을 피크시간에 돌렸더니 1웨이브 0/3 + 네트워크 에러 잦음 → 중단.
+  부분데이터: 폴백 오염은 경미(generator 31강등 3런 중 1콜)했으나 표본·품질 부족으로 결론 불가.
+- 사용자가 독립 프로젝트 키 **11개**(AI Studio=프로젝트당 키1, 독립 쿼터) 확보 → 진짜 병렬 가능.
+- 합의된 설계: **워커=키**(시도 하나가 키 하나를 통째로 빌려 26·31 다 처리. 시도 안에선
+  26→31 순차라 충돌 없음. 시도끼리 완전 독립). 노브 둘 분리 — ①키풀크기(쿼터상한, ≤11)
+  ②도커 세마포어(PC RAM 상한, 4~6부터 실측).
 
-## 1. cold/warm mode 분리 (최우선 코딩) ✅
-- [x] orchestrator에 `notes_enabled`(기본 True) + CLI `--mode cold|warm`
-- [x] `phase_design._load_lessons`: cold면 즉시 `[]` 반환 (+ notes-disabled 로그)
-- [x] `phase_implement._load_notes`: cold면 즉시 `[]` 반환
-- [x] 테스트: cold 런에 lessons/critique 주입 0건 단언 (콜 0 mock) — 268 통과
-- [x] 검증: warm 런은 기존대로 주입됨 (회귀 없음)
+## 0. 선결 확인 (코딩 전)
+- [ ] `.env`에 키 11개를 어떤 이름으로 넣을지 확정 (예: `GOOGLE_API_KEY_1..11` 또는 콤마구분
+      `GOOGLE_API_KEYS=`). 키 1개만 있을 때 기존 동작 유지(하위호환) 보장.
+- [ ] Docker Desktop WSL2 현재 VM = 8.2GB/12CPU(.wslconfig 없음, 기본). 컨테이너캡 없음 확인됨.
+- [ ] 도커 동시성 시작값 = 4 (8GB ÷ 512MB = 16 여유, 보수적으로 4부터 올림).
 
-## 2. 카드 6개 정의 (bank 스키마 재사용) ✅
-- [x] 깨끗한 `design_bank.sqlite`에 게임/앱 카드 6장 (worktree `bank_cards_p2.py`, T-1~6)
-- [x] difficulty_level L1/2/2/2/2/3, 비대화형(stdin 금지)으로 전부 설계
-- [x] 5·6번(강화·전투) + 3번(리그): --seed 결정성 요구를 카드에 명시
-- [x] (추가) llm.py 콜당 토큰·finish_reason 계측 — PLAN §8.2 (분산성 잘림 관측)
+## 1. 키풀 + 키별 페이서 (llm.py) — 측정 무관, 먼저
+- [ ] `.env` 로더가 키 리스트를 읽어 풀(Queue) 구성. 1개뿐이면 그 1개로 동작(no-op 확장).
+- [ ] 전역 페이서 1개(`_pacer_lock`/`_pacer_last_call_at`) → **키별 dict**(키마다 락·last_call).
+      워커수>키수여도 페이서가 RPM 막음(그냥 느려짐) = 안전.
+- [ ] LLMClient가 키 1개에 바인딩(생성 시 풀에서 체크아웃 or 인자로 주입). 그 클라이언트의
+      26·31 콜 전부 그 키로 + 그 키 페이서 사용.
+- [ ] 폴백(generator→critic 강등)은 **같은 키 안에서** 모델만 바꾸게 유지(결정16 불변).
+- [ ] 테스트: 키 N개 풀에서 동시 워커 N개가 서로 다른 키 잡는지 / 키별 4초 간격 지키는지 /
+      키 1개일 때 기존과 동일한지(회귀).
 
-## 3. run metadata 필드 추가 ✅
-- [x] index에 mode/notes_enabled 기록 (reporting._record_index)
-- [x] 나머지 PLAN §4 필드는 plan2.build_record로 파생(정본 비저장, derived view)
-- [x] protocol_fingerprint 객체 (plan2.protocol_fingerprint, 해시 X)
-- [x] 테스트 (test_plan2)
-- 보류: model_design/impl, elapsed_sec는 derived/렌더에서 보강(elapsed는 events로 추정)
+## 2. 연속 리필 풀 (select_run.py) — 웨이브배리어 제거
+- [ ] 현재 웨이브배리어(`for fut in futs: fut.result()` 후 다음 웨이브) → **일감 전부 한 번에
+      제출**, 풀 크기=키풀크기. 슬롯 비면 자동 다음 당김(ThreadPoolExecutor 기본 동작).
+- [ ] early-stop: 첫 통과 나오면 미시작 시도 취소(`future.cancel()`)·진행분만 흘려보냄.
+      "누적 시도수" 의미 유지(장부 cracked_at/attempts).
+- [ ] 워커 시작 시 키풀에서 키 체크아웃 → 끝나면 반납(컨텍스트매니저). 워커당 정확히 키 1개.
+- [ ] arm 인자(이미 추가됨: 31solo/4home) + 새 인자 width(동시 워커수, 기본=키수 or CAP).
 
-## 4. 결과 라벨 5개 적용 ✅
-- [x] limit_type → 5라벨 매핑 (plan2.run_label, 콜0)
-- [x] 테스트: 각 라벨 케이스 (test_plan2)
+## 3. 도커 세마포어 + 컨테이너 캡 (docker_gate.py)
+- [ ] `threading.Semaphore(N_DOCKER)`를 게이트 진입에 걸어 동시 컨테이너 ≤ N(기본 4).
+      세마포어는 모듈 전역 1개(모든 워커 공유). select_run에서 N 주입 가능하게.
+- [ ] `docker run`에 `--memory=512m --cpus=1` 추가(폭주 1개가 VM 독식 못 하게).
+- [ ] 테스트: 세마포어가 동시 진입 수 제한하는지(mock) / --memory 인자 들어가는지.
 
-## 5. 점수 2종 기록 (_auto/_user 2단계) ✅
-- [x] prototype_score_auto / failure_usefulness_auto (plan2)
-- [x] *_user = null + human_audit_status="pending" (build_record)
-- [x] cost_usd 재사용
+## 4. 전31 재측정 (인프라 위에서, 안정 시간대)
+- [ ] arm=31solo로 select-best 재실행 = 신뢰 베이스라인 재확인(26 사망시간 회피).
+      같은 frozen/T-000012 + 같은 오라클. width를 올려 벽시계 단축.
+- [ ] (선택) arm=4home도 안정 시간대에 깨끗이 재측정 → 비용↔통과율 비교(원래 목표).
+- [ ] 장부(select_ledger.jsonl)에 arm·models·콜수·환산$ 기록 확인. 폴백 강등 비율 점검.
+- [ ] 결과 → HANDOFF/context-notes 갱신.
 
-## 5.5 warm 노트 품질 필터 (USE/HOLD/DROP) ✅
-- [x] 자동 분류 plan2_notes.classify_note (콜0 휴리스틱)
-- [x] partition으로 USE만 추출 (warm 적재는 7단계 실행 시)
-- [x] render_note_audit로 폰에서 변경 가능
-
-## 6. 폰 감사 요약 생성 ✅
-- [x] 런별 산문 1화면 plan2_audit.render_audit + 사람 체크 3개
-- [x] 노트 후보 감사 plan2_notes.render_note_audit
-- [x] ASCII/cp949 안전 (유니코드 기호 미사용)
-
-## 7. 실행 (worktree ../arag-bank) — 실제로 돈 것 ✅
-- [x] 31B 단독 cold round 1 (6장) — night_run
-- [x] 통짜31B 비교 (whole_run) — per-file=통짜 차이 없음
-- [x] **측정도구 버그 2개 발견·수리** (계약 메서드인식, success_signal 리스트)
-- [x] 재측정 카드 4·5·6 (recheck_run) — 수리 후 31B 6/6 PASS
-- [x] 26B 이어달리기 (cont_26b): 26코더/통짜×cold/warm — 26B=31B 확인
-- [~] 역할배정 — INFRA 장애로 미측정, 재실행 필요
-
-## 8. 결과 ✅ + 다음
-- [x] 종합 결과 정리 → HANDOFF/context-notes 갱신
-- [x] 핵심 발견: 26B=31B(L2-3), 분해=통짜, 노트 효과없음, 천장 비제약, 실패는 하네스버그였음
-- [ ] **다음 = L4-5 frontier 사다리** (PLAN §10) — 모든 변수가 거기서 갈림
-- [ ] 역할배정 재실행 (API 안정 시)
-
-> 셰이크다운 결론: 공정한 하네스에선 두 모델 다 L2-3을 다 함 → 더 어려운 카드 필요.
+## 주의 / 함정
+- 인프라 바꾸는 동안은 측정 돌리지 말 것(변수 섞임). 1→2→3 끝낸 뒤 4.
+- width 키울수록 벽시계↓ 비용↑(첫통과 후 버리는 콜). 비용측정은 width 작게, throughput/variance는 크게.
+- 26 사망시간(미국 피크, UTC 밤~아침=한국 저녁~) 회피. 폴백 깔려 있어도 강등이 측정 오염.
+- 키=프로젝트가 진짜 독립 쿼터인지 첫 병렬 실행에서 429 0건으로 확인.
