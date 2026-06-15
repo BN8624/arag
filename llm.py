@@ -24,6 +24,9 @@ from config import get_api_key, get_api_keys, get_model
 # RPM 상한 15에 여유 1을 둬 14로 잡는다(버스트·시계 지터 마진).
 RPM_TARGET = 14          # 키당 60초 윈도우 허용 요청 수(상한 15 - 여유 1)
 WINDOW_SEC = 60.0        # RPM 측정 윈도우
+# 슬라이딩 윈도우만으론 같은 키 콜이 순간 분출(burst)할 수 있어 구글측 순간 RPM에
+# 걸린다 → 키별 연속 콜 사이 최소 간격을 둬 분출을 평탄화한다(정적 4초 절벽의 1초 바닥판).
+MIN_GAP_SEC = 1.0        # 같은 키 연속 콜 최소 간격
 
 # 키마다 쿼터(RPM 15)가 독립이므로 페이서도 키별 락·윈도우로 나눈다. 같은 키의 콜만
 # 직렬화·계수되고, 다른 키는 서로 안 막아 진짜 병렬로 겹친다.
@@ -48,8 +51,11 @@ OPENROUTER_PRICES = {
     "critic":    {"input": 0.12, "output": 0.36},   # gemma-4-31b
 }
 MAX_RETRIES = 4
-BACKOFF_RPM_SEC = 20.0   # RPM 초과: 20→40→80→160s
-BACKOFF_500_SEC = 5.0    # 서버 에러: 5→10→20→40s
+BACKOFF_RPM_SEC = 20.0   # RPM 초과 지수백오프: 20→40→80→160s
+BACKOFF_500_SEC = 5.0    # 서버 5xx 지수백오프: 5→10→20→40s
+# 지수백오프 MAX_RETRIES회 뒤에도 429/5xx면 콜을 죽이지 않고 2분마다 무한 재시도한다.
+# (키당 1콜/2분 = 720/일 < RPD 1500이라 쿼터 안전. 서버 폭풍·일시 RPM은 시간이 약.)
+SLOW_RETRY_SEC = 120.0   # 백오프 소진 후 무한 재시도 간격
 EMPTY_RETRIES = 2        # 빈 응답 재시도 상한
 
 
@@ -252,6 +258,11 @@ class LLMClient:
                 now = time.monotonic()
                 while win and win[0] <= now - WINDOW_SEC:
                     win.popleft()
+            if win:                                    # 분출 평탄화: 직전 콜과 최소 간격
+                gap = now - win[-1]
+                if gap < MIN_GAP_SEC:
+                    time.sleep(MIN_GAP_SEC - gap)
+                    now = time.monotonic()
             win.append(now)
 
     def generate(self, role: str, prompt: str, temperature: float | None = None) -> str:
@@ -280,10 +291,16 @@ class LLMClient:
 
     def _generate_with(self, role: str, model: str, prompt: str,
                        config: dict) -> str:
-        """주어진 model로 재시도 루프 1회분(429/5xx 백오프)을 돈다."""
+        """주어진 model로 콜 1건을 재시도 루프로 돈다.
+
+        429(RPM)·5xx는 지수백오프 MAX_RETRIES회 → 그 뒤 2분마다 무한 재시도(안 죽임).
+        빈응답은 유한 재시도(EMPTY_RETRIES 소진 시 EmptyResponse).
+        일일쿼터(RPD)·기타 예외(4xx 등)는 즉시 전파.
+        """
         last_err: Exception | None = None
         empty_count = 0
-        for attempt in range(MAX_RETRIES + 1):
+        attempt = 0          # 429/5xx 지수백오프 지수(소진 후 2분 무한 재시도)
+        while True:
             self._wait_interval()
             try:
                 resp = self._client.models.generate_content(
@@ -333,22 +350,26 @@ class LLMClient:
                 raise
             except Exception as err:  # noqa: BLE001 - SDK 예외 타입이 유동적
                 last_err = err
-                if attempt >= MAX_RETRIES:
-                    break
+                # 429(RPM)·5xx 둘 다: 지수백오프 MAX_RETRIES회 → 그 뒤 2분마다 무한
+                # 재시도(절대 안 죽임). RPD 일일쿼터만 즉시 차단(2분 대기로 안 풀림 —
+                # 풀이 다른 키로 넘긴다). 그 외 예외(4xx 등)는 그대로 전파.
                 if _is_rate_limit(err):
                     if _is_daily_quota(err):
                         raise DailyQuotaExceeded(
                             f"daily quota exhausted for {model}: {err}"
                         ) from err
-                    wait = BACKOFF_RPM_SEC * (2 ** attempt)
-                    print(f"[WAIT] rate limited (429), retrying in {wait:.0f}s "
-                          f"(attempt {attempt + 1}/{MAX_RETRIES})")
-                    time.sleep(wait)
+                    base, label = BACKOFF_RPM_SEC, "rate limited (429)"
                 elif _is_transient(err):
-                    wait = BACKOFF_500_SEC * (2 ** attempt)
-                    print(f"[WAIT] server/network error, retrying in {wait:.0f}s "
-                          f"(attempt {attempt + 1}/{MAX_RETRIES})")
-                    time.sleep(wait)
+                    base, label = BACKOFF_500_SEC, "server 5xx"
                 else:
                     raise
-        raise RuntimeError(f"API call failed after {MAX_RETRIES} retries: {last_err}")
+                if attempt < MAX_RETRIES:
+                    wait = base * (2 ** attempt)
+                    attempt += 1
+                    print(f"[WAIT] {label}, retrying in {wait:.0f}s "
+                          f"(attempt {attempt}/{MAX_RETRIES})")
+                else:
+                    wait = SLOW_RETRY_SEC
+                    print(f"[WAIT] {label}, slow retry in {wait:.0f}s "
+                          f"(never gives up)")
+                time.sleep(wait)

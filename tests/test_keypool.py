@@ -68,11 +68,12 @@ def test_pacer_no_wait_under_limit_then_blocks_at_limit(monkeypatch):
     monkeypatch.setattr(llm.time, "sleep", fake_sleep)
 
     a = object.__new__(LLMClient); a._api_key = "A"
-    for _ in range(llm.RPM_TARGET):     # 14건: 전부 대기 없이 통과
+    for _ in range(llm.RPM_TARGET):     # 14건: 콜 간 최소간격을 줘 윈도우 동작만 본다
         a._wait_interval()
+        state["t"] += llm.MIN_GAP_SEC   # 최소간격 충족 → 분출 평탄화는 안 걸림
     assert state["slept"] == []
-    a._wait_interval()                  # 15번째: 첫 콜(t=1000)이 빠질 때까지 = 60초
-    assert state["slept"] == [llm.WINDOW_SEC]
+    a._wait_interval()                  # 15번째: 첫 콜(t=1000)이 빠질 때까지
+    assert state["slept"] == [llm.WINDOW_SEC - llm.RPM_TARGET * llm.MIN_GAP_SEC]
 
 
 def test_pacer_per_key_independent(monkeypatch):
@@ -88,6 +89,7 @@ def test_pacer_per_key_independent(monkeypatch):
     b = object.__new__(LLMClient); b._api_key = "B"
     for _ in range(llm.RPM_TARGET):
         a._wait_interval()              # 키A를 상한까지 채움
+        state["t"] += llm.MIN_GAP_SEC   # A 콜 간 최소간격(분출 평탄화 격리)
     b._wait_interval()                  # 키B 첫 콜: A와 독립 → 대기 없음
     assert state["slept"] == []
 
@@ -105,6 +107,23 @@ def test_pacer_window_expiry_frees_slot(monkeypatch):
     state["t"] += llm.WINDOW_SEC + 1    # 창을 통째로 넘김
     a._wait_interval()                  # 전부 만료 → 대기 없이 통과
     assert len(llm._get_pacer("A")["calls"]) == 1
+
+
+def test_pacer_min_gap_between_consecutive(monkeypatch):
+    """같은 키 연속 콜은 최소 간격(MIN_GAP_SEC)만큼 평탄화된다(분출 방지)."""
+    llm._pacers.clear()
+    state = {"t": 1000.0, "slept": []}
+    monkeypatch.setattr(llm.time, "monotonic", lambda: state["t"])
+
+    def fake_sleep(s):
+        state["slept"].append(s)
+        state["t"] += s
+    monkeypatch.setattr(llm.time, "sleep", fake_sleep)
+
+    a = object.__new__(LLMClient); a._api_key = "A"
+    a._wait_interval()                  # 첫 콜: 대기 없음
+    a._wait_interval()                  # 즉시 둘째 콜: 최소 간격만큼 대기
+    assert state["slept"] == [llm.MIN_GAP_SEC]
 
 
 # --- KeyPool: 체크아웃·반납·고갈 블록 ---
