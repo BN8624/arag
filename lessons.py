@@ -39,13 +39,17 @@ def _tokens(text: str) -> set[str]:
 
 
 def find_relevant_entries(idea: str, lessons: list[dict] | None = None,
-                          max_n: int = MAX_INJECT) -> list[dict]:
+                          max_n: int = MAX_INJECT,
+                          card: str | None = None) -> list[dict]:
     """아이디어와 키워드가 겹치는 교훈 엔트리를 점수순으로 최대 max_n개 반환.
 
     엔트리 전체를 반환하므로 호출자가 keywords를 알 수 있다 (재발률 집계용).
+    card 지정 시 같은 카드의 교훈만 본다(타 카드 교훈 누수 차단).
     """
     if lessons is None:
         lessons = load_lessons()
+    if card is not None:                       # 카드 스코프: 같은 카드 교훈만
+        lessons = [l for l in lessons if l.get("card") == card]
     idea_tokens = _tokens(idea)
     scored: list[tuple[int, dict]] = []
     for entry in lessons:
@@ -71,14 +75,14 @@ def find_relevant_entries(idea: str, lessons: list[dict] | None = None,
 
 
 def find_relevant(idea: str, lessons: list[dict] | None = None,
-                  max_n: int = MAX_INJECT) -> list[str]:
+                  max_n: int = MAX_INJECT, card: str | None = None) -> list[str]:
     """아이디어와 키워드가 겹치는 교훈을 점수순으로 최대 max_n개 반환."""
     return [str(e.get("lesson", "")).strip()
-            for e in find_relevant_entries(idea, lessons, max_n)]
+            for e in find_relevant_entries(idea, lessons, max_n, card)]
 
 
 def record_lesson(llm, idea: str, failure_summary: str,
-                  path: Path | None = None) -> dict | None:
+                  path: Path | None = None, card: str | None = None) -> dict | None:
     """실패 증거를 31B에게 주고 교훈 1건을 뽑아 lessons.json에 저장.
 
     실패해도 회차 종료를 막지 않도록 None을 반환할 뿐 예외를 내지 않는다.
@@ -114,6 +118,7 @@ Respond with a single JSON object (no prose, no fences):
         entry = {
             "t": datetime.now().isoformat(timespec="seconds"),
             "idea": idea,
+            "card": card,
             "keywords": keywords,
             "lesson": lesson_text,
         }

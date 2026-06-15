@@ -18,7 +18,8 @@ class DesignPhase:
             self.log("notes-disabled", store="lessons", mode="cold")
             return []
         try:
-            entries = find_relevant_entries(idea)
+            entries = find_relevant_entries(
+                idea, card=getattr(self, "task_id", None))
             found = [str(e.get("lesson", "")).strip() for e in entries]
             if found:
                 # 재발률 집계용: 주입한 lesson의 keyword를 index에 남긴다

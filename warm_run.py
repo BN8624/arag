@@ -39,14 +39,16 @@ def _log(entry: dict) -> None:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def _run_one(idea: str, attempt: int, mode: str, key: str) -> dict:
+def _run_one(idea: str, attempt: int, mode: str, key: str,
+             cycle: int = 1) -> dict:
     """풀 파이프라인 1런(설계부터). 골든 오라클 고정, mode로 오답노트 ON/OFF.
     notes_enabled=(warm). 주입된 키로만 콜. 결과 dict 반환(장부용)."""
     from llm import LLMClient
     from orchestrator import Orchestrator
 
     run_dir = PROJECT_ROOT / "runs" / (
-        datetime.now().strftime("%Y%m%d-%H%M%S") + f"-{mode}{attempt:02d}")
+        datetime.now().strftime("%Y%m%d-%H%M%S")
+        + f"-c{cycle:02d}{mode}{attempt:02d}")
     llm = LLMClient(api_key=key)
     llm.record_path = run_dir / "llm_calls.jsonl"
     orch = Orchestrator(llm, run_dir, max_minutes=MAX_MINUTES,
@@ -65,16 +67,17 @@ def _run_one(idea: str, attempt: int, mode: str, key: str) -> dict:
     passed = orch._score_passed()
     total = len(orch.scoreboard) if orch.scoreboard else None
     entry = {"t": datetime.now().isoformat(timespec="seconds"), "card": CARD,
-             "mode": mode, "attempt": attempt, "run": run_dir.name,
-             "ok": ok, "passed": passed, "total": total,
+             "cycle": cycle, "mode": mode, "attempt": attempt,
+             "run": run_dir.name, "ok": ok, "passed": passed, "total": total,
              "cost_usd": round(cost, 4)}
     _log(entry)
-    print(f"[WARM] {mode} {attempt:02d} -> {'PASS' if ok else 'fail'} "
-          f"(score {passed}/{total}, ${cost:.4f})")
+    print(f"[WARM] c{cycle:02d} {mode} {attempt:02d} -> "
+          f"{'PASS' if ok else 'fail'} (score {passed}/{total}, ${cost:.4f})")
     return entry
 
 
-def _run_arm(pool, idea: str, mode: str, n: int, width: int) -> list[dict]:
+def _run_arm(pool, idea: str, mode: str, n: int, width: int,
+             cycle: int = 1) -> list[dict]:
     """한 arm(cold 또는 warm)을 N개 독립 병렬 실행(early-stop 없음)."""
     from llm import AllKeysExhausted
 
@@ -85,10 +88,10 @@ def _run_arm(pool, idea: str, mode: str, n: int, width: int) -> list[dict]:
         with pool.checkout() as key:
             with started_lock:
                 started[0] += 1
-            return _run_one(idea, attempt, mode, key)
+            return _run_one(idea, attempt, mode, key, cycle)
 
     results: list[dict] = []
-    print(f"[WARM] === {mode} arm: {n}런 (width {width}) ===")
+    print(f"[WARM] === c{cycle:02d} {mode} arm: {n}런 (width {width}) ===")
     with ThreadPoolExecutor(max_workers=width) as ex:
         futs = {ex.submit(worker, a): a for a in range(1, n + 1)}
         for fut in as_completed(futs):
@@ -110,6 +113,17 @@ def _summary(rows: list[dict], mode: str) -> tuple[int, int, float]:
     return ok, len(arm), cost
 
 
+def _print_cycle(rows: list[dict], cycle: int) -> None:
+    c_ok, c_n, c_cost = _summary(rows, "cold")
+    w_ok, w_n, w_cost = _summary(rows, "warm")
+    c_rate = c_ok / c_n if c_n else 0
+    w_rate = w_ok / w_n if w_n else 0
+    print(f"\n[WARM] ===== c{cycle:02d} 결과 =====")
+    print(f"  cold: {c_ok}/{c_n} = {c_rate:.0%}  (${c_cost:.4f})")
+    print(f"  warm: {w_ok}/{w_n} = {w_rate:.0%}  (${w_cost:.4f})")
+    print(f"  델타(warm-cold): {(w_rate - c_rate):+.0%}  | 장부: {LEDGER.name}")
+
+
 def main(argv=None) -> int:
     import sys
     force_utf8_stdout()
@@ -117,6 +131,7 @@ def main(argv=None) -> int:
     n = int(args[0]) if len(args) > 0 else 11
     width = int(args[1]) if len(args) > 1 else 11
     n_docker = int(args[2]) if len(args) > 2 else 5
+    max_cycles = int(args[3]) if len(args) > 3 else 0   # 0 = 중지 전까지 무한
 
     # 31solo 선점(load_env가 기존 env를 안 덮으므로 여기서)
     os.environ["GENERATOR_MODEL"] = MODEL_31
@@ -132,21 +147,20 @@ def main(argv=None) -> int:
     with BankDB() as db:
         idea = db.get_task(CARD)["goal"]
 
-    print(f"[WARM] 31solo 풀파이프라인+골든오라클 — 카드 {CARD}, "
-          f"arm당 {n}런, width {width}/{len(keys)}키, 도커{n_docker}동시")
-    rows: list[dict] = []
-    for mode in ("cold", "warm"):  # cold 먼저(베이스라인), 그다음 warm
-        rows += _run_arm(pool, idea, mode, n, width)
-
-    c_ok, c_n, c_cost = _summary(rows, "cold")
-    w_ok, w_n, w_cost = _summary(rows, "warm")
-    c_rate = c_ok / c_n if c_n else 0
-    w_rate = w_ok / w_n if w_n else 0
-    print("\n[WARM] ===== 결과 (통과율 델타) =====")
-    print(f"  cold: {c_ok}/{c_n} = {c_rate:.0%}  (${c_cost:.4f})")
-    print(f"  warm: {w_ok}/{w_n} = {w_rate:.0%}  (${w_cost:.4f})")
-    print(f"  델타(warm-cold): {(w_rate - c_rate):+.0%}")
-    print(f"  장부: {LEDGER.name}")
+    print(f"[WARM] 31solo 풀파이프라인+골든오라클 — 카드 {CARD}, arm당 {n}런, "
+          f"width {width}/{len(keys)}키, 도커{n_docker}동시, "
+          f"사이클 {max_cycles or '무한'}")
+    cycle = 0
+    while max_cycles == 0 or cycle < max_cycles:
+        cycle += 1
+        rows: list[dict] = []
+        for mode in ("cold", "warm"):  # cold 먼저(노트 OFF), 그다음 warm(노트 ON)
+            rows += _run_arm(pool, idea, mode, n, width, cycle)
+        if not rows:  # 한 런도 못 돎 = 키 전부 소진 → 정지
+            print(f"[WARM] c{cycle:02d}: 결과 0 (키 소진 추정) — 정지")
+            break
+        _print_cycle(rows, cycle)
+    print(f"[WARM] 종료: {cycle}사이클 (장부 {LEDGER.name})")
     return 0
 
 

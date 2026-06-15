@@ -229,7 +229,8 @@ class Orchestrator(DesignPhase, TestsPhase, ImplementPhase, GatesPhase,
             self._say("[NOTE] infra failure - skipping lesson (not a design fault)")
             return
         try:
-            entry = record_lesson(self.llm, idea, self._failure_summary(reason))
+            entry = record_lesson(self.llm, idea, self._failure_summary(reason),
+                                  card=self.task_id)
             if entry:
                 self._failure_keywords = entry["keywords"]
                 self.log("lesson-recorded", lesson=entry["lesson"],

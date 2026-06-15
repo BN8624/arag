@@ -558,6 +558,19 @@ def test_find_relevant_entries_returns_keywords(tmp_path):
         "csv 헤더를 검증하라"]
 
 
+def test_find_relevant_entries_card_scope():
+    """card 지정 시 같은 카드 교훈만 (타 카드·무카드 누수 차단)."""
+    entries = [
+        {"card": "T-12", "keywords": ["turn", "battle"], "lesson": "L12"},
+        {"card": "T-99", "keywords": ["turn", "battle"], "lesson": "L99"},
+        {"card": None, "keywords": ["turn", "battle"], "lesson": "Lold"},
+    ]
+    assert lessons.find_relevant("battle turn", entries, card="T-12") == ["L12"]
+    # card 미지정이면 기존 동작(카드 무시)
+    assert set(lessons.find_relevant("battle turn", entries)) == {
+        "L12", "L99", "Lold"}
+
+
 def test_orchestrator_records_injected_keywords(tmp_path, monkeypatch):
     from conftest import GOOD_CORE, GOOD_MAIN, make_design
     from test_orchestrator_mock import MockLLM, fenced
@@ -566,8 +579,8 @@ def test_orchestrator_records_injected_keywords(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         phase_design, "find_relevant_entries",
-        lambda idea: [{"lesson": "JSON 저장 시 인코딩을 명시하라",
-                       "keywords": ["json", "encoding"]}])
+        lambda idea, card=None: [{"lesson": "JSON 저장 시 인코딩을 명시하라",
+                                  "keywords": ["json", "encoding"]}])
     llm = MockLLM(critic=[json.dumps(make_design()), "LGTM"],
                   generator=[fenced(GOOD_CORE), fenced(GOOD_MAIN)])
     orch = orch_mod.Orchestrator(llm, tmp_path / "runs" / "run1",
