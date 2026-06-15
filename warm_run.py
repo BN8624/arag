@@ -19,6 +19,7 @@ arm당 N개를 전부 독립 실행해 *통과율*을 잰다(select-best의 crac
 import json
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
@@ -28,6 +29,7 @@ CARD = "T-000012"                       # 통합 frontier 카드
 GOLDEN_DIR = PROJECT_ROOT / "frozen" / "T-000012"  # 골든 오라클(design.json + test_acceptance.py)
 MODEL_31 = "gemma-4-31b-it"             # 31solo
 MAX_MINUTES = 180                       # 풀 파이프라인 + 5xx 폭풍 무한재시도를 견디게 넉넉히
+LAUNCH_STAGGER_SEC = 4.0                # 출발 스태거: 워커를 4초 간격으로 순차 출발(동시분출 방지)
 LEDGER = PROJECT_ROOT / "runs" / "warm_ledger.jsonl"
 
 _log_lock = threading.Lock()
@@ -83,8 +85,18 @@ def _run_arm(pool, idea: str, mode: str, n: int, width: int,
 
     started_lock = threading.Lock()
     started = [0]
+    # 출발 스태거: 워커들을 4초 간격으로 순차 출발시켜 첫 콜이 동시에 분출하지 않게 한다
+    # (1번 출발 → 4초 → 2번 출발 …). 일단 다 출발한 뒤엔 게이트가 과거시각이라 무영향.
+    launch_lock = threading.Lock()
+    next_launch = [0.0]
 
     def worker(attempt: int) -> dict:
+        with launch_lock:
+            slot = max(time.monotonic(), next_launch[0])
+            next_launch[0] = slot + LAUNCH_STAGGER_SEC
+        delay = slot - time.monotonic()
+        if delay > 0:
+            time.sleep(delay)
         with pool.checkout() as key:
             with started_lock:
                 started[0] += 1
