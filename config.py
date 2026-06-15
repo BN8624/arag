@@ -9,6 +9,7 @@
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -62,16 +63,37 @@ def load_env(path: Path = ENV_PATH) -> bool:
     return True
 
 
-def get_api_key() -> str:
-    """구글 AI Studio API 키를 반환한다. 없거나 미설정이면 RuntimeError."""
+def get_api_keys() -> list[str]:
+    """병렬용 API 키 풀을 반환한다(번호 순).
+
+    GOOGLE_API_KEY_1..N 을 번호 순으로 모은다(AI Studio = 프로젝트당 키 1개,
+    쿼터 독립 → 워커=키 병렬). 번호 키가 하나도 없으면 단일 GOOGLE_API_KEY로
+    폴백(하위호환). 빈 값·플레이스홀더는 제외. 하나도 없으면 RuntimeError.
+    """
     load_env()
-    key = os.environ.get("GOOGLE_API_KEY", "").strip()
-    if not key or key == PLACEHOLDER:
-        raise RuntimeError(
-            "GOOGLE_API_KEY is not set. "
-            "Copy .env.example to .env and put your API key in it."
-        )
-    return key
+    numbered: list[tuple[int, str]] = []
+    for name, value in os.environ.items():
+        m = re.fullmatch(r"GOOGLE_API_KEY_(\d+)", name)
+        if not m:
+            continue
+        value = value.strip()
+        if value and value != PLACEHOLDER:
+            numbered.append((int(m.group(1)), value))
+    if numbered:
+        numbered.sort()
+        return [v for _, v in numbered]
+    single = os.environ.get("GOOGLE_API_KEY", "").strip()
+    if single and single != PLACEHOLDER:
+        return [single]
+    raise RuntimeError(
+        "No API keys set. Copy .env.example to .env and put your API key(s) in "
+        "GOOGLE_API_KEY_1..N (or the single GOOGLE_API_KEY)."
+    )
+
+
+def get_api_key() -> str:
+    """단일 API 키를 반환한다(풀의 첫 키). 없으면 RuntimeError."""
+    return get_api_keys()[0]
 
 
 def get_model(role: str) -> str:

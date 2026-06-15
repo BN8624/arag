@@ -12,16 +12,29 @@ import re
 import socket
 import threading
 import time
+from contextlib import contextmanager
+from queue import Queue
 
-from config import get_api_key, get_model
+from config import get_api_key, get_api_keys, get_model
 
 MIN_INTERVAL_SEC = 4.0
 
-# 전역 페이서: 콜 간 최소 간격을 *프로세스 전역*으로 강제한다(스레드 병렬 안전).
-# 워커가 여러 개여도 합산 RPM이 15(=4초/콜)를 넘지 않게 막는다. 락은 페이싱
-# 순간만 잡고 긴 API 콜 동안은 풀어서, 실제 작업은 진짜 병렬로 겹친다.
-_pacer_lock = threading.Lock()
-_pacer_last_call_at = 0.0
+# 키별 페이서: 콜 간 최소 간격을 *키마다 따로* 강제한다(워커=키 병렬 안전).
+# 키마다 쿼터(RPM 15)가 독립이므로 페이서도 키별 락·last로 나눈다. 같은 키의
+# 콜은 4초 간격으로 직렬화되지만, 다른 키는 서로 안 막아 진짜 병렬로 겹친다.
+# (단일키 모드면 키 1개짜리 페이서 = 기존 전역 페이서와 동일 동작.)
+_pacer_registry_lock = threading.Lock()  # _pacers dict 자체를 보호
+_pacers: dict[str, dict] = {}             # api_key -> {"lock": Lock, "last": float}
+
+
+def _get_pacer(api_key: str) -> dict:
+    """api_key에 대응하는 페이서(락+마지막콜시각)를 반환한다(없으면 생성)."""
+    with _pacer_registry_lock:
+        pacer = _pacers.get(api_key)
+        if pacer is None:
+            pacer = {"lock": threading.Lock(), "last": 0.0}
+            _pacers[api_key] = pacer
+        return pacer
 
 # 오픈라우터 유료 단가 (USD / 1M tokens, 2026-06 기준). thinking은 출력으로 과금.
 # 실제 사용은 AI Studio 무료지만, "유료였다면 얼마"를 REPORT에 환산 표기한다.
@@ -33,6 +46,31 @@ MAX_RETRIES = 4
 BACKOFF_RPM_SEC = 20.0   # RPM 초과: 20→40→80→160s
 BACKOFF_500_SEC = 5.0    # 서버 에러: 5→10→20→40s
 EMPTY_RETRIES = 2        # 빈 응답 재시도 상한
+
+
+class KeyPool:
+    """API 키 풀(Queue). 워커가 키 하나를 체크아웃해 LLMClient에 바인딩하고
+    끝나면 반납한다(워커=키). 키 N개면 동시 N워커만 키를 쥐고, 초과 워커는
+    빈 키가 날 때까지 블록한다. 키 1개면 사실상 직렬(=단일키 모드).
+    """
+
+    def __init__(self, keys: list[str] | None = None):
+        keys = keys if keys is not None else get_api_keys()
+        if not keys:
+            raise RuntimeError("KeyPool needs at least one API key")
+        self._q: Queue = Queue()
+        for k in keys:
+            self._q.put(k)
+        self.size = len(keys)
+
+    @contextmanager
+    def checkout(self, timeout: float | None = None):
+        """키 하나를 빌린다(컨텍스트 종료 시 자동 반납). 빈 키가 없으면 블록."""
+        key = self._q.get(timeout=timeout)
+        try:
+            yield key
+        finally:
+            self._q.put(key)
 
 
 class CallBudgetExceeded(Exception):
@@ -113,11 +151,14 @@ def _is_transient(err: Exception) -> bool:
 
 
 class LLMClient:
-    def __init__(self, max_calls: int | None = None):
+    def __init__(self, max_calls: int | None = None,
+                 api_key: str | None = None):
         # import을 여기서 해서, API를 안 쓰는 코드(게이트 등)는 SDK 없이도 돈다
         from google import genai
 
-        self._client = genai.Client(api_key=get_api_key())
+        # api_key를 주입하면 그 키에 바인딩(워커=키). 안 주면 풀의 첫 키(단일키 모드).
+        self._api_key = api_key or get_api_key()
+        self._client = genai.Client(api_key=self._api_key)
         self.call_count = 0
         self.max_calls = max_calls
         # 녹음: 경로를 지정하면 콜마다 응답 전문을 jsonl로 기록 (replay 재현용)
@@ -164,16 +205,16 @@ class LLMClient:
         return costs
 
     def _wait_interval(self) -> None:
-        """전역 페이서를 잡고 콜 슬롯을 예약한다. 락을 잡은 동안 다음 콜 시각을
-        선점(now+interval)하므로, 워커 N개여도 콜이 4초 간격으로 흩어진다."""
-        global _pacer_last_call_at
-        with _pacer_lock:
+        """이 클라이언트가 쥔 키의 페이서를 잡고 콜 간 4초 간격을 보장한다.
+        키별 락이라 같은 키의 콜만 직렬화되고, 다른 키 워커는 안 막힌다."""
+        pacer = _get_pacer(getattr(self, "_api_key", ""))
+        with pacer["lock"]:
             now = time.monotonic()
-            wait = _pacer_last_call_at + MIN_INTERVAL_SEC - now
+            wait = pacer["last"] + MIN_INTERVAL_SEC - now
             if wait > 0:
                 time.sleep(wait)
                 now = time.monotonic()
-            _pacer_last_call_at = now
+            pacer["last"] = now
 
     def generate(self, role: str, prompt: str, temperature: float | None = None) -> str:
         """role('generator'|'critic')의 모델로 1콜. 텍스트를 반환한다.
