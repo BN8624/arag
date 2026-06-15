@@ -17,11 +17,13 @@ from queue import Queue
 
 from config import get_api_key, get_api_keys, get_model
 
-MIN_INTERVAL_SEC = 4.0
+MIN_INTERVAL_SEC = 5.0  # 분당 12콜. RPM15 상한 바로 아래로 여유(3)를 둔다 —
+# 4.0초는 정확히 15/분(상한 절벽)이라 500 폭풍(즉시반환→4초로 당겨붙음, 500도 RPM 카운트)
+# 때 경계 429가 빈발한다. 5.0초면 키당 15를 안 넘겨 429를 원천 차단(처리량 상한만 12로↓).
 
 # 키별 페이서: 콜 간 최소 간격을 *키마다 따로* 강제한다(워커=키 병렬 안전).
 # 키마다 쿼터(RPM 15)가 독립이므로 페이서도 키별 락·last로 나눈다. 같은 키의
-# 콜은 4초 간격으로 직렬화되지만, 다른 키는 서로 안 막아 진짜 병렬로 겹친다.
+# 콜은 MIN_INTERVAL_SEC 간격으로 직렬화되지만, 다른 키는 서로 안 막아 진짜 병렬로 겹친다.
 # (단일키 모드면 키 1개짜리 페이서 = 기존 전역 페이서와 동일 동작.)
 _pacer_registry_lock = threading.Lock()  # _pacers dict 자체를 보호
 _pacers: dict[str, dict] = {}             # api_key -> {"lock": Lock, "last": float}
