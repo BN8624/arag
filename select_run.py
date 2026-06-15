@@ -30,6 +30,12 @@ CAP = 8           # 카드당 최대 시도
 MAX_WORKERS = 3   # 동시 워커 수(전역 페이서가 RPM은 막지만 RPD·메모리 보호)
 MAX_MINUTES = 75  # per-attempt 시간 예산(통합 카드 4파일 생성이 다 끝나도록 40→75)
 MODEL_31 = "gemma-4-31b-it"  # 31단독
+MODEL_26 = "gemma-4-26b-a4b-it"  # 26B = 손
+# 구성(arm): 머리·손 모델 매핑. 같은 frozen·오라클에 구성만 바꿔 비용↔통과율 비교한다.
+ARMS = {
+    "31solo": {"GENERATOR_MODEL": MODEL_31, "CRITIC_MODEL": MODEL_31},  # 신뢰 베이스라인
+    "4home":  {"GENERATOR_MODEL": MODEL_26, "CRITIC_MODEL": MODEL_31},  # #4 26손/31머리
+}
 # 고정 설계+고정 오라클(손-박제 골든) — 구현만 변수로 두려고 resume한다.
 FROZEN_DIR = PROJECT_ROOT / "frozen"
 LEDGER = PROJECT_ROOT / "runs" / "select_ledger.jsonl"
@@ -44,8 +50,9 @@ def _log(entry: dict) -> None:
 
 
 def _run_attempt(tid: str, idea: str, attempt: int, frozen: str) -> bool:
-    """한 시도를 인-프로세스로 실행. 31단독 cold, 자기 LLMClient·run_dir.
-    frozen=고정 설계·오라클 디렉토리명(frozen/<frozen>). True=게이트 전부 통과."""
+    """한 시도를 인-프로세스로 실행. cold, 자기 LLMClient·run_dir(모델은 main이
+    env로 선점한 arm을 따른다). frozen=고정 설계·오라클 디렉토리명(frozen/<frozen>).
+    True=게이트 전부 통과."""
     from llm import LLMClient
     from orchestrator import Orchestrator
 
@@ -66,18 +73,24 @@ def _run_attempt(tid: str, idea: str, attempt: int, frozen: str) -> bool:
 def main(argv=None) -> int:
     import sys
     force_utf8_stdout()
-    # 고정 설계 스왑: argv[1]로 frozen 디렉토리명 지정(기본 T-000012=설계A).
-    frozen = (argv or sys.argv[1:] or ["T-000012"])[0]
-    # 31단독: 손·머리 둘 다 31B. load_env가 기존 env를 안 덮으므로 여기서 선점.
-    os.environ["GENERATOR_MODEL"] = MODEL_31
-    os.environ["CRITIC_MODEL"] = MODEL_31
+    # argv[1]=frozen 디렉토리명(기본 T-000012=설계A), argv[2]=arm(기본 31solo).
+    args = list(argv or sys.argv[1:])
+    frozen = (args[0:1] or ["T-000012"])[0]
+    arm = (args[1:2] or ["31solo"])[0]
+    if arm not in ARMS:
+        print(f"[SELECT] 알 수 없는 arm={arm!r}. 가능: {list(ARMS)}")
+        return 2
+    # load_env가 기존 env를 안 덮으므로 여기서 선점한다.
+    for k, v in ARMS[arm].items():
+        os.environ[k] = v
 
     from bank_db import BankDB
     with BankDB() as db:
         cards = {t: db.get_task(t) for t in CARDS}
 
     print(f"[SELECT] select-best(cap {CAP}, {MAX_WORKERS}병렬, {MAX_MINUTES}분/시도) "
-          f"31단독 cold — 약한칸 {CARDS}, 고정설계={frozen}")
+          f"arm={arm}({ARMS[arm]['GENERATOR_MODEL']}/{ARMS[arm]['CRITIC_MODEL']}) "
+          f"cold — 약한칸 {CARDS}, 고정설계={frozen}")
     for tid in CARDS:
         idea = cards[tid]["goal"]
         cracked_at = None
@@ -93,7 +106,8 @@ def main(argv=None) -> int:
                         cracked_at = futs[fut]
                 done += len(wave)
         _log({"t": datetime.now().isoformat(timespec="seconds"), "task_id": tid,
-              "frozen": frozen, "cracked_at": cracked_at, "attempts": done,
+              "frozen": frozen, "arm": arm, "models": ARMS[arm],
+              "cracked_at": cracked_at, "attempts": done,
               "cap": CAP, "parallel": MAX_WORKERS})
         msg = (f"{cracked_at}번째 시도에서 통과(누적 {done})" if cracked_at
                else f"{CAP}번 내 실패")
