@@ -32,6 +32,7 @@ from run_index import load_index, recurrence_stats
 
 RUNS_DIR = PROJECT_ROOT / "runs"
 LIVE_THRESHOLD_SEC = 120  # events.jsonl이 이 안에 갱신됐으면 "진행 중"
+PARALLEL_WINDOW_SEC = 900  # 병렬 그리드에 띄울 런 = 이 안에 활동한 것(도는중+방금끝남)
 EVENTS_TAIL = 20
 BATCH_STATE_NAME = "batch_state.json"  # batch.py가 쓰는 심장박동 파일
 
@@ -347,6 +348,71 @@ def _read_select_ledger(runs_dir: Path) -> list[dict]:
     return rows
 
 
+def _run_state(events: list[dict], running: bool) -> str:
+    """런 한 개의 상태: run(도는중)/pass/fail/done."""
+    if running:
+        return "run"
+    fail = any(e.get("event") in ("aborted", "error", "no-progress",
+                                  "budget-exhausted") for e in events)
+    if fail:
+        return "fail"
+    score = None
+    for e in events:
+        if e.get("event") == "scoreboard":
+            score = e
+    if score and score.get("total") and score.get("passed") == score.get("total"):
+        return "pass"
+    if any(e.get("event") in ("critique-lgtm", "critique-skipped-perfect",
+                              "index-recorded", "salvaged") for e in events):
+        return "pass"
+    return "done"
+
+
+def _compact_run(run_dir: Path, age: float | None) -> dict:
+    """병렬 그리드 타일 1개 분량의 압축 요약(간결)."""
+    events = _read_events(run_dir)
+    running = age is not None and age < LIVE_THRESHOLD_SEC
+    stages = stage_states(events)
+    cur = next((s for s in stages if s["status"] in ("active", "warn")), None)
+    if cur is None:
+        done = [s for s in stages if s["status"] == "done"]
+        cur = done[-1] if done else stages[0]
+    last = _humanize(events[-1]) if events else ""
+    score = None
+    for e in events:
+        if e.get("event") == "scoreboard":
+            score = {"passed": e.get("passed"), "total": e.get("total")}
+    return {
+        "run": run_dir.name,
+        "attempt": run_dir.name.split("-")[-1],  # 예: sel02
+        "state": _run_state(events, running),
+        "stage": cur["label"], "stage_note": cur["note"],
+        "last": last, "age_sec": round(age) if age is not None else None,
+        "score": score,
+        "fixes": sum(1 for e in events
+                     if e.get("event") in ("static-issues", "exec-issues")),
+    }
+
+
+def _live_runs(runs_dir: Path) -> list[dict]:
+    """최근 PARALLEL_WINDOW 안에 활동한 런들(도는중 + 방금 끝남)을 이름순으로."""
+    if not runs_dir.exists():
+        return []
+    out = []
+    now = time.time()
+    for d in runs_dir.iterdir():
+        if not d.is_dir():
+            continue
+        ev = d / "events.jsonl"
+        if not ev.exists():
+            continue
+        age = now - ev.stat().st_mtime
+        if age < PARALLEL_WINDOW_SEC:
+            out.append(_compact_run(d, age))
+    out.sort(key=lambda r: r["run"])
+    return out
+
+
 def build_status(runs_dir: Path | None = None) -> dict:
     """대시보드 한 화면 분량의 상태를 dict로. (테스트 가능한 순수 조회)"""
     global RUNS_DIR
@@ -396,7 +462,10 @@ def build_status(runs_dir: Path | None = None) -> dict:
     improvable = [{"run": e["run"], "idea": (e.get("idea") or "")[:60],
                    "score": e.get("score")}
                   for e in history if e.get("ok")]
+    import key_usage
     return {"live": live, "history": history,
+            "live_runs": _live_runs(RUNS_DIR),  # 병렬 그리드 소스
+            "rpd": key_usage.summary(),         # 오늘 키×모델 RPD
             "total_cost_usd": round(total_cost, 4),
             "stop_after": STOP_FILE.exists(),
             "improvable": improvable,
@@ -755,6 +824,37 @@ select{margin-bottom:8px}
 .gorow{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;
  align-items:center;margin-top:8px}
 .empty{padding:16px;color:var(--muted);font-size:14px}
+/* 병렬 그리드 */
+.pcampaign{margin:12px 16px 2px;font-size:13.5px;color:var(--muted)}
+.pcampaign b{color:var(--text);font-weight:700}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 16px 4px}
+.ptile{background:var(--card);border:1px solid var(--line);border-radius:12px;
+ padding:9px 10px;min-width:0}
+.ptile.run{border-color:rgba(251,191,36,.45)}
+.ptile.pass{border-color:rgba(74,222,128,.5)}
+.ptile.fail{border-color:rgba(248,113,113,.4)}
+.pt-head{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.pt-att{font-weight:800;font-size:13px}
+.pt-badge{margin-left:auto;font-size:10.5px;font-weight:800;padding:2px 7px;
+ border-radius:8px}
+.pt-badge.run{background:rgba(251,191,36,.16);color:var(--amber);
+ animation:blink 1.4s infinite}
+.pt-badge.pass{background:rgba(74,222,128,.16);color:var(--green)}
+.pt-badge.fail{background:rgba(248,113,113,.18);color:var(--red)}
+.pt-badge.done{background:var(--card2);color:var(--muted)}
+.pt-stage{font-size:13px;font-weight:700;color:#ffd98a;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap}
+.ptile.pass .pt-stage{color:var(--green)}.ptile.fail .pt-stage{color:#ffb4b4}
+.pt-last{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pt-meta{font-size:11px;color:var(--muted);margin-top:5px;display:flex;gap:9px;
+ font-variant-numeric:tabular-nums}
+.prpd{display:flex;flex-wrap:wrap;gap:6px;padding:6px 16px 12px}
+.prpd .rchip{font-size:11px;padding:4px 8px;border-radius:8px;background:var(--card2);
+ border:1px solid var(--line);color:var(--muted);font-variant-numeric:tabular-nums}
+.prpd .rchip b{color:#ffd97e}.prpd .rchip.hot{border-color:rgba(248,113,113,.5)}
+.prpd .rchip.hot b{color:var(--red)}
+.prpd .rlbl{font-size:11px;color:var(--muted);align-self:center;margin-right:2px}
 </style></head><body>
 <div class="shell">
 <header>
@@ -796,7 +896,12 @@ select{margin-bottom:8px}
 </div>
 
 <div id="view-now">
-  <section>
+  <div id="parallel" style="display:none">
+    <p class="pcampaign" id="pcampaign">-</p>
+    <div class="pgrid" id="pgrid"></div>
+    <div class="prpd" id="prpd"></div>
+  </div>
+  <section id="single-now">
     <div class="sec-head"><h2>지금</h2><span id="now-run" class="mono">-</span></div>
     <div class="nowstrip">
       <span class="actor" id="ns-actor">—</span>
@@ -811,7 +916,7 @@ select{margin-bottom:8px}
     </div>
   </section>
 
-  <section class="feedsec">
+  <section class="feedsec" id="single-feed">
     <div class="sec-head"><h2>방금 일어난 일</h2><span id="feed-note"></span></div>
     <div class="feed" id="feed"></div>
   </section>
@@ -1030,8 +1135,61 @@ function render(r){
     (r.history||[]).length+'건 · 합계 $'+(r.total_cost_usd||0).toFixed(3);
   document.getElementById('history').innerHTML = (r.history||[])
     .map(rowHtml).join('') || '<div class="empty">아직 출하품 없음</div>';
+  // ── 병렬 그리드 (라이브 런 ≥2면 단일카드 대신 그리드)
+  renderParallel(r);
   // ── 지표 탭
   renderStats(r);
+}
+
+function shortModel(m){
+  return m.indexOf('26')>=0?'26B':m.indexOf('31')>=0?'31B':esc(m);
+}
+
+function ptile(x){
+  const badge = {run:'도는중',pass:'통과',fail:'실패',done:'완료'}[x.state]||x.state;
+  const sc = x.score && x.score.total!=null ? x.score.passed+'/'+x.score.total : '';
+  const last = esc(String(x.last||'').slice(10)
+    .replace('[26B] ','').replace('[31B] ',''));
+  const stage = esc(x.stage||'') + (x.stage_note?' · '+esc(x.stage_note):'');
+  return '<div class="ptile '+x.state+'">'
+    + '<div class="pt-head"><span class="pt-att mono">'+esc(x.attempt)+'</span>'
+    + '<span class="pt-badge '+x.state+'">'+badge+'</span></div>'
+    + '<div class="pt-stage">'+stage+'</div>'
+    + '<div class="pt-last">'+last+'</div>'
+    + '<div class="pt-meta"><span>수리 '+(x.fixes||0)+'</span>'
+    + (sc?'<span>점수 '+sc+'</span>':'')
+    + '<span>'+(x.age_sec!=null?fmtAge(x.age_sec):'')+'</span></div>'
+    + '</div>';
+}
+
+function renderParallel(r){
+  const runs = r.live_runs||[];
+  const parallel = runs.length >= 2;
+  document.getElementById('parallel').style.display = parallel?'block':'none';
+  document.getElementById('single-now').style.display = parallel?'none':'block';
+  document.getElementById('single-feed').style.display = parallel?'none':'flex';
+  if(!parallel) return;
+  const running = runs.filter(x=>x.state==='run').length;
+  const passed = runs.filter(x=>x.state==='pass').map(x=>x.attempt);
+  const sel = r.select||[];
+  let arm='병렬';
+  if(sel.length && sel[sel.length-1].arm) arm = sel[sel.length-1].arm;
+  document.getElementById('pcampaign').innerHTML =
+    '<b>'+esc(arm)+'</b> · '+runs.length+'시도 · 도는중 '+running
+    + (passed.length?' · <span style="color:var(--green);font-weight:700">통과 '
+       +esc(passed.join(','))+'</span>':'');
+  document.getElementById('pgrid').innerHTML = runs.map(ptile).join('');
+  // RPD 스트립
+  const rpd = r.rpd||{}, rows = rpd.rows||[], cap = rpd.cap||1450;
+  let rh = '<span class="rlbl">오늘 RPD</span>';
+  if(rows.length){
+    rh += rows.map(function(x){
+      const hot = x.n >= cap*0.8;
+      return '<span class="rchip'+(hot?' hot':'')+'">'+esc(x.fp)+' '
+        + shortModel(x.model)+' <b>'+x.n+'</b>/'+cap+'</span>';
+    }).join('');
+  } else rh += '<span class="rchip">기록 없음(다음 런부터)</span>';
+  document.getElementById('prpd').innerHTML = rh;
 }
 
 function setNow(actor, text, lv, on){

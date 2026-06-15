@@ -105,6 +105,22 @@ def report(date: str | None = None) -> str:
     return "\n".join(lines)
 
 
+def summary(date: str | None = None) -> dict:
+    """대시보드용 구조화 요약. 해당 날짜(기본 오늘)의 키×모델 행 + 합계·최대."""
+    date = date or pacific_date()
+    with _lock:
+        data = _load()
+    rows = []
+    for key, n in data.items():
+        d, fp, model = key.split("|", 2)
+        if d == date:
+            rows.append({"fp": fp[:6], "model": model, "n": n})
+    rows.sort(key=lambda r: -r["n"])
+    return {"date": date, "cap": RPD_LIMIT - RPD_RESERVE, "rows": rows,
+            "total": sum(r["n"] for r in rows),
+            "max": rows[0]["n"] if rows else 0}
+
+
 def main() -> int:
     from config import force_utf8_stdout
     force_utf8_stdout()
