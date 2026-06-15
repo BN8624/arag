@@ -324,6 +324,29 @@ def _count_json(path: Path) -> int:
     return len(data) if isinstance(data, (list, dict)) else 0
 
 
+def _read_select_ledger(runs_dir: Path) -> list[dict]:
+    """select_run.py 돌파 장부(select_ledger.jsonl). 카드별 '몇 번에 깼나'(층2 지표).
+
+    append 순서 그대로 반환 — JS가 task_id별 최신 항목을 취한다.
+    """
+    path = Path(runs_dir) / "select_ledger.jsonl"
+    if not path.exists():
+        return []
+    rows: list[dict] = []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    except OSError:
+        return []
+    return rows
+
+
 def build_status(runs_dir: Path | None = None) -> dict:
     """대시보드 한 화면 분량의 상태를 dict로. (테스트 가능한 순수 조회)"""
     global RUNS_DIR
@@ -377,6 +400,7 @@ def build_status(runs_dir: Path | None = None) -> dict:
             "total_cost_usd": round(total_cost, 4),
             "stop_after": STOP_FILE.exists(),
             "improvable": improvable,
+            "select": _read_select_ledger(RUNS_DIR),
             "recurrence": recurrence_stats(history),
             "batch": read_batch_state(RUNS_DIR),
             "knowledge": {
@@ -802,24 +826,16 @@ select{margin-bottom:8px}
 
 <div id="view-stats" style="display:none">
   <section>
+    <div class="sec-head"><h2>Select-best 돌파</h2><span id="st-sel-note">층2 · 몇 번에 깨나</span></div>
+    <div class="statwrap"><table class="stats" id="st-select"></table></div>
+  </section>
+  <section>
+    <div class="sec-head"><h2>이번 카드 시도</h2><span id="st-att-note">현재 측정 카드</span></div>
+    <div class="statwrap"><table class="stats" id="st-attempts"></table></div>
+  </section>
+  <section>
     <div class="sec-head"><h2>실패 관측</h2><span>limit_type · 부산물 점수</span></div>
     <div class="kchips" id="st-obs">-</div>
-  </section>
-  <section>
-    <div class="sec-head"><h2>프롬프트 버전별</h2><span>실험 전후 비교</span></div>
-    <div class="statwrap"><table class="stats" id="st-version"></table></div>
-  </section>
-  <section>
-    <div class="sec-head"><h2>난이도(level)별</h2><span>성공률 해석 보정용</span></div>
-    <div class="statwrap"><table class="stats" id="st-level"></table></div>
-  </section>
-  <section>
-    <div class="sec-head"><h2>관찰: 카드×아키텍처 통과율</h2><span id="st-var-note"></span></div>
-    <div class="statwrap"><table class="stats" id="st-variance"></table></div>
-  </section>
-  <section>
-    <div class="sec-head"><h2>개선(improve) 판정</h2><span id="st-imp-note"></span></div>
-    <div class="kchips" id="st-improve"></div>
   </section>
   <section>
     <div class="sec-head"><h2>실패 분해 · 자산</h2><span>인프라 ≠ 모델 실력</span></div>
@@ -1068,72 +1084,46 @@ function rowHtml(e){
 
 function renderStats(r){
   const hist = r.history||[];
-  // 프롬프트 버전별
-  const byV = {};
-  for(const e of hist){
-    const v = e.prompt_version || '(버전 기록 전)';
-    const b = byV[v] = byV[v]||{n:0,ok:0,sp:0,st:0,cost:0,infra:0};
-    b.n++; if(e.ok) b.ok++;
-    if(e.score&&e.score.total){ b.sp+=e.score.passed; b.st+=e.score.total; }
-    b.cost += e.cost_usd||0;
-    if(/API call failed|INTERNAL/.test(String(e.status||''))) b.infra++;
+  // ── Select-best 돌파(층2): 카드별 최신 cracked_at/cap. 싸게 깨면 frontier 아님, 미돌파면 frontier
+  const sel = r.select||[];
+  const latest = {};
+  for(const e of sel){ if(e.task_id) latest[e.task_id]=e; }  // append순 → 뒤가 최신
+  const keys = Object.keys(latest).sort();
+  let hs = '<tr><th>카드</th><th>돌파</th><th>cap</th><th>판정</th></tr>';
+  for(const k of keys){
+    const e=latest[k], cracked=e.cracked_at!=null;
+    hs += '<tr><td>'+esc(k.slice(-3))+'</td><td>'+(cracked?e.cracked_at+'번':'—')
+       + '</td><td>'+(e.cap!=null?e.cap:'-')+'</td><td style="color:'
+       + (cracked?'var(--green)':'var(--amber)')+';font-weight:700">'
+       + (cracked?'깸':'frontier')+'</td></tr>';
   }
-  let h = '<tr><th>버전</th><th>n</th><th>OK</th><th>점수</th><th>$</th></tr>';
-  for(const v of Object.keys(byV)){
-    const b = byV[v];
-    h += '<tr><td title="'+esc(v)+'">'+esc(v)+'</td><td>'+b.n+'</td>'
-      + '<td>'+Math.round(100*b.ok/b.n)+'%</td>'
-      + '<td>'+(b.st?Math.round(100*b.sp/b.st)+'%':'-')+'</td>'
-      + '<td>'+b.cost.toFixed(2)+'</td></tr>';
-  }
-  document.getElementById('st-version').innerHTML = h;
-  // level별
-  const byL = {};
-  for(const e of hist){
-    const l = e.level!=null ? 'L'+e.level : '(없음)';
-    const b = byL[l] = byL[l]||{n:0,ok:0};
-    b.n++; if(e.ok) b.ok++;
-  }
-  let h2 = '<tr><th>난이도</th><th>n</th><th>OK</th></tr>';
-  for(const l of Object.keys(byL).sort()){
-    h2 += '<tr><td>'+l+'</td><td>'+byL[l].n+'</td>'
-       + '<td>'+Math.round(100*byL[l].ok/byL[l].n)+'%</td></tr>';
-  }
-  document.getElementById('st-level').innerHTML = h2;
-  // 관찰: 카드×아키텍처 통과율 (분할 vs 통짜) — 결정17 frontier 관찰
-  const byCard = {}; let cardN=0, cardOk=0;
-  for(const e of hist){
-    if(!e.task_id) continue;
-    // 현재 31단독 관찰 캠페인만 (오늘 26all L4 등 다른 구성과 안 섞이게)
-    if(e.generator_model!=='gemma-4-31b-it'||e.critic_model!=='gemma-4-31b-it') continue;
-    cardN++; if(e.ok) cardOk++;
-    const c = byCard[e.task_id] = byCard[e.task_id]||{pf:{p:0,n:0},wh:{p:0,n:0}};
-    const slot = e.whole ? c.wh : c.pf;
-    slot.n++; if(e.ok) slot.p++;
-  }
-  const cell = s => s.n ? (s.p+'/'+s.n+' '+Math.round(100*s.p/s.n)+'%') : '-';
-  let hv = '<tr><th>카드</th><th>분할</th><th>통짜</th></tr>';
-  for(const c of Object.keys(byCard).sort()){
-    const b = byCard[c];
-    hv += '<tr><td>'+esc(c.slice(-2))+'</td><td>'+cell(b.pf)+'</td>'
-       + '<td>'+cell(b.wh)+'</td></tr>';
-  }
-  document.getElementById('st-variance').innerHTML = hv;
-  document.getElementById('st-var-note').textContent =
-    cardN+'런 · 전체 '+(cardN?Math.round(100*cardOk/cardN):0)+'%';
-  // improve 판정
-  const iv = {IMPROVED:0,'NO-GAIN':0,REGRESSED:0};
-  let impTotal = 0;
-  for(const e of hist){
-    const s = String(e.improvement||'');
-    for(const k of Object.keys(iv)) if(s.indexOf(k)===0){ iv[k]++; impTotal++; }
-  }
-  document.getElementById('st-imp-note').textContent = impTotal+'건';
-  document.getElementById('st-improve').innerHTML =
-    '<span class="kchip">개선 성공 <b>'+iv.IMPROVED+'</b></span>'
-    + '<span class="kchip">무이득 <b>'+iv['NO-GAIN']+'</b></span>'
-    + '<span class="kchip">회귀 <b>'+iv.REGRESSED+'</b></span>';
-  // 실패 분해 + 자산
+  document.getElementById('st-select').innerHTML = keys.length?hs
+    : '<tr><td style="color:var(--muted)">아직 기록 없음 — select_run.py 실행 시 채워짐</td></tr>';
+  document.getElementById('st-sel-note').textContent =
+    keys.length? keys.length+'장 측정' : '층2 · 몇 번에 깨나';
+  // ── 이번 카드 시도: 최신(현재 측정) 카드의 시도별 결과
+  let curCard = null;
+  for(const e of hist){ if(e.task_id){ curCard=e.task_id; break; } }  // hist는 최신순
+  if(!curCard && keys.length) curCard = keys[keys.length-1];
+  const att = hist.filter(function(e){ return e.task_id===curCard; });
+  let aOk=0;
+  let ha = '<tr><th>시각</th><th>판정</th><th>점수</th><th>$</th></tr>';
+  att.forEach(function(e){
+    const infra=/API call failed|INTERNAL/.test(String(e.status||''));
+    const sc=e.score||{};
+    if(e.ok) aOk++;
+    const vcol = e.ok?'var(--green)':(infra?'var(--blue)':'var(--red)');
+    const verdict = e.ok?'깸':(infra?'인프라':'실패');
+    ha += '<tr><td class="mono">'+esc(String(e.t||'').slice(5,16))+'</td>'
+       + '<td style="color:'+vcol+';font-weight:700">'+verdict+'</td>'
+       + '<td>'+(sc.total!=null?sc.passed+'/'+sc.total:'-')+'</td>'
+       + '<td>'+(e.cost_usd!=null?'$'+e.cost_usd.toFixed(3):'-')+'</td></tr>';
+  });
+  document.getElementById('st-attempts').innerHTML = att.length?ha
+    : '<tr><td style="color:var(--muted)">시도 없음</td></tr>';
+  document.getElementById('st-att-note').textContent =
+    (curCard?curCard+' · ':'') + (att.length? att.length+'시도 · '+aOk+' 깸' : '현재 측정 카드');
+  // ── 실패 분해 + 자산
   let infra=0, abort=0;
   for(const e of hist){
     if(e.ok) continue;
