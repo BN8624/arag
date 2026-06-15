@@ -1,0 +1,238 @@
+{
+ "project_name": "tempo_rpg_cli",
+ "description": "A deterministic tempo-based turn RPG CLI that simulates battles based on a fixed ruleset and reproduces golden results for 4 scenarios.",
+ "files": [
+  {
+   "path": "main.py",
+   "role": "entry point: handles CLI arguments, initializes scenarios, and prints battle results",
+   "interfaces": [
+    {
+     "kind": "function",
+     "name": "main",
+     "signature": "def main() -> None",
+     "description": "Parses --scenario argument, creates the Entity list, runs the BattleEngine, and prints final state."
+    }
+   ]
+  },
+  {
+   "path": "models.py",
+   "role": "data contracts: defines the core state objects",
+   "interfaces": [
+    {
+     "kind": "class",
+     "name": "Entity",
+     "signature": "dataclass Entity",
+     "description": "id:str, name:str, team:str, max_hp:int, hp:int, atk:int, defense:int, spd:int, gauge:float, statuses:list, last_skill:str|None, skills:list, skill_idx:int"
+    },
+    {
+     "kind": "class",
+     "name": "Status",
+     "signature": "dataclass Status",
+     "description": "type:str, turns:int, stacks:int"
+    }
+   ]
+  },
+  {
+   "path": "status_effects.py",
+   "role": "logic for status application, interaction matrix, and periodic effects",
+   "interfaces": [
+    {
+     "kind": "function",
+     "name": "apply_status",
+     "signature": "def apply_status(target: Entity, s_type: str, turns: int, stacks: int = 1) -> None",
+     "description": "Applies a status effect to a target while handling the interaction matrix (Burn/Freeze/Shock/Poison)."
+    },
+    {
+     "kind": "function",
+     "name": "process_tick_start",
+     "signature": "def process_tick_start(entity: Entity) -> None",
+     "description": "Handles turn-start effects like Burn damage."
+    },
+    {
+     "kind": "function",
+     "name": "process_tick_end",
+     "signature": "def process_tick_end(entity: Entity) -> None",
+     "description": "Handles turn-end effects like Poison damage and status duration decay."
+    }
+   ]
+  },
+  {
+   "path": "skills.py",
+   "role": "damage calculation and skill-specific logic",
+   "interfaces": [
+    {
+     "kind": "function",
+     "name": "calculate_damage",
+     "signature": "def calculate_damage(actor: Entity, target: Entity, base: int) -> int",
+     "description": "Implements max(1, atk + base - def) with the 1.25x Shock multiplier (floored)."
+    },
+    {
+     "kind": "function",
+     "name": "execute_skill",
+     "signature": "def execute_skill(actor: Entity, target: Entity, skill_name: str) -> None",
+     "description": "Processes the specific effect of a skill, including combos and status application."
+    }
+   ]
+  },
+  {
+   "path": "engine.py",
+   "role": "tempo turn simulation, AI targeting, and battle loop",
+   "interfaces": [
+    {
+     "kind": "class",
+     "name": "BattleEngine",
+     "signature": "class BattleEngine",
+     "description": "Manages the battle loop, gauge increments, priority selection, and victory conditions."
+    },
+    {
+     "kind": "method",
+     "name": "run",
+     "signature": "def run(self) -> dict",
+     "description": "Executes the battle until a team is wiped or turns exceed 100. Returns winner, turns, and final hps."
+    }
+   ]
+  }
+ ],
+ "dependencies": {
+  "main.py": [
+   "engine.py",
+   "models.py"
+  ],
+  "engine.py": [
+   "models.py",
+   "skills.py",
+   "status_effects.py"
+  ],
+  "skills.py": [
+   "models.py",
+   "status_effects.py"
+  ],
+  "status_effects.py": [
+   "models.py"
+  ],
+  "models.py": []
+ },
+ "entrypoint": "main.py",
+ "key_points": [
+  "Strict adherence to the damage formula: max(1, atk + base - target.defense) * 1.25 (floor) if shock exists",
+  "Deterministic tempo turn priority: spd (desc) -> hp (asc) -> registration order",
+  "Last-skill combo chain reset by any actual damage received or freeze skip",
+  "Status interaction matrix: Burn/Freeze override/removal and Shock/Poison stack multiplier",
+  "HP floor at 0: No negative HP, specifically 0 upon death",
+  "Turn count increments per action attempt (including freezes)"
+ ],
+ "requirements": [
+  {
+   "text": "Implement a damage formula with 1.25x shock multiplier and a minimum of 1 damage",
+   "covered_by": [
+    0
+   ]
+  },
+  {
+   "text": "Handle status effects: Burn (start), Poison (end), Freeze (skip), Shock (dmg boost)",
+   "covered_by": [
+    0,
+    1
+   ]
+  },
+  {
+   "text": "Implement the status interaction matrix (Burn+Freeze, Shock+Poison)",
+   "covered_by": [
+    0
+   ]
+  },
+  {
+   "text": "Support skill combos (ignite -> detonate, charge -> combo_strike)",
+   "covered_by": [
+    0
+   ]
+  },
+  {
+   "text": "Tempo-turn system based on spd and gauge (100 threshold), with specific priority rules",
+   "covered_by": [
+    0,
+    1
+   ]
+  },
+  {
+   "text": "AI targeting based on lowest HP of enemies",
+   "covered_by": [
+    0
+   ]
+  },
+  {
+   "text": "Exact output format for winner, total turns, and per-entity HP",
+   "covered_by": [
+    2
+   ]
+  },
+  {
+   "text": "Reproduce golden results for 4 specific scenarios deterministically",
+   "covered_by": [
+    2
+   ]
+  },
+  {
+   "text": "Use only Python standard library, no input() or eval()",
+   "covered_by": [
+    0
+   ]
+  }
+ ],
+ "acceptance_criteria": [
+  "The simulation logic precisely calculates damage, status effects, and turn priority as defined in the rules",
+  "The tempo turn loop correctly handles tick-start, action (or freeze), and tick-end sequences",
+  "Running the CLI for scenarios 1-4 produces the exact golden winner, turn count, and entity HP values"
+ ],
+ "criteria_checks": [
+  {
+   "criterion": "The simulation logic precisely calculates damage, status effects, and turn priority as defined in the rules",
+   "command": "python main.py --scenario 1",
+   "expect_substring": "winner: enemy"
+  },
+  {
+   "criterion": "The tempo turn loop correctly handles tick-start, action (or freeze), and tick-end sequences",
+   "command": "python main.py --scenario 2",
+   "expect_substring": "winner: hero"
+  },
+  {
+   "criterion": "Running the CLI for scenarios 1-4 produces the exact golden winner, turn count, and entity HP values",
+   "command": "python main.py --scenario 3",
+   "expect_substring": "hero3: 20"
+  }
+ ],
+ "success_signal": {
+  "command": "python main.py --scenario 1 && python main.py --scenario 2 && python main.py --scenario 3 && python main.py --scenario 4",
+  "expect_substring": [
+   "winner: enemy",
+   "turns: 23",
+   "hero1: 0",
+   "hero2: 0",
+   "enemy1: 0",
+   "enemy2: 160",
+   "enemy3: 11",
+   "winner: hero",
+   "turns: 17",
+   "hero1: 23",
+   "hero2: 140",
+   "enemy1: 0",
+   "enemy2: 0",
+   "winner: hero",
+   "turns: 19",
+   "hero1: 90",
+   "hero2: 100",
+   "hero3: 20",
+   "enemy1: 0",
+   "enemy2: 0",
+   "enemy3: 0",
+   "winner: hero",
+   "turns: 29",
+   "hero1: 18",
+   "hero2: 0",
+   "hero3: 0",
+   "enemy1: 0",
+   "enemy2: 0",
+   "enemy3: 0"
+  ]
+ }
+}

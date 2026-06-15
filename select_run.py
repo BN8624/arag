@@ -43,9 +43,9 @@ def _log(entry: dict) -> None:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def _run_attempt(tid: str, idea: str, attempt: int) -> bool:
-    """한 시도를 인-프로세스로 실행. 31단독 cold fresh, 자기 LLMClient·run_dir.
-    True=게이트 전부 통과(통합 성공)."""
+def _run_attempt(tid: str, idea: str, attempt: int, frozen: str) -> bool:
+    """한 시도를 인-프로세스로 실행. 31단독 cold, 자기 LLMClient·run_dir.
+    frozen=고정 설계·오라클 디렉토리명(frozen/<frozen>). True=게이트 전부 통과."""
     from llm import LLMClient
     from orchestrator import Orchestrator
 
@@ -55,7 +55,7 @@ def _run_attempt(tid: str, idea: str, attempt: int) -> bool:
     llm.record_path = run_dir / "llm_calls.jsonl"
     orch = Orchestrator(llm, run_dir, max_minutes=MAX_MINUTES,
                         task_id=tid, notes_enabled=False,  # cold
-                        resume_from=FROZEN_DIR / tid)  # 설계·오라클 고정
+                        resume_from=FROZEN_DIR / frozen)  # 설계·오라클 고정
     try:
         return bool(orch.run(idea))
     except Exception as err:  # 한 시도의 폭주가 풀 전체를 죽이지 않게
@@ -63,8 +63,11 @@ def _run_attempt(tid: str, idea: str, attempt: int) -> bool:
         return False
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import sys
     force_utf8_stdout()
+    # 고정 설계 스왑: argv[1]로 frozen 디렉토리명 지정(기본 T-000012=설계A).
+    frozen = (argv or sys.argv[1:] or ["T-000012"])[0]
     # 31단독: 손·머리 둘 다 31B. load_env가 기존 env를 안 덮으므로 여기서 선점.
     os.environ["GENERATOR_MODEL"] = MODEL_31
     os.environ["CRITIC_MODEL"] = MODEL_31
@@ -74,7 +77,7 @@ def main() -> int:
         cards = {t: db.get_task(t) for t in CARDS}
 
     print(f"[SELECT] select-best(cap {CAP}, {MAX_WORKERS}병렬, {MAX_MINUTES}분/시도) "
-          f"31단독 cold — 약한칸 {CARDS}")
+          f"31단독 cold — 약한칸 {CARDS}, 고정설계={frozen}")
     for tid in CARDS:
         idea = cards[tid]["goal"]
         cracked_at = None
@@ -83,14 +86,15 @@ def main() -> int:
             while done < CAP and cracked_at is None:
                 wave = list(range(done + 1, min(done + MAX_WORKERS, CAP) + 1))
                 print(f"[SELECT] {tid} 웨이브 {wave}/{CAP}")
-                futs = {pool.submit(_run_attempt, tid, idea, a): a for a in wave}
+                futs = {pool.submit(_run_attempt, tid, idea, a, frozen): a
+                        for a in wave}
                 for fut in futs:
                     if fut.result() and cracked_at is None:
                         cracked_at = futs[fut]
                 done += len(wave)
         _log({"t": datetime.now().isoformat(timespec="seconds"), "task_id": tid,
-              "cracked_at": cracked_at, "attempts": done, "cap": CAP,
-              "parallel": MAX_WORKERS})
+              "frozen": frozen, "cracked_at": cracked_at, "attempts": done,
+              "cap": CAP, "parallel": MAX_WORKERS})
         msg = (f"{cracked_at}번째 시도에서 통과(누적 {done})" if cracked_at
                else f"{CAP}번 내 실패")
         print(f"[SELECT] {tid} -> {msg}")
