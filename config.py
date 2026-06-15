@@ -43,11 +43,13 @@ def force_utf8_stdout() -> None:
             pass
 
 
-def load_env(path: Path = ENV_PATH) -> bool:
+def load_env(path: Path | None = None) -> bool:
     """KEY=VALUE 형식의 .env 파일을 읽어 환경변수로 넣는다.
 
     이미 설정된 환경변수는 덮어쓰지 않는다. 파일이 없으면 False.
+    기본값은 호출시점에 ENV_PATH에서 읽는다(테스트 격리·import 바인딩 함정 방지).
     """
+    path = ENV_PATH if path is None else path
     if not path.exists():
         return False
     # utf-8-sig: 윈도우 메모장이 붙이는 BOM까지 처리

@@ -124,7 +124,7 @@ def _check_file(name, tree, local_modules, defined, edges) -> list[dict]:
                         issues.append(issue(name, node.lineno, "non-stdlib-import",
                                             f"'{alias.name}' is not in the standard library "
                                             "or the allowed package whitelist"))
-                if not _name_used(tree, bound, node):
+                if not _name_used(tree, bound):
                     issues.append(issue(name, node.lineno, "unused-import",
                                         f"'{bound}' is imported but never used"))
         elif isinstance(node, ast.ImportFrom):
@@ -143,7 +143,7 @@ def _check_file(name, tree, local_modules, defined, edges) -> list[dict]:
                             f"cannot import '{alias.name}' from {target} - "
                             f"it is not defined there"))
                     bound = alias.asname or alias.name
-                    if not _name_used(tree, bound, node):
+                    if not _name_used(tree, bound):
                         issues.append(issue(name, node.lineno, "unused-import",
                                             f"'{bound}' is imported but never used"))
             elif (mod and mod != "__future__" and not _is_stdlib(mod)
@@ -428,8 +428,12 @@ def _is_stdlib(module: str) -> bool:
     return module in sys.stdlib_module_names
 
 
-def _name_used(tree, bound: str, import_node) -> bool:
-    """import 문 밖에서 그 이름이 실제로 쓰이나."""
+def _name_used(tree, bound: str) -> bool:
+    """그 이름이 (import 별칭 외에) 코드에서 ast.Name으로 실제 쓰이나.
+
+    import 문은 별칭을 문자열로만 들고 ast.Name을 안 만들므로, Name 등장 =
+    실사용이다.
+    """
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and node.id == bound:
             return True
