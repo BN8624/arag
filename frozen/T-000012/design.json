@@ -1,0 +1,238 @@
+{
+  "project_name": "deterministic_rpg_cli",
+  "description": "A deterministic tempo-based RPG battle simulator with status effects and skill combos, reproducing four specific scenario outcomes.",
+  "files": [
+    {
+      "path": "models.py",
+      "role": "Data definitions for the RPG system",
+      "interfaces": [
+        {
+          "kind": "class",
+          "name": "Status",
+          "signature": "dataclass Status(type: str, turns: int, stacks: int = 1)",
+          "description": "Represents a status effect applied to an entity."
+        },
+        {
+          "kind": "class",
+          "name": "Entity",
+          "signature": "dataclass Entity(id: str, name: str, team: str, max_hp: int, hp: int, atk: int, defense: int, spd: int, gauge: float = 0, statuses: list = None, last_skill: str = None, skills: list = None, skill_idx: int = 0)",
+          "description": "Represents a combatant in the battle."
+        }
+      ]
+    },
+    {
+      "path": "skills.py",
+      "role": "Logic for skill execution and damage calculation",
+      "interfaces": [
+        {
+          "kind": "function",
+          "name": "calculate_damage",
+          "signature": "def calculate_damage(actor, target, skill_base: int) -> int",
+          "description": "Calculates damage based on the common formula: max(1, atk + skill_base - defense) with shock multiplier."
+        },
+        {
+          "kind": "function",
+          "name": "apply_skill",
+          "signature": "def apply_skill(actor, target, skill_name: str)",
+          "description": "Executes the specific logic for a skill, including damage and status application."
+        },
+        {
+          "kind": "function",
+          "name": "handle_status_interaction",
+          "signature": "def handle_status_interaction(target, new_status_type: str, turns: int, stacks: int = 1)",
+          "description": "Implements the status interaction matrix (burn/freeze/poison/shock)."
+        }
+      ]
+    },
+    {
+      "path": "engine.py",
+      "role": "The core tempo-based battle simulation engine",
+      "interfaces": [
+        {
+          "kind": "class",
+          "name": "BattleSimulator",
+          "signature": "class BattleSimulator(entities: list)",
+          "description": "Manages the battle loop, tempo ticks, turn order, and AI targets."
+        },
+        {
+          "kind": "function",
+          "name": "BattleSimulator.run",
+          "signature": "def run(self) -> dict",
+          "description": "Executes the battle until a win condition or turn limit is reached. Returns the result dictionary."
+        }
+      ]
+    },
+    {
+      "path": "main.py",
+      "role": "CLI entry point and scenario dispatcher",
+      "interfaces": [
+        {
+          "kind": "function",
+          "name": "main",
+          "signature": "def main() -> int",
+          "description": "Parses --scenario argument and prints the formatted results."
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "main.py": [
+      "engine.py",
+      "models.py"
+    ],
+    "engine.py": [
+      "skills.py",
+      "models.py"
+    ],
+    "skills.py": [
+      "models.py"
+    ],
+    "models.py": []
+  },
+  "entrypoint": "main.py",
+  "key_points": [
+    "Damage formula: max(1, atk + base - def), shock gives x1.25 floor",
+    "HP must stop at exactly 0",
+    "Status interactions: Burn/Freeze conflict, Shock/Poison synergy",
+    "Tempo: Gauge adds spd every tick; action when gauge >= 100; priority based on spd > hp > order",
+    "Turn definition: Incremented on entity action attempt (including frozen skips)",
+    "Combo system: last_skill is cleared by taking damage or freezing",
+    "AI: Target lowest HP enemy; rotate through skill list"
+  ],
+  "requirements": [
+    {
+      "text": "Implement damage formula including shock multiplier and HP floor of 0",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Implement status effects: Burn (5% HP start), Freeze (skip turn), Poison (fixed dmg end), Shock (dmg amp)",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Implement status interaction matrix (Burn+Freeze=Evaporate, Shock+Poison=Double stacks)",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Implement skill logic including combos (Charge -> Combo Strike, Ignite -> Detonate)",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Implement tempo-based turn system with priority (spd -> hp -> reg order)",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Implement AI targeting (lowest HP) and skill rotation",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Reproduce Scenario 1 golden results: winner: enemy, turns: 23, hp values accurate",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Reproduce Scenario 2 golden results: winner: hero, turns: 17, hp values accurate",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Reproduce Scenario 3 golden results: winner: hero, turns: 19, hp values accurate",
+      "covered_by": [
+        0
+      ]
+    },
+    {
+      "text": "Reproduce Scenario 4 golden results: winner: hero, turns: 29, hp values accurate",
+      "covered_by": [
+        0
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "The simulator correctly outputs the winner, total turns, and final HP for all 4 scenarios exactly as specified in the golden results."
+  ],
+  "criteria_checks": [
+    {
+      "criterion": "The simulator correctly outputs the winner, total turns, and final HP for all 4 scenarios exactly as specified in the golden results.",
+      "command": "python main.py --scenario 1 && python main.py --scenario 2 && python main.py --scenario 3 && python main.py --scenario 4",
+      "expect_substring": [
+        "winner: enemy",
+        "turns: 23",
+        "hero1: 0",
+        "hero2: 0",
+        "enemy1: 0",
+        "enemy2: 160",
+        "enemy3: 11",
+        "winner: hero",
+        "turns: 17",
+        "hero1: 23",
+        "hero2: 140",
+        "enemy1: 0",
+        "enemy2: 0",
+        "winner: hero",
+        "turns: 19",
+        "hero1: 90",
+        "hero2: 100",
+        "hero3: 20",
+        "enemy1: 0",
+        "enemy2: 0",
+        "enemy3: 0",
+        "winner: hero",
+        "turns: 29",
+        "hero1: 18",
+        "hero2: 0",
+        "hero3: 0",
+        "enemy1: 0",
+        "enemy2: 0",
+        "enemy3: 0"
+      ]
+    }
+  ],
+  "success_signal": {
+    "command": "python main.py --scenario 1 && python main.py --scenario 2 && python main.py --scenario 3 && python main.py --scenario 4",
+    "expect_substring": [
+      "winner: enemy",
+      "turns: 23",
+      "hero1: 0",
+      "hero2: 0",
+      "enemy1: 0",
+      "enemy2: 160",
+      "enemy3: 11",
+      "winner: hero",
+      "turns: 17",
+      "hero1: 23",
+      "hero2: 140",
+      "enemy1: 0",
+      "enemy2: 0",
+      "winner: hero",
+      "turns: 19",
+      "hero1: 90",
+      "hero2: 100",
+      "hero3: 20",
+      "enemy1: 0",
+      "enemy2: 0",
+      "enemy3: 0",
+      "winner: hero",
+      "turns: 29",
+      "hero1: 18",
+      "hero2: 0",
+      "hero3: 0",
+      "enemy1: 0",
+      "enemy2: 0",
+      "enemy3: 0"
+    ]
+  }
+}

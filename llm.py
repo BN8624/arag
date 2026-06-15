@@ -10,11 +10,18 @@
 
 import re
 import socket
+import threading
 import time
 
 from config import get_api_key, get_model
 
 MIN_INTERVAL_SEC = 4.0
+
+# 전역 페이서: 콜 간 최소 간격을 *프로세스 전역*으로 강제한다(스레드 병렬 안전).
+# 워커가 여러 개여도 합산 RPM이 15(=4초/콜)를 넘지 않게 막는다. 락은 페이싱
+# 순간만 잡고 긴 API 콜 동안은 풀어서, 실제 작업은 진짜 병렬로 겹친다.
+_pacer_lock = threading.Lock()
+_pacer_last_call_at = 0.0
 
 # 오픈라우터 유료 단가 (USD / 1M tokens, 2026-06 기준). thinking은 출력으로 과금.
 # 실제 사용은 AI Studio 무료지만, "유료였다면 얼마"를 REPORT에 환산 표기한다.
@@ -111,7 +118,6 @@ class LLMClient:
         from google import genai
 
         self._client = genai.Client(api_key=get_api_key())
-        self._last_call_at = 0.0
         self.call_count = 0
         self.max_calls = max_calls
         # 녹음: 경로를 지정하면 콜마다 응답 전문을 jsonl로 기록 (replay 재현용)
@@ -158,9 +164,16 @@ class LLMClient:
         return costs
 
     def _wait_interval(self) -> None:
-        elapsed = time.monotonic() - self._last_call_at
-        if elapsed < MIN_INTERVAL_SEC:
-            time.sleep(MIN_INTERVAL_SEC - elapsed)
+        """전역 페이서를 잡고 콜 슬롯을 예약한다. 락을 잡은 동안 다음 콜 시각을
+        선점(now+interval)하므로, 워커 N개여도 콜이 4초 간격으로 흩어진다."""
+        global _pacer_last_call_at
+        with _pacer_lock:
+            now = time.monotonic()
+            wait = _pacer_last_call_at + MIN_INTERVAL_SEC - now
+            if wait > 0:
+                time.sleep(wait)
+                now = time.monotonic()
+            _pacer_last_call_at = now
 
     def generate(self, role: str, prompt: str, temperature: float | None = None) -> str:
         """role('generator'|'critic')의 모델로 1콜. 텍스트를 반환한다."""
@@ -178,7 +191,6 @@ class LLMClient:
         for attempt in range(MAX_RETRIES + 1):
             self._wait_interval()
             try:
-                self._last_call_at = time.monotonic()
                 resp = self._client.models.generate_content(
                     model=model,
                     contents=prompt,
