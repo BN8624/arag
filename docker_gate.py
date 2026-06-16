@@ -146,6 +146,19 @@ def run_pytest(workdir: Path, timeout: int = 60,
     return issues, log
 
 
+def run_turn_trace(workdir: Path, scenario: int, timeout: int = EXEC_TIMEOUT_SEC,
+                   deps_dir: Path | None = None) -> str:
+    """모델 main.py의 턴별 트레이스를 뽑는다 (trace-diff 피드백용, 게이트 아님).
+
+    `python main.py --scenario N --trace` 실행 → stdout 반환. 모델이 --trace를
+    구현 안 했거나 크래시하면 빈/쓰레기 출력이 오고, trace_diff가 그걸 'missing'으로 처리.
+    """
+    rc, out = _run_in_docker(
+        workdir, ["python", "main.py", "--scenario", str(scenario), "--trace"],
+        timeout, deps_dir)
+    return out
+
+
 def run_criteria_checks(workdir: Path, checks: list[dict],
                         timeout: int = EXEC_TIMEOUT_SEC,
                         deps_dir: Path | None = None) -> list[dict]:

@@ -2,9 +2,9 @@
 
 ## ▶ 새 세션 여기부터 (3단계만)
 1. **읽기**: 이 파일의 `지금 어디` + `다음 액션` 두 섹션만. 그거면 바로 시작 가능.
-2. **지금 할 일 (한 줄)**: 노트 파이프라인 카드-스코프 + warm_run 연속사이클 **준비 완료**.
-   다음 = **연속 cold11→warm11 사이클 런 기동**(`python warm_run.py 11 11 5`) → 통과율-vs-사이클
-   추세 측정. ⚠️ **런은 사용자 명시 지시 전엔 안 돌린다**(메모리 no-autostart-runs). 상세 = `다음 액션`.
+2. **지금 할 일 (한 줄)**: trace-diff 오라클 **구축·테스트 완료**(351 통과). 다음 =
+   **trace-diff A/B 캠페인 기동**(`python trace_run.py 11 11 5`) → trace_on vs trace_off 통과율 델타로
+   '첫-발산 힌트가 frontier를 미나' 측정. ⚠️ **런은 사용자 명시 지시 전엔 안 돌린다**(메모리 no-autostart-runs).
 3. **막히면**: "왜 이렇게 정했나"는 `context-notes.md` 결정번호로, "큰 방향"은 `PLAN.md`.
 
 **문서 용도 (필요할 때만 펼쳐라):**
@@ -146,15 +146,20 @@
 
 ## 돌고 있는 것
 **측정 없음 (런 미기동, 사용자 지시 대기).** 대시보드만 8400에서 떠 있음 — http://100.89.73.83:8400.
-- warm 캠페인은 사용자 지시 후 기동. 옛 폭풍런 장부는 `runs/warm_ledger.run1-storm.jsonl`로 분리 보관.
+- warm 5사이클(110런) **완료**: cold 13/55(24%) vs warm 8/55(15%), 노트효과 비유의(z≈1.2). 장부
+  `runs/warm_ledger.jsonl`. 원인 규명 끝 = (B) 모델 실행정밀도 한계, 하네스 무결(결정27).
+- 옛 폭풍런 장부는 `runs/warm_ledger.run1-storm.jsonl`로 분리 보관.
 
 ## 다음 액션 (★다음 세션 여기부터)
 > 31solo 단독(결정25). ⚠️ **런은 사용자 명시 지시 전엔 기동 금지**(memory no-autostart-runs).
-1. **연속 cold/warm 사이클 런** (사용자 지시 시): `python warm_run.py 11 11 5` (4번째 인자=사이클수,
-   생략=무한). cold11→warm11 반복, ledger에 cycle 기록. **읽기 = warm 통과율의 사이클별 추세
-   vs cold(평탄)**. 사이클1은 warm≈cold(풀 빔), 효과는 사이클2+. 노트 둘 다 카드-스코프라
-   T-000012 풀이 빈 채 시작해 누적된다(결정26).
+1. **trace-diff A/B 캠페인** (사용자 지시 시): `python trace_run.py 11 11 5` (4번째=사이클수, 생략=무한).
+   두 arm(둘 다 cold + --trace 요구): **trace_on**(frozen/T-000012-trace, 골든트레이스로 첫-발산 힌트
+   주입) vs **trace_off**(frozen/T-000012, 기존 골든diff만). **읽기 = on-off 통과율 델타**. on이 유의하게
+   높으면 frontier=피드백 국소화 문제, 아니면 (B) 실행정밀도 한계 확정. 장부 `runs/trace_ledger.jsonl`.
+   (24% cold 베이스라인은 --trace 세금 없어 부차참고 — 정식 대조는 trace_off arm.)
 2. **형태 확장(별도 축)**: 어댑터 → 2D 방치형(game/ 정본 재사용).
+- (메모) trace-diff 구축 = 결정27/[checklist.md](checklist.md). 조각: game 턴트레이스(`--turntrace`)·
+  trace_diff.py(콜0)·phase_gates._add_trace_hint·trace_run.py·frozen/T-000012-trace/golden_traces.
 - (메모) 대시보드 그리드는 병렬 런 돌 때 폰 http://100.89.73.83:8400 현황 탭. 단계 라벨은 머리/손.
 
 ### 완료(이번 세션, 폴백)

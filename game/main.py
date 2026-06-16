@@ -46,11 +46,16 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--max-turns", type=int, default=100)
     ap.add_argument("--trace", action="store_true")
+    ap.add_argument("--turntrace", action="store_true",
+                    help="턴별 정규 트레이스(trace-diff 골든 생성용)")
     args = ap.parse_args(argv)
 
     heroes, enemies = build_party(args.seed)
     result = run_battle(heroes, enemies, seed=args.seed, max_turns=args.max_turns)
 
+    if args.turntrace:
+        print("\n".join(result["turn_trace"]))
+        return 0
     if args.trace:
         print(json.dumps(result, ensure_ascii=False))
         return 0

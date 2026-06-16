@@ -1,0 +1,17 @@
+turn=1 actor=hero1 action=shock_bolt | hero1=85 hero2=140 enemy1=160 enemy2=40
+turn=2 actor=enemy2 action=ignite | hero1=68 hero2=140 enemy1=160 enemy2=40
+turn=3 actor=hero1 action=venom | hero1=65 hero2=140 enemy1=160 enemy2=19
+turn=4 actor=enemy2 action=frost | hero1=49 hero2=140 enemy1=160 enemy2=0
+turn=5 actor=hero2 action=charge | hero1=49 hero2=140 enemy1=160 enemy2=0
+turn=6 actor=hero1 action=combo_strike | hero1=47 hero2=140 enemy1=143 enemy2=0
+turn=7 actor=enemy1 action=combo_strike | hero1=24 hero2=140 enemy1=143 enemy2=0
+turn=8 actor=hero1 action=shock_bolt | hero1=23 hero2=140 enemy1=132 enemy2=0
+turn=9 actor=hero2 action=combo_strike | hero1=23 hero2=140 enemy1=100 enemy2=0
+turn=10 actor=hero1 action=venom | hero1=23 hero2=140 enemy1=90 enemy2=0
+turn=11 actor=hero1 action=combo_strike | hero1=23 hero2=140 enemy1=69 enemy2=0
+turn=12 actor=enemy1 action=charge | hero1=23 hero2=140 enemy1=37 enemy2=0
+turn=13 actor=hero2 action=venom | hero1=23 hero2=140 enemy1=32 enemy2=0
+turn=14 actor=hero1 action=shock_bolt | hero1=23 hero2=140 enemy1=19 enemy2=0
+turn=15 actor=hero1 action=venom | hero1=23 hero2=140 enemy1=9 enemy2=0
+turn=16 actor=hero2 action=charge | hero1=23 hero2=140 enemy1=9 enemy2=0
+turn=17 actor=hero1 action=combo_strike | hero1=23 hero2=140 enemy1=0 enemy2=0

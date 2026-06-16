@@ -29,10 +29,20 @@ def _pick_target(actor: Entity, foes: list) -> Entity | None:
     return living[0][1]
 
 
+def _turn_line(turn: int, actor_id: str, action: str, order: list) -> str:
+    """턴별 정규 트레이스 한 줄(콜0 trace-diff용). 모델 main.py --trace도 이 포맷을
+    그대로 따라야 골든과 diff된다. 형식:
+      turn=N actor=ID action=ACTION | id=hp id=hp ...
+    action ∈ 스킬명 | frozen(빙결스킵) | burndead(화상사망) | noact(대상없음)."""
+    state = " ".join(f"{e.id}={e.hp}" for e in order)
+    return f"turn={turn} actor={actor_id} action={action} | {state}"
+
+
 def run_battle(heroes: list, enemies: list, seed: int = 0,
                max_turns: int = 100) -> dict:
     order = list(heroes) + list(enemies)   # 등록 순서: heroes 먼저
     events: list = []
+    turn_trace: list = []                  # 턴별 정규 트레이스(trace-diff 피드백용)
     dead: set = set()
     turns = 0
 
@@ -62,6 +72,7 @@ def run_battle(heroes: list, enemies: list, seed: int = 0,
             if not actor.alive:
                 check_deaths()
                 actor.gauge -= 100
+                turn_trace.append(_turn_line(turns, actor.id, "burndead", order))
                 continue
             frozen = get_status(actor, "freeze")
             if frozen:
@@ -71,17 +82,21 @@ def run_battle(heroes: list, enemies: list, seed: int = 0,
                     actor.statuses = [s for s in actor.statuses if s.type != "freeze"]
                 actor.last_skill = None
                 events.append(_ev("turn", actor=actor.id, detail="frozen skip"))
+                action = "frozen"
             else:
                 actor.gauge -= 100
                 foes = enemies if actor.team == "hero" else heroes
                 target = _pick_target(actor, foes)
+                action = "noact"
                 if target is not None:
                     skill = (actor.skills[actor.rotation_index % len(actor.skills)]
                              if actor.skills else "combo_strike")
                     actor.rotation_index += 1
                     events += resolve_skill(actor, target, skill)
+                    action = skill
             events += tick_end(actor)
             check_deaths()
+            turn_trace.append(_turn_line(turns, actor.id, action, order))
             if turns >= max_turns:
                 break
 
@@ -95,4 +110,5 @@ def run_battle(heroes: list, enemies: list, seed: int = 0,
         "survivors": {e.id: e.hp for e in order if e.alive},
         "final_hp": {e.id: e.hp for e in order},
         "events": events,
+        "turn_trace": turn_trace,
     }

@@ -1,55 +1,43 @@
-# checklist.md — 병렬 인프라(키풀·연속리필·도커캡) + 전31 재측정
+# checklist.md — trace-diff 오라클 (첫-발산 국소화 피드백)
 
-> 결정 로그 = [context-notes.md](context-notes.md) 결정22. 큰 방향 = [PLAN.md](PLAN.md).
-> 끝나면 체크. 한 단계씩, 끝나면 멈추고 보고. 측정 변수 오염 금지 — 인프라 먼저 박고 그 위에서 측정.
+> 결정 로그 = [context-notes.md](context-notes.md) 결정27. 큰 방향 = [PLAN.md](PLAN.md).
+> 한 단계씩, 끝나면 멈추고 보고. 측정 정합성 = 게이트 불변(최종 골든), 트레이스는 피드백 전용.
 
-## 배경 (왜 이걸 하나)
-- 4home(26손/31머리) 1키 측정을 피크시간에 돌렸더니 1웨이브 0/3 + 네트워크 에러 잦음 → 중단.
-  부분데이터: 폴백 오염은 경미(generator 31강등 3런 중 1콜)했으나 표본·품질 부족으로 결론 불가.
-- 사용자가 독립 프로젝트 키 **11개**(AI Studio=프로젝트당 키1, 독립 쿼터) 확보 → 진짜 병렬 가능.
-- 합의된 설계: **워커=키**(시도 하나가 키 하나를 통째로 빌려 26·31 다 처리. 시도 안에선
-  26→31 순차라 충돌 없음. 시도끼리 완전 독립). 노브 둘 분리 — ①키풀크기(쿼터상한, ≤11)
-  ②도커 세마포어(PC RAM 상한, 4~6부터 실측).
+## 배경 (왜 이걸 하나 — 결정27 요약)
+- 5사이클 cold/warm(110런) 결과: 노트효과 0(cold 13/55 vs warm 8/55, z≈1.2 비유의), 하네스 무결
+  (INFRA 0·HARNESS 0). 원인 = **(B) 모델 실행정밀도 한계** — 실패 89건 중 86건이 "도는 코드인데
+  시뮬 궤적이 1턴부터 발산"(turns 23↔13 등, 값이 넓게 흩어짐 = 각 런 서로 다른 작은 통합실수).
+- 스펙·골든·레퍼런스 정합 검증 끝(seed파티=고정파티, combat 랜덤0, 노트=스펙일치). 명세미결정 기각.
+- **레버**: 골든 피드백이 최종상태(turns 23↔13)만 줘 *어느 규칙이 몇 턴째* 깨졌는지 못 짚음 →
+  자가수정·노트가 못 묾. `game/`엔 이미 `--trace`(이벤트 JSON)가 있다. 첫-발산 국소화 힌트를
+  자가수정에 주입 = all-or-nothing을 단일스텝 수정신호로 변환. **유일한 미시도 개입.**
+- 힌트 강도(사용자 결정) = **위치+범주**: '턴 N에서 발산, 네 행동=X, 어느 규칙 범주 의심'.
+  골든 숫자는 비노출(공정성 유지, 답 떠먹이기 아님).
 
-## 0. 선결 확인 (코딩 전) — 완료
-- [x] `.env` 키 형식 확정 = `GOOGLE_API_KEY_1..11`(한 줄당 하나, 번호 suffix). 기존 로더가
-      줄당 KEY=VALUE 파싱이라 로더 변경 0. 단일 `GOOGLE_API_KEY` 폴백 유지(하위호환).
-      .env.example 11슬롯으로 갱신. **키 11개 전부 실통과 확인(11/11 OK).**
-- [x] Docker Desktop WSL2 현재 VM = 8.2GB/12CPU(.wslconfig 없음, 기본).
-- [x] 도커 동시성 시작값 = **2**로 확정(호스트 16GB·피크80%, 도커단계는 짧아 병목 아님 → 보수적).
+## 설계 (5조각)
+- [x] **1. game/ 턴 트레이스 + 골든 생성**: combat에 턴별 정규 스냅샷(`turn=N actor=ID action=X
+      | id=hp ...`) 한 줄/턴(`_turn_line`, run_battle가 turn_trace 반환). main.py `--turntrace`(JSON
+      --trace와 공존). 4 골든 → `frozen/T-000012-trace/golden_traces/scenN.txt`(결정론·turns 23/17/19/29).
+- [x] **2. 카드 변이**: DB 안 건드림(실험=하네스 변이). idea = T-000012 goal + `trace_run.TRACE_SPEC`
+      (--trace 요구 문단, combat 포맷 일치). frozen/T-000012-trace = design.json+test_acceptance.py
+      (T-000012 복사) + golden_traces. **베이스라인 frozen/T-000012 보존.**
+- [x] **3. trace_diff.py (콜0)**: parse_trace/first_divergence/hint_text. 발산종류(actor/action/freeze/
+      state/length/missing) + 규칙범주 추론. **골든 정답값 비노출**(테스트로 보장). 파싱실패 graceful.
+- [x] **4. 자가수정 배선**: `phase_gates._add_trace_hint` — 골든 불일치 시 `run_turn_trace`로 모델
+      --trace 실행 → trace_diff → 힌트 issue 추가. golden_traces 있을 때만. **게이트 불변**. 트레이스
+      못 뽑으면(다른 시나리오 일치/디렉토리 없음/크래시) 조용히 기존 issue 유지.
+- [~] **5. 캠페인 러너**: `trace_run.py` 작성 완료(trace_on/trace_off 2-arm, cold, KeyPool 병렬).
+      **런 미기동** — ⚠️ 사용자 명시 지시 전엔 금지(memory no-autostart-runs).
 
-## 1. 키풀 + 키별 페이서 (llm.py) — 완료 (커밋 6592927)
-- [x] `config.get_api_keys()`: `GOOGLE_API_KEY_1..N` 숫자순 수집, 없으면 단일키 폴백.
-- [x] 전역 페이서 → **키별 페이서**(`_get_pacer(key)`: 키마다 락·last). 같은 키만 4초 직렬,
-      다른 키는 독립. 단일키면 기존 전역 페이서와 동일 동작.
-- [x] `LLMClient(api_key=)` 키 바인딩. 그 키로만 26·31 콜 + 그 키 페이서.
-- [x] 폴백(generator→critic 강등)은 같은 키 안 모델만 바꿈(결정16 불변).
-- [x] `KeyPool`(Queue 체크아웃/반납) 추가. 테스트 8(숫자정렬/폴백/플레이스홀더제외/페이서
-      독립/풀 distinct·고갈블록·기본).
-
-## 2. 연속 리필 풀 (select_run.py) — 완료 (커밋 0e96eb0)
-- [x] 웨이브배리어 제거 → CAP개 한 번에 제출, width 슬롯 자동 리필(`as_completed`).
-- [x] early-stop: 첫 통과 시 미시작 `future.cancel()`, 도는 건 흘려보냄. attempts=실제로 돈 수.
-- [x] 워커=키: 시작 시 `KeyPool.checkout()` → 끝나면 반납(컨텍스트매니저).
-- [x] arm 인자 + 새 인자 width(argv[3], 기본=min(키수,CAP)). 테스트 1(early-stop 취소).
-
-## 3. 도커 세마포어 + 컨테이너 캡 (docker_gate.py) — 완료 (커밋 227587e)
-- [x] 모듈 전역 `Semaphore(N_DOCKER=2)`를 `_run_in_docker` 진입에 걸어 동시 컨테이너 ≤ N.
-      `set_docker_concurrency(n)`로 주입(select_run argv[4]=n_docker, 기본 2).
-- [x] `docker run`에 `--memory=512m --cpus=1` 추가.
-- [x] 테스트 2(세마포어 동시진입 제한 mock / --memory·--cpus 인자 검증). 전체 313 통과.
-
-## 4. 전31 재측정 (인프라 위에서) — 완료 (2026-06-15)
-- [x] arm=31solo, T-000012, width6/11키 → **cracked@2, 누적 7시도, 429=0**(쿼터 독립 검증).
-      실패 6건 100% 진짜 통합미스(하네스 무결). 심층분석 = context-notes 결정24.
-- [~] arm=4home = **제외**(결정25 — 두 번째 모델 서버장애로 운영서 빠짐. 사용자가 다시 꺼낼 때만).
-- [x] 장부(select_ledger.jsonl)에 arm·models·width·n_docker 기록 확인. 31solo는 폴백 없음(no-op).
-- [x] 결과 → HANDOFF/context-notes(결정24) 갱신.
-
-> **이 체크리스트(병렬 인프라 + 전31)는 완료.** 다음 작업 시작 시 이 파일을 새 체크리스트로 교체.
+## 검증 (단계마다)
+- [x] 1 끝: 4 골든 트레이스 결정론 재현·turns 일치·최종상태 골든 일치. game test 14/14.
+- [x] 3 끝: trace_diff 단위테스트(동일→None, actor/action/freeze/state/length/missing, 골든값 비노출) 15개.
+- [x] 4 끝: mock으로 힌트주입·비골든실패 스킵·트레이스일치 no-op·디렉토리없음 no-op 테스트.
+- [x] 전체 테스트 **351 통과**(334+신규, 회귀 0).
 
 ## 주의 / 함정
-- 인프라 바꾸는 동안은 측정 돌리지 말 것(변수 섞임). 1→2→3 끝낸 뒤 4.
-- width 키울수록 벽시계↓ 비용↑(첫통과 후 버리는 콜). 비용측정은 width 작게, throughput/variance는 크게.
-- 26 사망시간(미국 피크, UTC 밤~아침=한국 저녁~) 회피. 폴백 깔려 있어도 강등이 측정 오염.
-- 키=프로젝트가 진짜 독립 쿼터인지 첫 병렬 실행에서 429 0건으로 확인.
+- **트레이스는 절대 게이트가 아니다.** 게이트 통과 판정은 최종 골든 토큰 그대로. 트레이스 오작동이
+  PASS/FAIL을 바꾸면 안 됨(측정 오염). 피드백 품질만 바꾼다.
+- 힌트에 골든 숫자(정답 HP/턴값) 넣지 말 것 — 위치+범주까지만(사용자 결정).
+- 모델 트레이스 포맷이 틀려도 게이트엔 무영향(폴백). 트레이스 포맷 실패를 새 FAIL모드로 만들지 말 것.
+- T-000012-trace는 베이스라인과 *다른 카드*다. 비교는 "trace arm vs 24% cold"로 명시(같은 카드 아님).

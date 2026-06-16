@@ -9,8 +9,9 @@ import json
 import re
 from pathlib import Path
 
+import trace_diff
 from docker_gate import (install_packages, run_criteria_checks, run_exec_gate,
-                         run_pytest)
+                         run_pytest, run_turn_trace)
 from gates import external_imports, format_issues, run_static_gate
 from phase_common import K_MAX_FIX, PARTIAL_PASS_RATE, TEST_FILE, RunAborted
 from prompts import arbitrate_prompt, extract_code, fix_prompt, revise_prompt
@@ -110,10 +111,48 @@ class GatesPhase:
             exec_left -= 1
             self.fix_count["exec"] += 1
             target = self._blame_file(self.last_exec_log)
+            exec_issues = self._add_trace_hint(exec_issues)
             self._say(f"  [GATE] exec failed -> self-fix {target} ({exec_left} left)")
             self.log("exec-issues", context=context, target=target,
                      issues=[i["message"] for i in exec_issues])
             self._fix_files({target: exec_issues})
+
+    def _add_trace_hint(self, exec_issues: list[dict]) -> list[dict]:
+        """골든 불일치 시 모델 트레이스를 골든과 diff해 '몇 턴째 어느 규칙' 힌트를 붙인다.
+
+        trace-diff 오라클(결정27): all-or-nothing 최종상태 피드백을 첫-발산 국소화로 보강.
+        golden_from/golden_traces가 있을 때만 작동. **게이트 판정은 안 바꾼다** — 자가수정
+        프롬프트에 들어갈 issue 하나를 추가할 뿐. 트레이스를 못 뽑으면 조용히 기존 issue 유지.
+        """
+        gdir = self.golden_from / "golden_traces" if self.golden_from else None
+        if not gdir or not gdir.is_dir():
+            return exec_issues
+        blob = "\n".join(i.get("message", "") for i in exec_issues)
+        if "golden output mismatch" not in blob:   # 크래시/타임아웃엔 트레이스 무의미
+            return exec_issues
+        deps = self.deps_dir if getattr(self, "_packages", None) else None
+        for scen_file in sorted(gdir.glob("scen*.txt")):
+            m = re.search(r"scen(\d+)", scen_file.name)
+            if not m:
+                continue
+            scenario = int(m.group(1))
+            try:
+                model_trace = run_turn_trace(self.workspace, scenario, deps_dir=deps)
+                div = trace_diff.first_divergence(
+                    model_trace, scen_file.read_text(encoding="utf-8"))
+            except OSError:
+                div = None
+            if div:
+                hint = trace_diff.hint_text(div)
+                self.log("trace-hint", scenario=scenario, turn=div.get("turn"),
+                         kind=div.get("kind"))
+                self._say(f"  [TRACE] scenario {scenario}: 첫 발산 턴 "
+                          f"{div.get('turn')} ({div.get('kind')})")
+                return list(exec_issues) + [{
+                    "file": self.design.get("entrypoint", "main.py"), "line": 0,
+                    "kind": "trace-hint",
+                    "message": f"(scenario {scenario}) {hint}"}]
+        return exec_issues
 
     def _pytest_pass_rate(self) -> float | None:
         """마지막 실행 로그의 pytest 요약에서 통과율. 요약이 없으면 None."""
