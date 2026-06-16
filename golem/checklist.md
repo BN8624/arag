@@ -29,9 +29,11 @@
 
 ## §13 순서 — 남은 단계
 - [x] (★키) Step 4 Spec QA `specqa.py` — 11 시나리오 구체화·RULE 6개 커버·오라클위험 표시. 단 초안(결함: ACTIVE 오라클오류·float경로 미검·BLOCKING 추적안됨 G32). 사용자: 초안으로 두고 진행
-- [ ] (다음, ★키) Step 5 Build 재실행 — design 4모듈 manifest + specqa 시나리오 + 합의 채점
-- [ ] (★키) Step 6 Adversarial QA — edge_cases.json + acceptance_tests draft 다듬기(ACTIVE 등 잡기)
-- [ ] (backlog) specqa validator 강화(계약 외 상태값 거부+BLOCKING 해소 추적) / 측정 N≥10 장르확장
+- [x] (★키) Step 5 Build v1 `build_graded.py` — design 4모듈 + specqa 시나리오 + 합의 채점. contract_validator에 strict 모드 추가(빌드=느슨, v0.1 5/5 무회귀). 게이트 3/11, **합의 0.36**(G33)
+- [x] 발견: 출력 계약 미고정 → 빌드가 무슨 key 찍을지 제각각(undefined 버그 포함). 합의 채점이 "스펙 안 빡빡"을 특권golden 없이 잡음
+- [ ] (다음) 출력 계약 못박기 — 시나리오별 expected key 집합 고정(Spec QA/계약 강화) → 합의 재측정
+- [ ] (★키) Step 6 Adversarial QA — edge_cases.json + acceptance draft 다듬기(ACTIVE)
+- [ ] (backlog) specqa validator 강화 / 측정 N≥10 장르확장
 
 ## 과거 히스토리
 

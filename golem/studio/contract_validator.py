@@ -88,9 +88,13 @@ def _check_file_exists(manifest, ws):
     return (len(errors) == 0, errors)
 
 
-def _check_import_export(manifest, ws):
+def _check_import_export(manifest, ws, strict=True):
+    """strict=True(v0.1): 코드가 매니페스트 export/import와 정확히 일치해야 한다.
+    strict=False(Build): 선언된 export는 있어야 하나 추가 export 허용, import는 매니페스트 내부면
+    추가 엣지 허용·선언 엣지 누락 허용, 매니페스트 밖 파일 import만 금지(자유 구현 수용)."""
     errors = []
     entry = manifest.get("entry")
+    manifest_paths = {f.get("path") for f in manifest.get("files", [])}
     graph = {}
     for f in manifest.get("files", []):
         path = f.get("path")
@@ -107,18 +111,24 @@ def _check_import_export(manifest, ws):
             errors.append(f"{path}: bare default export(module.exports=...) 금지(PENDING-002)")
         if not bare:
             missing = declared_exp - named
-            extra = named - declared_exp
             if missing:
                 errors.append(f"{path}: 매니페스트 export가 코드에 없음 {sorted(missing)}")
-            if extra:
-                errors.append(f"{path}: 코드 export가 매니페스트에 없음 {sorted(extra)}")
+            if strict:
+                extra = named - declared_exp
+                if extra:
+                    errors.append(f"{path}: 코드 export가 매니페스트에 없음 {sorted(extra)}")
         actual_imp = {_resolve(t, path) for t in _REQUIRE.findall(text) if t.startswith(".")}
-        miss_i = declared_imp - actual_imp
-        extra_i = actual_imp - declared_imp
-        if miss_i:
-            errors.append(f"{path}: 매니페스트 import가 코드에 없음 {sorted(miss_i)}")
-        if extra_i:
-            errors.append(f"{path}: 코드 import가 매니페스트에 없음 {sorted(extra_i)}")
+        if strict:
+            miss_i = declared_imp - actual_imp
+            extra_i = actual_imp - declared_imp
+            if miss_i:
+                errors.append(f"{path}: 매니페스트 import가 코드에 없음 {sorted(miss_i)}")
+            if extra_i:
+                errors.append(f"{path}: 코드 import가 매니페스트에 없음 {sorted(extra_i)}")
+        else:
+            outside = {r for r in actual_imp if r not in manifest_paths}
+            if outside:
+                errors.append(f"{path}: 매니페스트 밖 파일 import {sorted(outside)}")
     cyc = _find_cycle(graph)
     if cyc:
         errors.append(f"순환 의존성: {' -> '.join(cyc)}")
@@ -159,7 +169,7 @@ def _check_static_gate(ws):
     return (res["ok"], [] if res["ok"] else [res.get("reason", "static_gate 실패")])
 
 
-def validate(workspace_path, manifest_path):
+def validate(workspace_path, manifest_path, strict=True):
     ws = Path(workspace_path)
     try:
         manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
@@ -172,7 +182,7 @@ def validate(workspace_path, manifest_path):
     for name, fn in (
         ("manifest_schema", lambda: _check_manifest_schema(manifest)),
         ("file_exists", lambda: _check_file_exists(manifest, ws)),
-        ("import_export", lambda: _check_import_export(manifest, ws)),
+        ("import_export", lambda: _check_import_export(manifest, ws, strict=strict)),
         ("static_gate", lambda: _check_static_gate(ws)),
     ):
         try:

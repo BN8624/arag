@@ -17,10 +17,12 @@
 
 - **Step 4 Spec QA 완료(G32, 키 씀, 초안).** `specqa.py` — 11 시나리오 구체화(기계입력+정확 expected), RULE-01~06 커버, validator PASS. 산출=`specqa_packet/`. **결함 있음(초안)**: SCN-006 "ACTIVE"(계약엔 PLAYING) 오라클오류, RULE-03 float경로 미검, BLOCKING 5 해소 추적안됨. 사용자=초안으로 두고 진행(Step5 합의·Step6가 잡음).
 
-## 다음 액션 — §13 순서대로
+- **Step 5 Build v1 완료(G33, 키 씀).** `build_graded.py` — design 4모듈 + specqa 시나리오 + 합의 채점(특권 golden 아님). contract_validator에 strict 모드 추가(빌드=느슨, v0.1 5/5 무회귀). 결과: 게이트 3/11, **합의 0.36**. 점검: 통과 빌드들이 출력 key를 제각각 찍음(undefined 버그 포함) → **출력 계약 미고정**이 원인. 합의 채점이 "스펙 아직 안 빡빡"을 특권golden 없이 정량화·원인지목.
 
-1. **Step 5 Build 재실행(다음).** design_packet의 **4모듈 manifest** + specqa 시나리오로 gemma 빌드 → static_gate + contract_validator(design manifest) + 시나리오 실행 → **합의 채점**(빌드들이 같은 답에 모이나, 특권 golden 아님 — 사용자 산출물축소 우려 반영). build.py를 design manifest+합의로 확장. ★키.
-2. **Step 6 Adversarial QA.** edge_cases.json + acceptance draft 다듬기(ACTIVE 등 오라클오류 교정).
-3. (backlog) specqa validator 강화(계약 외 상태값 거부+BLOCKING 해소 추적).
+## 다음 액션
+
+1. **출력 계약 못박기(핵심, 다음).** 시나리오별 **expected key 집합·형식**을 계약에 고정(어떤 key:value를 정확히 찍나). 지금 빌드 불일치의 직접 원인. Spec QA/Planning 계약 강화 → build_graded 합의 재측정해서 0.36→상승 확인. ★키.
+2. **Step 6 Adversarial QA.** edge_cases.json + acceptance draft 다듬기(ACTIVE 오라클오류).
+3. (backlog) specqa validator 강화(계약 외 상태값 거부+BLOCKING 해소 추적) / 측정 N≥10.
 
 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
