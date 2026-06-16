@@ -105,19 +105,22 @@ Output ONLY the files, each introduced by a marker line exactly like this, with 
 """
 
 
-def _party_block():
+def _party_block(scenarios):
     lines = ["== SCENARIOS (fixed parties — hardcode them; --scenario N picks one) ==",
              "Each entity: id, name, max_hp, atk, defense, spd, skills. (hp starts at max_hp.)"]
-    for sc in ("1", "2", "3", "4"):
-        party = GOLDEN[sc]["party"]
+    for sc in sorted(scenarios, key=int):
+        party = scenarios[sc]["party"]
         lines.append(f"Scenario {sc}:")
         lines.append("  heroes  = " + json.dumps(party["heroes"], ensure_ascii=False))
         lines.append("  enemies = " + json.dumps(party["enemies"], ensure_ascii=False))
     return "\n".join(lines)
 
 
-def build_prompt(self_fix_hint=None):
-    parts = [RULES, _party_block(), RESPONSE_FORMAT]
+def build_prompt(self_fix_hint=None, card=None):
+    """card 주면 그 카드의 규칙·시나리오로, 없으면 모듈 기본(RULES + golden/scenarios.json)."""
+    rules = card["rules"] if card else RULES
+    scenarios = card["scenarios"] if card else GOLDEN
+    parts = [rules, _party_block(scenarios), RESPONSE_FORMAT]
     if self_fix_hint:
         parts.append(
             "== PREVIOUS ATTEMPT FAILED ==\n"

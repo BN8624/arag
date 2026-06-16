@@ -66,7 +66,7 @@ def write_candidate(out_dir, files):
         p.write_text(body, encoding="utf-8")
 
 
-def _one_attempt(resp, cdir):
+def _one_attempt(resp, cdir, card=None):
     files = parse_files(resp)
     cdir.mkdir(parents=True, exist_ok=True)
     (cdir / "_raw_response.txt").write_text(resp, encoding="utf-8")
@@ -74,7 +74,7 @@ def _one_attempt(resp, cdir):
         return files, {"pass": False,
                        "first_divergence": "no main.js in response (unparseable?)"}
     write_candidate(cdir, files)
-    return files, grader.grade(str(cdir))
+    return files, grader.grade(str(cdir), card=card)
 
 
 def _log(entry):
@@ -83,7 +83,7 @@ def _log(entry):
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def _attempt(attempt, base, key, model, run_id):
+def _attempt(attempt, base, key, model, run_id, card=None):
     """한 시도: 주입된 key로 LLMClient → JS 생성 → 채점. (attempt, ok, first_div, cost) 반환."""
     from llm import LLMClient
     cdir = base / f"attempt{attempt:02d}"
@@ -92,14 +92,14 @@ def _attempt(attempt, base, key, model, run_id):
     client.record_path = cdir / "llm_calls.jsonl"
     t0 = time.time()
     try:
-        resp = client.generate("generator", build_prompt())   # 독립 시도(힌트 없음)
+        resp = client.generate("generator", build_prompt(card=card))   # 독립 시도(힌트 없음)
     except Exception as err:   # noqa: BLE001 - 한 시도 폭주가 풀을 안 죽이게
         cost = client.cost_usd().get("total", 0.0)
         _log({"t": datetime.now().isoformat(timespec="seconds"), "run": run_id,
               "attempt": attempt, "ok": False, "error": str(err)[:200],
               "cost_usd": round(cost, 4)})
         return attempt, False, f"generate error: {str(err)[:120]}", cost
-    files, res = _one_attempt(resp, cdir)
+    files, res = _one_attempt(resp, cdir, card=card)
     dt = time.time() - t0
     cost = client.cost_usd().get("total", 0.0)
     _log({"t": datetime.now().isoformat(timespec="seconds"), "run": run_id,
@@ -119,14 +119,24 @@ def main(argv=None):
     ap.add_argument("--out", default=None)
     ap.add_argument("--replay", default=None,
                     help="LLM 대신 이 파일 응답으로 1회 파이프라인(키 안 씀, 점검용)")
+    ap.add_argument("--card", default=None,
+                    help="은행(game_bank)의 카드 slug. 없으면 모듈 기본(tempo-combat 규칙/골든)")
     args = ap.parse_args(argv)
+
+    card = None
+    if args.card:
+        import game_bank
+        card = game_bank.get_card(args.card)
+        if card is None:
+            print(f"[GOLEM] 카드 '{args.card}' 없음 — game_bank.py로 확인")
+            return 2
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = Path(args.out) if args.out else (HERE.parent / "runs" / "golem" / run_id)
 
     if args.replay:
         resp = Path(args.replay).read_text(encoding="utf-8")
-        files, res = _one_attempt(resp, base / "replay")
+        files, res = _one_attempt(resp, base / "replay", card=card)
         print(json.dumps({"files": list(files.keys()), "pass": res["pass"],
                           "first_divergence": res.get("first_divergence")},
                          ensure_ascii=False, indent=2))
@@ -145,8 +155,9 @@ def main(argv=None):
     pool = KeyPool(keys, models=[model])
     width = args.width or min(len(keys), args.cap)
 
+    card_name = args.card or "tempo-combat(기본)"
     print(f"[GOLEM] 병렬 select-best (cap {args.cap}, width {width}/{len(keys)}키) "
-          f"model={model} — JS 전투엔진(T-000012 JS판), run={run_id}")
+          f"model={model} card={card_name}, run={run_id}")
 
     cracked_at = None
     started = 0
@@ -159,7 +170,7 @@ def main(argv=None):
         with pool.checkout() as key:
             with started_lock:
                 started += 1
-            return _attempt(attempt, base, key, model, run_id)
+            return _attempt(attempt, base, key, model, run_id, card=card)
 
     with ThreadPoolExecutor(max_workers=width) as ex:
         futs = {ex.submit(worker, a): a for a in range(1, args.cap + 1)}

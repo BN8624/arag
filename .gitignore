@@ -229,6 +229,9 @@ STOP_AFTER_RUN
 # Design Bank: 생성 데이터 (카드 누적 — 정본은 별도 export)
 design_bank.sqlite
 
+# golem Game Bank: 카드 DB (바이너리·재생성 가능. 카드#1=bank_init.py, 신규는 별도 export 예정)
+golem/game_bank.sqlite
+
 # PLAN2: 프로토콜 이전 탐색 데이터 격리 보관 (로컬 전용, 결과 아님)
 _exploration/
 

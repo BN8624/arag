@@ -2,8 +2,9 @@
 
 ## ▶ 새 세션 여기부터
 1. **읽기**: 이 파일 `지금 어디` + `다음 액션`만. 규칙은 CLAUDE.md, 왜는 context-notes.md.
-2. **지금 할 일 (한 줄)**: `golem/web/battle.html` 관전기를 사용자가 폰에서 보고 피드백 →
-   다음 표현층 작업(연출 강화/인터랙티브화) 또는 새 시나리오. (Phase 2 1차 산출물 완료.)
+2. **지금 할 일 (한 줄)**: Phase 3 **2단계 — 새 게임 1개를 A 방식으로 생성**. Claude가 새 게임
+   레퍼런스(JS)+규칙 작성 → `oracle.py`로 골든 → `game_bank`에 카드 적재 → `driver --card <slug>`로
+   gemma 생성(★키 씀 = 사용자 go 필요). 어떤 게임(장르)으로 갈지 사용자와 먼저 정한다.
 3. ⚠️ **런은 사용자 명시 지시 전엔 안 돌린다**(키 소비, ARAG 캠페인과 경쟁 금지).
 
 **문서 용도 (필요할 때만):**
@@ -16,24 +17,26 @@
 | checklist.md | 세부 체크리스트 | 진행 추적 |
 
 ## 지금 어디 (2026-06-16)
-**Phase 1 완료(엔진 검증) → Phase 2 진행 중(표현층 = 이모지 스킨).**
-- Phase 1: 런 `20260616-130305` cracked@10, 5/11 통과. attempt01·10 독립 재채점 4/4(우연 아님).
-- Phase 2 표현층: 엔진을 `golem/web/engine.browser.js` 공유 모듈로 분리(단일 진실원). 그 위에
-  스킨만 갈아끼우는 구조. 룩 비교 목업(samples.html)에서 사용자가 **이모지** 선택.
-  `battle.html` = 공유엔진 + 이모지 스킨(데미지숫자·들썩·흔들림·스킬아이콘). 무회귀 4/4 유지.
-- 폰 확인: 테일스케일 `http://100.89.73.83:8731/golem/web/battle.html` 접속 OK.
-- 핵심 통찰(사용자): 엔진/trace 공통 + 껍데기(SKIN)만 교체 = 같은 전투를 여러 룩으로. 구조로 반영됨.
+**Phase 1(엔진검증)·Phase 2(이모지 스킨) 완료 → Phase 3 1단계(은행+A오라클) 완료.**
+- Phase 1: 런 `20260616-130305` cracked@10, 5/11. attempt01·10 독립 재채점 4/4.
+- Phase 2: 엔진 `web/engine.browser.js` 공유모듈 + 스킨 교체 구조. `battle.html`=이모지 스킨.
+  폰(테일스케일 `http://100.89.73.83:8731/golem/web/battle.html`) 확인. 무회귀 4/4.
+- Phase 3 1단계: **검증엔진 라이브러리(은행)** 골격 완성.
+  · `game_bank.py`(sqlite 카드 은행) — 카드#1 'tempo-combat' 적재(규칙·시나리오·골든·솔루션).
+  · `oracle.py`(JS 레퍼런스→골든, **game/ 의존 제거** = A경로) — 솔루션에서 골든 4/4 재현.
+  · driver/worker_prompt/grade 카드 파라미터화(`--card`), 기본·카드 경로 둘 다 PASS.
+- 방향(사용자): A 방식으로 여러 게임 만들어 은행에 쌓고 베이스로 확장. = ARAG Design Bank의 golem판.
 
 ## 다음 액션 (★다음 세션 여기부터)
-**Phase 2 방향 = 표현층 바인딩(사용자 선택). 1차 산출물 완료 — `golem/web/battle.html`.**
-1. **사용자 피드백 받기**: 폰에서 `golem/web/battle.html` 열어(로컬: `python -m http.server`로
-   서빙 후 `/golem/web/battle.html`) 관전기 보고 "되나/손맛" 판단. 무회귀는 `node golem/web/_verify.js`(4/4).
-2. 피드백에 따라 다음 중 하나.
-   - 연출 강화(데미지 숫자 플로팅·HP 깎임 애니·타겟 표시) — 엔진 무수정, 표현층만.
-   - **인터랙티브화**(스킬 선택 플레이) — 엔진의 자동 rotation을 입력 기반으로. 이건 메카닉 변경이라
-     골든 재생성·재검증 필요(별 작업으로 취급).
-   - 새 시나리오/카드 추가 — make_golden으로 골든 늘리고 관전기 드롭다운 확장.
-3. **런은 사용자 go 전 금지.**
+**Phase 3 2단계 = 새 게임 1개를 A 방식으로 생성(★키 씀 — 사용자 go 필요).**
+1. **장르/게임 정하기** — 타깃 장르(turn-rpg·autobattler·card·sim·roguelike) 중 하나로 작은 새 게임.
+   사용자와 먼저 합의(어떤 게임을 만들지).
+2. **A 오라클 만들기(키 안 씀)** — Claude가 그 게임의 JS 레퍼런스 impl + 규칙 스펙 + 시나리오(파티)
+   작성 → `oracle.golden_from_reference`로 골든 생성 → `game_bank.save_card`로 카드 적재.
+3. **생성 런(★키 씀, go 필요)** — `python golem/driver.py --card <slug>`로 gemma가 독립 구현,
+   카드 골든으로 채점. cracked되면 통과본을 카드 solution에 갱신(확장 베이스). 안 되면 first_divergence 분석.
+4. (3단계) 은행 카드를 베이스로 "메카닉 하나 더" 확장이 되는지. 여기까지면 도구 완성형.
+- **런은 사용자 go 전 금지.** 참고: 카드#1은 `python golem/bank_init.py`로 언제든 재적재.
 
 ## 기계 정본
 - 장부: `golem/golem_ledger.jsonl`(시도별 ok·first_divergence·cost). 후보: `runs/golem/<ts>/attemptNN/`.

@@ -58,12 +58,14 @@ def _diff_msg(sc, g, winner, turns, hp):
     return f"scenario {sc}: hp mismatch got={hp} exp={g['final_hp']}"
 
 
-def grade(cdir):
+def grade(cdir, card=None):
+    """card 주면 그 카드의 시나리오/골든으로 채점, 없으면 모듈 기본(golden/scenarios.json)."""
+    scenarios = card["scenarios"] if card else GOLDEN
     results = {}
     first = None
     allpass = True
-    for sc in ("1", "2", "3", "4"):
-        g = GOLDEN[sc]["golden"]
+    for sc in sorted(scenarios, key=int):
+        g = scenarios[sc]["golden"]
         winner, turns, hp, err = _run_scenario(cdir, sc)
         if err:
             allpass = False
