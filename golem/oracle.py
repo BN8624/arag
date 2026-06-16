@@ -25,15 +25,15 @@ def _write_files(d, files):
 
 def golden_from_reference(ref_files, scenario_ids):
     """레퍼런스 JS impl({file: content})을 임시 디렉토리에 풀어 시나리오별 골든을 생성.
-    반환: {str(n): {"winner","turns","final_hp"}}. node 에러 시 RuntimeError."""
+    반환: {str(n): {key: value_str}} — 출력 그대로의 평면 dict(채점기와 같은 파서). node 에러 시 RuntimeError."""
     out = {}
     with tempfile.TemporaryDirectory(prefix="golem_oracle_") as d:
         _write_files(d, ref_files)
         for n in scenario_ids:
-            winner, turns, hp, err = grader._run_scenario(d, str(n))
+            got, err = grader._run_scenario(d, str(n))
             if err:
                 raise RuntimeError(f"reference failed on scenario {n}: {err}")
-            out[str(n)] = {"winner": winner, "turns": turns, "final_hp": hp}
+            out[str(n)] = got
     return out
 
 

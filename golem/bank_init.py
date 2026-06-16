@@ -17,6 +17,7 @@ sys.path.insert(0, str(HERE.parent))  # arag 루트(config)
 import game_bank
 import oracle
 from worker_prompt import RULES
+from grade import grade
 
 try:
     from config import force_utf8_stdout
@@ -40,8 +41,15 @@ def _load_solution():
 
 
 def main():
-    scenarios = json.loads((HERE / "golden" / "scenarios.json").read_text(encoding="utf-8"))
+    src = json.loads((HERE / "golden" / "scenarios.json").read_text(encoding="utf-8"))
     solution = _load_solution()
+    ids = list(src.keys())
+
+    # A-오라클: 검증 솔루션(JS)을 레퍼런스 삼아 평면 골든 생성 (game/ 없이)
+    golden = oracle.golden_from_reference(solution, ids)
+
+    # 시나리오 = {N: {input(=party, 워커 입력), golden(평면 정답)}}
+    scenarios = {n: {"input": src[n]["party"], "golden": golden[n]} for n in ids}
 
     card = {
         "slug": SLUG,
@@ -51,28 +59,19 @@ def main():
         "rules": RULES,
         "scenarios": scenarios,
         "solution": solution,
-        "reference": {},  # 골든 최초 출처는 game/(파이썬). 지금은 solution이 JS 레퍼런스 역할.
+        "reference": solution,  # 검증된 JS 구현이 골든 레퍼런스 역할
         "notes": "Phase1 cracked@10 검증본(attempt10). T-000012 JS판, 4 고정 시나리오.",
     }
     game_bank.save_card(card)
-    print(f"[적재] 카드 '{SLUG}' 저장 ({len(scenarios)} 시나리오, 솔루션 {len(solution)}파일)")
+    print(f"[적재] 카드 '{SLUG}' ({len(scenarios)} 시나리오, 솔루션 {len(solution)}파일)")
 
-    # --- A-오라클 무회귀: 솔루션에서 골든 재생성 → 저장 골든과 대조 ---
-    ids = list(scenarios.keys())
-    regen = oracle.golden_from_reference(solution, ids)
-    ok = True
+    # --- 무회귀: 솔루션을 grade에 넣어 카드 골든과 PASS 확인 (게임-중립 채점 경로 점검) ---
+    res = grade(str(SOLUTION_DIR), scenarios)
     for n in ids:
-        exp = scenarios[n]["golden"]
-        got = regen[n]
-        match = (got["winner"] == exp["winner"] and got["turns"] == exp["turns"]
-                 and got["final_hp"] == exp["final_hp"])
-        print(f"  scenario {n}: {'OK' if match else 'MISMATCH'}  "
-              f"{got['winner']}/{got['turns']}")
-        if not match:
-            ok = False
-            print(f"     got={got}\n     exp={exp}")
-
-    print(f"\n[{'OK' if ok else 'FAIL'}] A-오라클이 game/ 없이 골든 재현 "
+        r = res["scenarios"][n]
+        print(f"  scenario {n}: {'OK' if r['pass'] else 'MISMATCH'}  {r.get('got')}")
+    ok = res["pass"]
+    print(f"\n[{'OK' if ok else 'FAIL'}] A-오라클+게임중립채점 카드#1 무회귀 "
           f"{'성공' if ok else '실패'}")
     return 0 if ok else 1
 

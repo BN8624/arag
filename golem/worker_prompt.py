@@ -5,10 +5,6 @@
 self_fix_hint를 주면 직전 시도의 첫 불일치를 덧붙여 표적 수정을 유도한다."""
 
 import json
-from pathlib import Path
-
-GOLDEN = json.loads(
-    (Path(__file__).resolve().parent / "golden" / "scenarios.json").read_text(encoding="utf-8"))
 
 RULES = """\
 You are implementing a DETERMINISTIC tempo-based RPG battle engine in JavaScript (Node.js).
@@ -93,34 +89,26 @@ Skill table (skill_base in parentheses):
 
 RESPONSE_FORMAT = """\
 == RESPONSE FORMAT ==
-Output ONLY the files, each introduced by a marker line exactly like this, with nothing else outside:
-=== FILE: models.js ===
+Output ONLY the files described in the rules above, each introduced by a marker line exactly
+like this, with nothing else outside the markers:
+=== FILE: <filename> ===
 <file content>
-=== FILE: skills.js ===
-<file content>
-=== FILE: engine.js ===
-<file content>
-=== FILE: main.js ===
-<file content>
+The entry point must be main.js, runnable as: node main.js --scenario N
 """
 
 
-def _party_block(scenarios):
-    lines = ["== SCENARIOS (fixed parties — hardcode them; --scenario N picks one) ==",
-             "Each entity: id, name, max_hp, atk, defense, spd, skills. (hp starts at max_hp.)"]
+def _scenario_block(scenarios):
+    """시나리오별 입력(JSON)을 그대로 노출. 게임-중립 — 입력 구조의 의미는 RULES가 정의한다."""
+    lines = ["== SCENARIOS (fixed inputs — hardcode them; --scenario N picks one) =="]
     for sc in sorted(scenarios, key=int):
-        party = scenarios[sc]["party"]
-        lines.append(f"Scenario {sc}:")
-        lines.append("  heroes  = " + json.dumps(party["heroes"], ensure_ascii=False))
-        lines.append("  enemies = " + json.dumps(party["enemies"], ensure_ascii=False))
+        lines.append(f"Scenario {sc} input = "
+                     + json.dumps(scenarios[sc]["input"], ensure_ascii=False))
     return "\n".join(lines)
 
 
-def build_prompt(self_fix_hint=None, card=None):
-    """card 주면 그 카드의 규칙·시나리오로, 없으면 모듈 기본(RULES + golden/scenarios.json)."""
-    rules = card["rules"] if card else RULES
-    scenarios = card["scenarios"] if card else GOLDEN
-    parts = [rules, _party_block(scenarios), RESPONSE_FORMAT]
+def build_prompt(card, self_fix_hint=None):
+    """카드의 규칙(card['rules']) + 시나리오 입력 + 응답형식으로 워커 지시문 조립."""
+    parts = [card["rules"], _scenario_block(card["scenarios"]), RESPONSE_FORMAT]
     if self_fix_hint:
         parts.append(
             "== PREVIOUS ATTEMPT FAILED ==\n"
@@ -131,7 +119,13 @@ def build_prompt(self_fix_hint=None, card=None):
 
 
 if __name__ == "__main__":
-    # 점검용: 프롬프트 길이·머리 출력(키 안 씀)
-    p = build_prompt()
-    print(f"[prompt chars={len(p)}]")
+    # 점검용: 카드의 프롬프트 길이·머리 출력(키 안 씀)
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import game_bank
+    slug = sys.argv[1] if len(sys.argv) > 1 else "tempo-combat"
+    c = game_bank.get_card(slug)
+    p = build_prompt(c)
+    print(f"[card={slug} prompt chars={len(p)}]")
     print(p[:1200])

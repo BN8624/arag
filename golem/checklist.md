@@ -41,4 +41,11 @@
 - [x] 무회귀: oracle로 솔루션에서 골든 재생성 → 저장 골든 4/4 일치(game/ 없이 골든 나옴 증명).
 - [x] driver/worker_prompt/grade 카드 파라미터화(`--card slug`, 기본값 유지). replay 양쪽 PASS, 프롬프트 동일.
 - [x] `game_bank.sqlite` gitignore(바이너리·재생성 가능).
-- 다음 = **2단계(키 씀, go 필요)**: 새 게임 1개를 A로 생성. Claude가 레퍼런스+규칙 작성 → oracle로 골든 → 카드 적재 → driver `--card`로 gemma 생성.
+### 2단계 — 새 게임(2048류 합치기 퍼즐) A 생성 (준비=키X 완료, 런=go필요)
+- [x] 입출력 일반화 — 골든=평면 `key:value` dict 정확일치(전투의 winner/turns/hp도 자연 포함),
+      입력=임의 JSON. grade/oracle/worker_prompt/driver 게임-중립화. **새 게임이 강제한 일반화.**
+- [x] 카드#1 무회귀 — 일반화 후 bank_init 재적재, 솔루션 여전히 4/4 PASS.
+- [x] 카드#2 "merge-2048" — Claude 결정적 2048 레퍼런스(board/moves/main.js)+규칙+4시나리오 →
+      oracle 골든 → 적재. 레퍼런스 self-채점 PASS. 골든 손검산 OK(sc1 L→4·sc2 L→12 등).
+- [ ] **(★go 필요) 생성 런** `python golem/driver.py --card merge-2048` — gemma 독립 구현, 카드
+      골든 채점. cracked@N 보고. 통과본은 카드 solution에 갱신(확장 베이스).

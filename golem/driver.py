@@ -74,7 +74,7 @@ def _one_attempt(resp, cdir, card=None):
         return files, {"pass": False,
                        "first_divergence": "no main.js in response (unparseable?)"}
     write_candidate(cdir, files)
-    return files, grader.grade(str(cdir), card=card)
+    return files, grader.grade(str(cdir), card["scenarios"])
 
 
 def _log(entry):
@@ -119,17 +119,15 @@ def main(argv=None):
     ap.add_argument("--out", default=None)
     ap.add_argument("--replay", default=None,
                     help="LLM 대신 이 파일 응답으로 1회 파이프라인(키 안 씀, 점검용)")
-    ap.add_argument("--card", default=None,
-                    help="은행(game_bank)의 카드 slug. 없으면 모듈 기본(tempo-combat 규칙/골든)")
+    ap.add_argument("--card", default="tempo-combat",
+                    help="은행(game_bank)의 카드 slug. 기본 tempo-combat")
     args = ap.parse_args(argv)
 
-    card = None
-    if args.card:
-        import game_bank
-        card = game_bank.get_card(args.card)
-        if card is None:
-            print(f"[GOLEM] 카드 '{args.card}' 없음 — game_bank.py로 확인")
-            return 2
+    import game_bank
+    card = game_bank.get_card(args.card)
+    if card is None:
+        print(f"[GOLEM] 카드 '{args.card}' 없음 — bank_init.py로 적재하거나 game_bank.py로 확인")
+        return 2
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = Path(args.out) if args.out else (HERE.parent / "runs" / "golem" / run_id)
