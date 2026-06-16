@@ -341,3 +341,16 @@ expected는 시작 시점 WON→이후 액션 무시(turn0/energy1000). "액션 
 안 박힘. 이건 Step6 Adversarial QA / specqa가 메울 자리(RULE-05/06에 평가시점 명문화).
 **결론**: 입력+출력 스키마 둘 다 못박으면 31B가 0.36→0.66→0.98로 거의 완전 수렴. "계약 빡빡→싼 모델
 수렴" 방향 정량 확정. 다음 frontier = 명세의 평가시점 같은 엣지를 계약에 박는 것.
+
+## G36 — 계약 명문화(승리판정 평가시점) → 합의 0.98→1.0 (2026-06-17, 키 씀, Step6 PhaseA)
+G35가 남긴 구멍(SCN-009/010 합의 8/9 = RULE-05/06 평가시점 미고정)을 계약 한 곳에서 닫음.
+빌드 프롬프트가 contract.json의 rules를 그대로 받으므로 **계약이 단일 레버**. 수정:
+- RULE-05: "시나리오 시작 시점(액션 전) AND 각 액션 적용 직후에 승리체크" 명문화.
+- RULE-06: "WON 되는 즉시 중단, 이후 액션 미처리, 현재 turn/energy 확정" 명문화.
+- SCN-006 expected.gameStatus "ACTIVE"→"PLAYING"(계약 enum 위반 오라클오류 교정. 합의엔 무영향
+  — consensus는 build-vs-build라 expected 미사용. 순수 스펙 correctness 픽스).
+**결과**: 게이트 9/11→**11/11**, 합의 0.98→**1.0**. 그리고 올바른 쪽 수렴 확인: SCN-010
+turn0/energy1000/WON(시작 체크로 WAIT 스킵=expected), SCN-003 turn1/energy1000/WON(WAIT후 도달=expected).
+**의미**: "계약 빡빡→싼 모델 수렴" 사다리 완성 — 0.36(미고정)→0.66(출력)→0.98(입력)→1.0(평가시점).
+명세 구멍을 계약에 박을 때마다 31B가 한 칸씩 수렴. 합의 채점이 "어디가 안 박혔나"를 매번 정확히 지목.
+다음(Step6 PhaseB): Adversarial QA 팀 모듈(adversarial.py) — 모델이 깨는 edge_cases를 능동 탐색.

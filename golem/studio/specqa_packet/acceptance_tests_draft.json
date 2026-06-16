@@ -188,7 +188,7 @@
     ],
     "expected": {
       "energy": 999,
-      "gameStatus": "ACTIVE"
+      "gameStatus": "PLAYING"
     },
     "oracle_risk": {
       "risk": false,

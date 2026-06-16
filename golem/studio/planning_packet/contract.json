@@ -19,8 +19,8 @@
       "RULE-02: UPGRADE action -> if energy >= currentCost then { energy -= currentCost, levels[id] += 1, recalculate productionRate } else { log 'Insufficient energy' }.",
       "RULE-03: currentCost = floor(baseCost * (costMultiplier ** level)).",
       "RULE-04: productionRate = 1 + sum(level * power).",
-      "RULE-05: If energy >= 1000, gameStatus = 'WON'.",
-      "RULE-06: If gameStatus == 'WON', no further actions from the scenario sequence are processed."
+      "RULE-05: Evaluate the win check at scenario start (BEFORE any action) AND immediately AFTER each action is applied: if energy >= 1000, set gameStatus = 'WON'.",
+      "RULE-06: Once gameStatus == 'WON', stop immediately — process no further actions from the scenario sequence; the current turn/energy are final."
     ]
   },
   "interface_contract": {
