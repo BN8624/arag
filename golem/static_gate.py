@@ -8,6 +8,7 @@
   5) Math.random 없음 (비결정성 차단)
 반환: {"ok": bool, "reason": str|None, "checks": {...}}."""
 
+import posixpath
 import re
 import subprocess
 from pathlib import Path
@@ -26,20 +27,21 @@ def _requires(text):
 
 
 def _resolve(target, from_file, all_names):
-    """상대 require 대상을 파일명으로 해소. 빌트인/npm은 None 반환(엣지만 만든다)."""
+    """상대 require 대상을 워크스페이스 상대 .js 경로로 해소(요청 파일 디렉터리 기준).
+    빌트인/npm은 None 반환(엣지만 만든다). 평면 구조면 경로가 곧 파일명이라 기존 동작과 동일."""
     if not target.startswith("."):
         return None
-    base = target.split("/")[-1]
-    for cand in (base, base + ".js"):
-        if cand in all_names:
-            return cand
-    return base if base.endswith(".js") else base + ".js"
+    base = posixpath.dirname(from_file)
+    r = posixpath.normpath(posixpath.join(base, target))
+    if r in all_names:
+        return r
+    return r if r.endswith(".js") else r + ".js"
 
 
 def check(cdir):
     cdir = Path(cdir)
-    files = {p.name: p.read_text(encoding="utf-8", errors="replace")
-             for p in sorted(cdir.glob("*.js"))}
+    files = {p.relative_to(cdir).as_posix(): p.read_text(encoding="utf-8", errors="replace")
+             for p in sorted(cdir.rglob("*.js"))}
     checks = {}
 
     if "main.js" not in files:

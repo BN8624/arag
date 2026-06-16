@@ -1,0 +1,1 @@
+{ "ok": false, "failing_check": "import_export", "note": "manifest는 runScenario, 코드는 runScene export" }

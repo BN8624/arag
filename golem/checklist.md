@@ -1,16 +1,24 @@
 # golem 체크리스트
 
-## 현재 활성 체크리스트 — Golem Studio v0.1 Contract Microkernel Replay
-- [ ] `GolemStudioMode.md` 13장 구현 우선순위와 19장 Pending Decisions 재확인
-- [ ] `static_gate.py` 현재 CLI/함수 구조 확인
-- [ ] `golem/studio/schemas/module_manifest.schema.json` 작성
-- [ ] `golem/studio/runs/demo/module_manifest.json` 작성
-- [ ] demo workspace CommonJS fake files 작성
-- [ ] import/export validator 작성
-- [ ] static_gate bridge 연결
-- [ ] `replay_result.json` 생성
-- [ ] `contract_validation_report.md` 생성
-- [ ] Gemini/Gemma API 호출 0회 확인
+## 현재 활성 체크리스트 — Golem Studio v0.1 Contract Microkernel Replay (완료, 2026-06-17)
+- [x] `GolemStudioMode.md` 13장 구현 우선순위와 19장 Pending Decisions 재확인
+- [x] `static_gate.py` 현재 CLI/함수 구조 확인 (평면 glob → src/ 못 봄 확인)
+- [x] `golem/studio/schemas/module_manifest.schema.json` 작성 (v0.1 최소 필드, stdlib 손검증)
+- [x] `golem/studio/fixtures/demo_pass/module_manifest.json` 작성 (runs/는 gitignore라 fixtures/로)
+- [x] demo workspace CommonJS fake files 작성 (main.js + src/engine·state·movement.js)
+- [x] import/export validator 작성 (`contract_validator.py`, checks 4종)
+- [x] static_gate bridge 연결 (PENDING-003 I/O 계약)
+- [x] static_gate.py src/ 지원 확장 (rglob+경로해소, 하위호환)
+- [x] 음성 픽스처 4종 (export불일치·파일누락·순환·bare default)
+- [x] `replay_result.json` 생성
+- [x] `contract_validation_report.md` 생성
+- [x] Gemini/Gemma API 호출 0회 확인
+- [x] 검증: replay 5/5 통과, static_gate 무회귀(기존 평면 게임 ok:true 유지)
+
+## 다음 — Golem Studio Step 2 (키 필요, 사용자 go 대기)
+- [ ] A/B/C 비교(single / 1+3 / 1+10)를 Planning 한 단계에서 먼저 측정 — 전체 파이프라인 짓기 전
+- [ ] Planning 팀만 실제 worker slot 투입 (planning_lead + reviewer)
+- [ ] 성공 기준: BLOCKING=0, concept/gdd/ambiguity_review.json, contract_packet 검증 통과
 
 ## 과거 히스토리
 

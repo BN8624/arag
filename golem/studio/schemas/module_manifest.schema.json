@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Golem Studio module_manifest v0.1",
+  "description": "v0.1 최소 필드. description/owner/req_ids/test_ids/side_effects는 v0.2 이후.",
+  "type": "object",
+  "required": ["schema_version", "module_format", "entry", "files"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "module_format": { "const": "commonjs" },
+    "entry": { "type": "string" },
+    "files": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["path", "exports", "imports"],
+        "properties": {
+          "path": { "type": "string", "description": "워크스페이스 상대 posix 경로" },
+          "exports": { "type": "array", "items": { "type": "string" } },
+          "imports": { "type": "array", "items": { "type": "string", "description": "워크스페이스 상대 posix 경로(.js 포함)" } }
+        }
+      }
+    }
+  }
+}

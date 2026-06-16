@@ -189,3 +189,18 @@ manifest는 `schema_version/module_format/entry/files[].path,exports,imports`만
 사용자 지시로 golem 문서 역할을 좁혔다. HANDOFF.md는 현재 위치와 다음 액션만, CLAUDE.md는 작업 규칙만,
 GolemStudioMode.md는 새 설계 정본, context-notes.md는 결정 로그, checklist.md는 현재 활성 체크리스트를
 맨 위에 두고 과거 Phase는 히스토리로 둔다. README.md는 전체 내용을 삭제하고 "개인 프로젝트 임."만 남겼다.
+
+## G25 — Golem Studio v0.1 Contract Microkernel Replay 구현 + 사전 반박 (2026-06-17)
+사용자가 "구현 전 반박부터" 요구 → 핵심 이견 정리. ① "11 slot 역할 순환"은 slot이 상태없는 샘플러라
+메커니즘상 무의미한 포장(키=병렬성일 뿐), 진짜 substance는 Ambiguity Review+Traceability+FROZEN 계약.
+② 헤드라인 11과 §15 실제 기본값 3 충돌 + 본체 결론(분해=차이없음, select-best가 해법)과 긴장 →
+A/B/C 비교를 전체 파이프라인 짓기 전에 먼저 측정해야. ③ PENDING-002 bare-default 금지는 Step2에서
+실제 gemma 코드를 거를 수 있음(의식적 결정 필요). v0.1 방향 자체(키X 계약 검증부터)는 옳음.
+사용자 결정: 폴더는 src/ 유지+확장 래칫 대비, 음성 픽스처 포함.
+구현: golem/studio/ 신설. contract_validator.py(checks 4종 manifest_schema/file_exists/import_export/
+static_gate, PENDING-003 I/O 계약), replay.py, schema, 픽스처 5종(통과1+음성4: export불일치·파일누락·
+순환·bare default). 픽스처는 fixtures/(runs/는 .gitignore라 추적 안 됨 — Step2+ 생성물용으로 비움).
+static_gate.py를 rglob+경로해소로 확장(하위호환 — 평면 require는 그대로).
+검증: replay 5/5 통과(API 0회), static_gate 무회귀(기존 merge-2048 attempt04 ok:true 유지, 신규 src/
+워크스페이스 ok:true). 왜 이렇게: validator는 valid 입력만 보면 미검증이라 음성 픽스처로 "이빨" 증명.
+다음(키 필요, go 대기): Step 2 Planning 팀만 실제 worker slot, 단 A/B/C부터 측정.

@@ -1,0 +1,1 @@
+{ "ok": false, "failing_check": "import_export", "note": "src/movement.js가 module.exports=function 형태(bare default) — 비-entry 금지" }

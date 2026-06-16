@@ -1,0 +1,1 @@
+{ "ok": false, "failing_check": "file_exists", "note": "매니페스트가 선언한 src/movement.js가 워크스페이스에 없음" }

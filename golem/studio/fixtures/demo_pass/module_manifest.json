@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1",
+  "module_format": "commonjs",
+  "entry": "main.js",
+  "files": [
+    { "path": "main.js", "exports": [], "imports": ["src/engine.js"] },
+    { "path": "src/engine.js", "exports": ["runScenario"], "imports": ["src/state.js", "src/movement.js"] },
+    { "path": "src/state.js", "exports": ["createInitialState", "cloneState"], "imports": [] },
+    { "path": "src/movement.js", "exports": ["applyMove"], "imports": [] }
+  ]
+}

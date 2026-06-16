@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "api_calls": 0,
+  "fixtures_total": 5,
+  "fixtures_passed": 5,
+  "records": [
+    {
+      "fixture": "demo_fail_bare_default",
+      "expected": {
+        "ok": false,
+        "failing_check": "import_export",
+        "note": "src/movement.js가 module.exports=function 형태(bare default) — 비-entry 금지"
+      },
+      "result_ok": false,
+      "failed_checks": [
+        "import_export"
+      ],
+      "assertion_ok": true,
+      "reason": "기대대로 import_export 실패",
+      "errors": [
+        "[import_export] src/movement.js: bare default export(module.exports=...) 금지(PENDING-002)"
+      ]
+    },
+    {
+      "fixture": "demo_fail_circular",
+      "expected": {
+        "ok": false,
+        "failing_check": "import_export",
+        "note": "src/a.js <-> src/b.js 순환 의존성"
+      },
+      "result_ok": false,
+      "failed_checks": [
+        "import_export"
+      ],
+      "assertion_ok": true,
+      "reason": "기대대로 import_export 실패",
+      "errors": [
+        "[import_export] 순환 의존성: src/a.js -> src/b.js -> src/a.js"
+      ]
+    },
+    {
+      "fixture": "demo_fail_export_mismatch",
+      "expected": {
+        "ok": false,
+        "failing_check": "import_export",
+        "note": "manifest는 runScenario, 코드는 runScene export"
+      },
+      "result_ok": false,
+      "failed_checks": [
+        "import_export"
+      ],
+      "assertion_ok": true,
+      "reason": "기대대로 import_export 실패",
+      "errors": [
+        "[import_export] src/engine.js: 매니페스트 export가 코드에 없음 ['runScenario']",
+        "[import_export] src/engine.js: 코드 export가 매니페스트에 없음 ['runScene']"
+      ]
+    },
+    {
+      "fixture": "demo_fail_missing_file",
+      "expected": {
+        "ok": false,
+        "failing_check": "file_exists",
+        "note": "매니페스트가 선언한 src/movement.js가 워크스페이스에 없음"
+      },
+      "result_ok": false,
+      "failed_checks": [
+        "file_exists",
+        "import_export"
+      ],
+      "assertion_ok": true,
+      "reason": "기대대로 file_exists 실패",
+      "errors": [
+        "[file_exists] 매니페스트 파일 없음: src/movement.js",
+        "[import_export] src/movement.js: 파일을 읽을 수 없어 export/import 대조 불가"
+      ]
+    },
+    {
+      "fixture": "demo_pass",
+      "expected": {
+        "ok": true
+      },
+      "result_ok": true,
+      "failed_checks": [],
+      "assertion_ok": true,
+      "reason": "ok=true 기대",
+      "errors": []
+    }
+  ]
+}

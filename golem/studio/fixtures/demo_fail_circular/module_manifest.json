@@ -1,0 +1,10 @@
+{
+  "schema_version": "0.1",
+  "module_format": "commonjs",
+  "entry": "main.js",
+  "files": [
+    { "path": "main.js", "exports": [], "imports": ["src/a.js"] },
+    { "path": "src/a.js", "exports": ["fa"], "imports": ["src/b.js"] },
+    { "path": "src/b.js", "exports": ["fb"], "imports": ["src/a.js"] }
+  ]
+}

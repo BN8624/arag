@@ -1,0 +1,1 @@
+{ "ok": false, "failing_check": "import_export", "note": "src/a.js <-> src/b.js 순환 의존성" }

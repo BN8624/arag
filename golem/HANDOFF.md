@@ -2,24 +2,17 @@
 
 ## 지금 어디 (2026-06-17)
 
-- 예전 G20 생산 분할 Step 1 오케스트레이터 예정분은 폐기했다.
-- 현재 활성 방향은 `GolemStudioMode.md`의 **Golem Studio Mode**다.
-- 다음 구현 시작점은 **Golem Studio v0.1 Contract Microkernel Replay**다.
-- v0.1은 실제 Gemini/Gemma API 호출 없이 fake artifact와 replay validator만 만든다.
-- v0.1 목표는 게임 생성이 아니라, manifest에 적힌 파일/export/import와 실제 CommonJS 코드가 기계적으로 일치하는지 검증하는 것이다.
-- v0.1 CommonJS 규칙과 manifest/static_gate bridge 기본값은 `GolemStudioMode.md` 19장 Pending Decisions를 따른다.
-- `static_gate.py`, `grade.py`의 기존 Node 권한모델 실행 격리와 CommonJS 멀티파일 규칙은 재사용한다.
+- **Golem Studio v0.1 Contract Microkernel Replay 완료.** `golem/studio/`에 구현됨.
+- replay 5/5 통과(API 0회). 통과 픽스처 ok:true, 음성 4종(export불일치·파일누락·순환·bare default) 각각 지정 check에서 실패.
+- `static_gate.py`를 src/ 하위폴더 지원(rglob+경로해소)으로 확장했고, 기존 평면 게임 무회귀 확인(merge-2048 ok:true 유지).
+- 산출물: `golem/studio/contract_validator.py`, `replay.py`, `schemas/module_manifest.schema.json`, `fixtures/demo_*`(픽스처 5종), `replay_result.json`, `contract_validation_report.md`. (`runs/`는 .gitignore — Step 2+ 생성물용으로 비워둠.)
+- 다음은 **Step 2 — Planning 팀만 실제 worker slot 투입**이다. 단 키를 쓰므로 사용자 go 전에는 안 돈다.
+- 구현 전 반박/결정은 context-notes G25 참조(역할순환 포장 비판, A/B/C 선측정, bare-default 주의).
 
 ## 다음 액션
 
-1. `GolemStudioMode.md`의 13장 구현 우선순위와 19장 Pending Decisions를 읽는다.
-2. `static_gate.py`의 현재 CLI/함수 구조를 확인한다.
-3. `golem/studio/` 하위에 v0.1 fake artifact를 만든다.
-4. `module_manifest.schema.json`과 demo `module_manifest.json`을 만든다.
-5. demo workspace에 `main.js`, `src/engine.js`, `src/state.js`, `src/movement.js`를 만든다.
-6. import/export validator를 구현한다.
-7. static_gate bridge를 연결한다.
-8. `replay_result.json`과 `contract_validation_report.md`를 생성한다.
-9. replay 결과 `ok: true`, static_gate 통과, Gemini/Gemma API 호출 0회를 확인한다.
+1. (키 필요 — 사용자 go 대기) Step 2 들어가기 전에 A/B/C 비교(single / 1+3 / 1+10 reviewer)를 Planning 한 단계에서 먼저 설계한다. 전체 6단계 파이프라인을 다 짓기 전에 reviewer 추가가 unique issue를 늘리는지부터 측정한다.
+2. Planning 팀 실행 골격(planning_lead 1 + reviewer N → ambiguity_review.json → synthesis → contract_packet)을 짠다.
+3. 성공 기준: BLOCKING questions 0, concept.md/gdd.md/ambiguity_review.json 생성, contract_packet 검증 통과.
 
-실제 키 사용, 11 worker slots 투입, A/B/C 비교 실험은 v0.1 통과 뒤에만 논의한다.
+실제 키 사용, worker slots 투입은 사용자 명시 go 뒤에만 한다(메모리 no-autostart-runs).
