@@ -2,11 +2,9 @@
 
 ## ▶ 새 세션 여기부터
 1. **읽기**: 이 파일 `지금 어디` + `다음 액션`만. 규칙은 CLAUDE.md, 왜는 context-notes.md.
-2. **지금 할 일 (한 줄)**: **부품 시연 도구 만들고(키X) 부품0·1 시연 → 부품2(전투) 발주.**
-   ★새 규칙(CLAUDE.md): 부품 통과 시 **시연 필수**(사람말+격자 시각화, 11/11 숫자로 끝내지 말 것).
-   부품0·1은 통과만 했고 시연 미작성 → 먼저 시연(통과본을 시나리오에 돌려 `@`=플레이어 `E`=적 격자로
-   보여주기). 그다음 부품2 = `bank_add_roguelike_p2.py`(인접공격·HP·사망, 정밀규칙+트레이스) →
-   `driver --card rogue-p2 --base rogue-p1`(★키, go 필요).
+2. **지금 할 일 (한 줄)**: **부품3(아이템) 발주 (★키, go 필요).** 부품0·1·2 완료·시연됨(아래).
+   부품3 = `bank_add_roguelike_p3.py`(아이템 줍기·인벤토리·효과, 정밀규칙+트레이스) →
+   `driver --card rogue-p3 --base rogue-p2`(★키, go 필요). 통과 후 `promote_solution.py`+`demo_part.py rogue-p3`.
 3. ⚠️ **런은 사용자 명시 지시 전엔 안 돌린다**(키 소비, ARAG 캠페인과 경쟁 금지).
 
 **문서 용도 (필요할 때만):**
@@ -51,19 +49,24 @@
 
 ## 다음 액션 (★다음 세션 여기부터)
 **방향 = 부품공장×시공자(G11), 목표 = 턴제 로그라이크.** 캠페인 끝남(위). 부품 붙여 키우는 중.
-- **부품0·1 완료**: 부품0(rogue-p0 던전+이동) **11/11 cracked@4**, 부품1(rogue-p1 적+추격, `--base
-  rogue-p0`) **11/11 cracked@3**. 재사용 증거: 부품1 통과본이 dungeon.js를 베이스 그대로 두고
-  engine/main만 확장(401자 동일 / 822→1910 / 1076→1275). 통과본은 promote_solution.py로 베이스
-  승격 완료(rogue-p1.solution 있음). 도구: 카드적재 `bank_add_roguelike_p{0,1}.py`, 승격 `promote_solution.py`.
-1. **부품 시연 도구 + 부품0·1 시연(키X, 먼저)** — ★새 규칙: 부품 통과 시 시연 필수(CLAUDE.md).
-   통과본(rogue-p{0,1}.solution)을 시나리오에 돌려 격자에 `@`=플레이어 `E`=적 찍고 이동·추격을
-   사람말로 보여주는 도구(예: `demo_part.py`) 작성 → 부품0·1 시연. 도구화로 부품마다 재사용(목표②).
-2. **부품2 발주 = 전투(★키, go 필요)** — `--base rogue-p1` 위에 인접 시 공격·HP·사망 추가. 통과 후 시연.
-   다음 부품 순서: 전투 → 아이템 → 층이동 → 시야·함정·다양화(매 부품 `--base`로 직전 위에 확장).
-   발주 = bank_add_roguelike_p2.py(정밀 규칙 + 워크드 트레이스) → driver --card rogue-p2 --base rogue-p1.
+- **부품0·1·2 완료·전부 시연됨**: 부품0(rogue-p0 던전+이동) **11/11 cracked@4**, 부품1(rogue-p1 적+추격,
+  `--base rogue-p0`) **11/11 cracked@3**, 부품2(rogue-p2 전투=인접공격·HP·사망, `--base rogue-p1`)
+  **11/11 cracked@10**($0.020, 런 20260616-201638). 재사용 증거(부품2): dungeon.js 401자 **완전 동일**,
+  engine 2074→2544, main 1275→1785 = 맨바닥 재작성 아닌 진짜 확장. 셋 다 promote_solution.py로 베이스
+  승격 완료(.solution 있음). 도구: 카드적재 `bank_add_roguelike_p{0,1,2}.py`, 승격 `promote_solution.py`.
+1. **부품 시연 도구 완료(키X) — 부품0·1·2 전부 시연됨** — `demo_part.py`(카드 **레퍼런스**를 임시폴더에
+   풀고 `_demo_runner.js`가 명령 prefix로 재생→매 턴 프레임 추출, **재구현 없음**. 레퍼런스=골든 출처고
+   gemma 통과본은 11/11 정확일치로 동치 증명 → 트레이스가 통과본 동작 그대로, 골든 100% 일치 보장).
+   → 폰용 격자 애니메이션 HTML(`web/demo.html`, @=플레이어 E=적 #=벽, 탭=부품·시나리오, HP·공격·사망
+   사람말, 재생/스텝). 부품0·1·2 정답일치 확인(eval 검증). 폰: `http://100.89.73.83:8731/golem/web/demo.html`.
+   도구화로 부품마다 `demo_part.py <slug>`만(목표② 도구 2호). 정적서버=`.claude/launch.json` static-preview(8731, 0.0.0.0).
+2. **부품3 발주 = 아이템(★키, go 필요)** — `--base rogue-p2` 위에 아이템 줍기·인벤토리·효과(예: 포션=HP회복).
+   다음 부품 순서: 아이템 → 층이동 → 시야·함정·다양화(매 부품 `--base`로 직전 위에 확장).
+   발주 = bank_add_roguelike_p3.py(정밀 규칙 + 워크드 트레이스) → driver --card rogue-p3 --base rogue-p2.
 3. **매 부품마다 "Claude가 뭘 했나" 기록**(목표② 개입 깎기) — 반복되는 발주/조립/갭메움을 템플릿·
-   정적게이트로 굳혀 개입↓. 지금까지: promote_solution.py(승격 자동화)가 첫 도구. 다음 후보 = 카드
-   적재 보일러플레이트(REF+scenarios+golden+self채점) 템플릿화.
+   정적게이트로 굳혀 개입↓. 도구 2개: promote_solution.py(승격), demo_part.py(시연). 부품2에서 Claude가 한 것 =
+   ①전투 규칙 설계+워크드 트레이스 ②레퍼런스 JS 작성(골든 출처) ③시연 도구를 HP까지 확장. 다음 후보 =
+   카드 적재 보일러플레이트(REF+scenarios+golden+self채점) 템플릿화(p0~p3 거의 동형).
 - **참고(완료)**: 타워디펜스 0/11→7/11(G12, `bank_add_towerdef_tight.py`) = frontier는 계약 정밀도.
 - **런은 사용자 go 전 금지.** 재적재: #1 `bank_init.py`, #2 `bank_add_2048.py`,
   #3 `bank_add_2048_walls.py`, #4 `oracle_design.py`(키), 캠페인=`campaign.py`(★대량 키).
