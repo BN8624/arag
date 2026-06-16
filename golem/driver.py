@@ -66,15 +66,18 @@ def write_candidate(out_dir, files):
         p.write_text(body, encoding="utf-8")
 
 
-def _one_attempt(resp, cdir, card=None):
-    files = parse_files(resp)
+def _one_attempt(resp, cdir, card=None, base_files=None):
+    """워커 응답을 파싱해 베이스와 병합(변경분만 덮어쓰기)·채점. 반환=(워커가 출력한 파일, 결과).
+    파일별 생성: 워커가 안 낸 파일은 base_files에서 그대로 채운다(출력 토큰 절약)."""
+    emitted = parse_files(resp)
+    merged = {**(base_files or {}), **emitted}   # 베이스에 변경분만 덮어쓰기
     cdir.mkdir(parents=True, exist_ok=True)
     (cdir / "_raw_response.txt").write_text(resp, encoding="utf-8")
-    if "main.js" not in files:
-        return files, {"pass": False,
-                       "first_divergence": "no main.js in response (unparseable?)"}
-    write_candidate(cdir, files)
-    return files, grader.grade(str(cdir), card["scenarios"])
+    if "main.js" not in merged:
+        return emitted, {"pass": False,
+                         "first_divergence": "no main.js (베이스에도 응답에도 없음 — unparseable?)"}
+    write_candidate(cdir, merged)
+    return emitted, grader.grade(str(cdir), card["scenarios"])
 
 
 def _log(entry):
@@ -100,14 +103,14 @@ def _attempt(attempt, base, key, model, run_id, card=None, base_files=None):
               "attempt": attempt, "ok": False, "error": str(err)[:200],
               "cost_usd": round(cost, 4), "tokens": toks})
         return attempt, False, f"generate error: {str(err)[:120]}", cost, toks
-    files, res = _one_attempt(resp, cdir, card=card)
+    files, res = _one_attempt(resp, cdir, card=card, base_files=base_files)
     dt = time.time() - t0
     cost = client.cost_usd().get("total", 0.0)
     toks = dict(client.tokens)   # 이 시도=콜 1회분 input/output/thinking 토큰
     _log({"t": datetime.now().isoformat(timespec="seconds"), "run": run_id,
           "attempt": attempt, "ok": res["pass"],
           "first_divergence": res.get("first_divergence"),
-          "files": list(files.keys()), "sec": round(dt, 1),
+          "emitted_files": list(files.keys()), "sec": round(dt, 1),
           "cost_usd": round(cost, 4), "tokens": toks})
     out_budget = toks.get("output", 0) + toks.get("thinking", 0)
     print(f"[attempt {attempt:02d}] pass={res['pass']} "
@@ -148,8 +151,8 @@ def main(argv=None):
 
     if args.replay:
         resp = Path(args.replay).read_text(encoding="utf-8")
-        files, res = _one_attempt(resp, base / "replay", card=card)
-        print(json.dumps({"files": list(files.keys()), "pass": res["pass"],
+        files, res = _one_attempt(resp, base / "replay", card=card, base_files=base_files)
+        print(json.dumps({"emitted_files": list(files.keys()), "pass": res["pass"],
                           "first_divergence": res.get("first_divergence")},
                          ensure_ascii=False, indent=2))
         return 0 if res["pass"] else 1

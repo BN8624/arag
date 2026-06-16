@@ -107,11 +107,16 @@ def _scenario_block(scenarios):
 
 
 def _base_block(base_files):
-    """확장 모드 — 더 단순한 게임의 '통과한 구현'을 컨텍스트로 준다(맨바닥 대신 위에 얹기)."""
-    lines = ["== BASE IMPLEMENTATION =="
-             "\nA WORKING implementation of a SIMPLER version of this game is given below."
-             "\nExtend/modify it to satisfy the rules above (which add new mechanics)."
-             "\nReuse what still applies; change only what the new rules require. Resend ALL files."]
+    """확장 모드 — 더 단순한 게임의 '통과한 구현'을 컨텍스트로 준다(맨바닥 대신 위에 얹기).
+    파일별 생성: 바뀐/새 파일만 출력하게 해 출력 토큰을 전체 크기와 무관하게 유지한다."""
+    lines = ["== BASE IMPLEMENTATION (multi-file, modular) =="
+             "\nA WORKING implementation of a SIMPLER version of this game is given below,"
+             "\nsplit into modules. Extend/modify it to satisfy the rules above (new mechanics)."
+             "\n\n>> OUTPUT ONLY THE FILES YOU CHANGE OR ADD. <<"
+             "\nEvery base file you do NOT include is kept UNCHANGED automatically. Do not re-output"
+             "\na file you leave identical. Heavy reusable modules usually stay unchanged — touch the"
+             "\norchestrator (engine) and add a small new module for the new mechanic when it helps."
+             "\nWhatever files you DO output must be complete (full file contents, not a diff)."]
     for name, body in base_files.items():
         lines.append(f"--- {name} ---\n{body.rstrip()}")
     return "\n".join(lines)

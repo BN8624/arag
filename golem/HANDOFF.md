@@ -2,10 +2,10 @@
 
 ## ▶ 새 세션 여기부터
 1. **읽기**: 이 파일 `지금 어디` + `다음 액션`만. 규칙은 CLAUDE.md, 왜는 context-notes.md.
-2. **지금 할 일 (한 줄)**: **부품4 발주(★키, go 필요) — 큰 걸음 유지(여러 메카닉 묶기).** 부품0~3
-   완료·시연됨(아래). 발주 = `bank_add_roguelike_p4.py`(정밀규칙+트레이스, 레퍼런스 self-채점) →
-   `driver --card rogue-p4 --base rogue-p3`(★키). 통과 후 `promote_solution.py`+`demo_part.py`.
-   ※ 스케일 한계 주시: p3 출력 6.6k/32k(20%). 더 커져 budget 좁아지면 **파일별 생성+모듈화**로 전환(아래 G14).
+2. **지금 할 일 (한 줄)**: **구조 재설계 키리스 부분 완료(G16) → 부품4로 키 검증(★키, go 필요).**
+   모듈 베이스(6파일)+파일별 생성 병합 완성·--replay 검증됨(아래). 남은 건 실제 발주로 (1)gemma가
+   바뀐 파일만 내는지 (2)출력 토큰이 줄었는지 확인 = `driver --card rogue-p4 --base rogue-p3`(★키).
+   먼저 `bank_add_roguelike_p4.py`(큰 걸음 묶음, 정밀규칙+트레이스+레퍼런스 self채점) 작성 필요.
 3. ⚠️ **런은 사용자 명시 지시 전엔 안 돌린다**(키 소비, ARAG 캠페인과 경쟁 금지).
 
 **문서 용도 (필요할 때만):**
@@ -54,10 +54,10 @@
   p2(전투=인접공격·HP·사망, `--base rogue-p1`) **11/11 @10**($0.020), p3(아이템·함정·계단·포션 **4개 동시**,
   `--base rogue-p2`) **11/11 @10**($0.023, 런 20260616-222851). 넷 다 promote_solution.py로 베이스 승격
   완료. 카드적재 `bank_add_roguelike_p{0,1,2,3}.py`, 승격 `promote_solution.py`.
-- **G13 핵심 발견(큰 걸음 검증)**: 부품3에서 4개 메카닉을 **한 번에** 묶어도 31B가 11/11로 쉽게 소화 →
+- **G14 핵심 발견(큰 걸음 검증)**: 부품3에서 4개 메카닉을 **한 번에** 묶어도 31B가 11/11로 쉽게 소화 →
   캠페인이 frontier로 본 "여러 시스템 동시 맞물림"이 **이 규모에선 안 막힌다**. 단일 메카닉 부품은 너무 쉬워
   비효율 → 앞으로 **큰 걸음**(여러 메카닉/한 부품)으로 간다(사용자 결정).
-- **G14 스케일 측정(토큰)**: 드라이버가 attempt별·요약별 input/output/thinking 토큰 기록(`tokens` 필드 +
+- **G15 스케일 측정(토큰)**: 드라이버가 attempt별·요약별 input/output/thinking 토큰 기록(`tokens` 필드 +
   화면). p3 실측: 입력 3,896(고정, TPM 무제한이라 무관) / 출력(코드) ~2,132 / thinking ~3,379 / **out+think
   최대 6,619 = 32k의 20%**. 즉 출력한도가 첫 천장이나 아직 여유 큼. 현 구조 = **통째 재생성**(워커가 매번
   전 파일 재출력). budget 좁아지면 전환: ①바뀐 파일만 생성(안 바뀐 건 베이스 재사용) ②엔진 모듈화(부품=새
@@ -69,9 +69,12 @@
    탭=부품·시나리오, HP·골드·포션·하강·공격·사망·함정 사람말, 아이템 소모 시 격자에서 사라짐, 재생/스텝).
    부품0~3 정답일치 확인. 폰: `http://100.89.73.83:8731/golem/web/demo.html`. 부품마다 `demo_part.py <slug>`만
    (목표② 도구 2호). 정적서버=백그라운드 `python -m http.server 8731 --bind 0.0.0.0`(arag 루트, 폰 테일스케일용).
-2. **다음 부품 = 큰 걸음(★키, go 필요)** — `--base rogue-p3` 위에 여러 메카닉 묶어 발주(예: 층이동+몬스터
-   복수+시야/안개 등). 매 부품 `--base`로 직전 위에 확장. 발주 = bank_add_roguelike_p4.py(정밀규칙+트레이스+
-   레퍼런스 self-채점) → driver --card rogue-p4 --base rogue-p3 → promote_solution.py → demo_part.py.
+2. **구조 재설계 키리스 완료(G16)** — ①엔진 6모듈화: dungeon/chase/combat/items(안정·재사용)+engine
+   (오케스트레이터)+main. rogue-p3.solution을 이 모듈 베이스로 교체(골든 채점 PASS, `bank_remodularize_p3.py`).
+   ②파일별 생성: worker_prompt "바뀐/새 파일만 출력", driver `_one_attempt`가 베이스+변경분 병합(안 낸 파일은
+   베이스 재사용). --replay로 검증(engine+main만 응답→나머지4 병합→PASS). 데모는 card.reference 사용이라 영향 없음.
+3. **다음 = 부품4 키 검증(★키, go 필요)** — 모듈 베이스 위 큰 걸음 발주로 (1)gemma가 바뀐 파일만 내는지
+   (2)출력 토큰 실제 감소 확인. bank_add_roguelike_p4.py 작성 → driver --card rogue-p4 --base rogue-p3.
 3. **매 부품마다 "Claude가 뭘 했나" 기록**(목표② 개입 깎기) — 반복되는 발주/조립/갭메움을 템플릿·
    정적게이트로 굳혀 개입↓. 도구 2개: promote_solution.py(승격), demo_part.py(시연). 부품2에서 Claude가 한 것 =
    ①전투 규칙 설계+워크드 트레이스 ②레퍼런스 JS 작성(골든 출처) ③시연 도구를 HP까지 확장. 다음 후보 =
