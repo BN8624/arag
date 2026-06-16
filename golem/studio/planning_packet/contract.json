@@ -20,7 +20,8 @@
       "RULE-03: currentCost = floor(baseCost * (costMultiplier ** level)).",
       "RULE-04: productionRate = 1 + sum(level * power).",
       "RULE-05: Evaluate the win check at scenario start (BEFORE any action) AND immediately AFTER each action is applied: if energy >= 1000, set gameStatus = 'WON'.",
-      "RULE-06: Once gameStatus == 'WON', stop immediately — process no further actions from the scenario sequence; the current turn/energy are final."
+      "RULE-06: Once gameStatus == 'WON', stop immediately — process no further actions from the scenario sequence; the current turn/energy are final.",
+      "RULE-07: An UPGRADE whose `id` is not present in the constants map causes NO state change and appends the log 'Invalid generator ID'."
     ]
   },
   "interface_contract": {

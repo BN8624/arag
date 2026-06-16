@@ -48,7 +48,9 @@ FILES YOU MUST CREATE (exact paths/exports/imports):
 {files}
 
 INPUT CONTRACT (FIXED — `scenarios.json` is a JSON array; scenario N is element N-1, 1-based):
-Each scenario is an object with optional `constants`, optional `initialState`, and required `actions`.
+Each scenario is an object with optional `constants`, optional `initialState`, and optional `actions`.
+If `actions` is absent (even for an empty input object `{{}}`), default it to [] — apply no actions and
+print the canonical initial state. NEVER crash on a missing field.
 - constants: {{ "<genId>": {{ "baseCost": int, "costMultiplier": int, "power": int }} }} (e.g. "gen1").
 - initialState: any of {{ "turn": int, "energy": int, "levels": {{ "<genId>": int }}, "gameStatus": str }}.
   ANY absent field uses the canonical default: turn=0, energy=0, levels={{}} (every generator level 0),
