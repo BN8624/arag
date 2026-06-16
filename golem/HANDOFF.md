@@ -1,100 +1,130 @@
 # HANDOFF.md — golem 진행상황 스냅샷
 
 ## ▶ 새 세션 여기부터
-1. **읽기**: 이 파일 `지금 어디` + `다음 액션`만. 규칙은 CLAUDE.md, 왜는 context-notes.md.
-2. **지금 할 일 (한 줄)**: **생산 분할 Step 1 오케스트레이터 착수(설계→분배→조립).** 사용자 아이디어 =
-   계층적 분해. 설계자가 전체를 A·B·C 모듈+**인터페이스 계약**으로 쪼개 설계 → 모듈별 독립 빌더(병렬)
-   → 조립 → 정적게이트+격리실행으로 전체 골든 채점. 목표 = 조립가능성 측정 + 출력천장 구조적 소멸.
-   분배·조립기는 신규, 분배/조립 검증은 --replay로 키 없이 먼저(설계 콜만 ★키). 모듈 경계 첫 케이스는
-   Claude가 잡아 보여주고 진행. (작은 미결: rogue-elem 시연 — demo_part가 모듈 run(sc)+grid 미지원이라 확장 필요.)
-3. ⚠️ **런은 사용자 명시 지시 전엔 안 돌린다**(키 소비, ARAG 캠페인과 경쟁 금지).
 
-**문서 용도 (필요할 때만):**
+1. **먼저 읽기**: 이 파일의 `지금 어디`와 `다음 액션`만 읽는다. 규칙은 `CLAUDE.md`, 새 방향의 상세 설계는 `GolemStudioMode.md`, 결정 이유는 `context-notes.md`다.
+2. **지금 할 일 한 줄**: 예전 G20 생산 분할 Step 1은 폐기하고, **Golem Studio v0.1 Contract Microkernel Replay**부터 구현한다.
+3. ⚠️ **실제 Gemini/Gemma API 런은 사용자 명시 지시 전엔 금지**다. v0.1은 fake artifact와 replay만으로 검증한다.
+
+## 문서 용도
+
 | 문서 | 용도 | 언제 |
 |---|---|---|
-| **HANDOFF.md** (여기) | 현재 상태 + 다음 할 일 | **항상 먼저** |
-| CLAUDE.md | golem 규칙·제약 | 처음 1회 |
-| README.md | golem 정체·역할·Phase | 방향 의심될 때 |
-| context-notes.md | 결정 로그 G1~G20 (왜) | 특정 결정 궁금할 때 |
+| HANDOFF.md | 현재 상태 + 다음 할 일 | 항상 먼저 |
+| CLAUDE.md | golem 폴더 전체 규칙 | 처음 1회 |
+| GolemStudioMode.md | 새 Golem Studio Mode 설계 정본 | v0.1 구현 전 필수 |
+| context-notes.md | 결정 로그 | 왜가 필요할 때 |
 | checklist.md | 세부 체크리스트 | 진행 추적 |
+| README.md | 기존 golem 정체 | 방향 의심될 때 |
 
 ## 지금 어디 (2026-06-17)
-**최신 상태 요약 (이 줄들만 봐도 됨)**:
-- 작업방식 = **gemma가 머리(자율설계+자기오라클) + 손(병렬 구현), Claude는 발주·검증·조립만**(G18).
-- 게임 = 모듈형 로그라이크. 베이스 사다리: rogue-p0→p1→p2→p3(모듈 6파일)→p4(장비)→**rogue-elem**(원소,
-  최신 베이스). 각 레이어 11/11 통과·승격됨. 다음 레이어는 `--base rogue-elem`.
-- 스케일 해결됨(G16·G17): **엔진 모듈화 + 파일별 생성**(워커가 바뀐 파일만 출력, driver가 베이스 병합)
-  → 부품당 출력이 전체 크기와 무관. 출력 토큰 ~2k(부품)~8k(설계), 32k의 20~27%만 씀.
-- 게이트 복원됨(G19): `static_gate.py`(콜0: 구문·위장(고아모듈)·npm·Math.random) + `grade.py` 실행을
-  Node 권한모델로 격리(파일쓰기·자식프로세스 차단, Docker 없이). driver가 채점 전 정적게이트 강제.
-- 다음 큰 방향(G20, 사용자): **생산 분할**(계층적 분해+인터페이스 계약)로 조립가능성 측정·무한확장.
-- 폰 데모: `http://100.89.73.83:8731/golem/web/demo.html`(부품0~4). 정적서버=`python -m http.server 8731 --bind 0.0.0.0`(arag 루트).
 
----
-**Phase 히스토리(참고)**: Phase 1(엔진검증)·Phase 2(이모지 스킨) 완료 → Phase 3 1단계(은행+A오라클) 완료.
-- Phase 1: 런 `20260616-130305` cracked@10, 5/11. attempt01·10 독립 재채점 4/4.
-- Phase 2: 엔진 `web/engine.browser.js` 공유모듈 + 스킨 교체 구조. `battle.html`=이모지 스킨.
-  폰(테일스케일 `http://100.89.73.83:8731/golem/web/battle.html`) 확인. 무회귀 4/4.
-- Phase 3 1단계: **검증엔진 라이브러리(은행)** 골격. `game_bank.py`(sqlite) + `oracle.py`(JS
-  레퍼런스→골든, game/ 의존 제거) + driver/worker/grade 카드화(`--card`).
-- Phase 3 2단계 **완료**: 입출력 게임-중립화(골든=평면 dict). 카드#2 'merge-2048' A 방식 적재 후
-  **생성 런 cracked@4, 11/11 전부 통과**($0.027, 런 20260616-143058). 독립 재채점 4/4.
-  → **A 방식이 처음 보는 게임에도 일반화됨 확정.** 통과본=카드#2 solution(확장 베이스).
-- 방향(사용자): A 방식으로 여러 게임 만들어 은행에 쌓고 베이스로 확장. = ARAG Design Bank의 golem판.
-- Phase 3 3단계 **완료**: 확장 루프 = 2048+벽. 베이스 주입(driver `--base`) + 카드#3
-  'merge-2048-walls'. 확장 런 **cracked@7, 11/11 통과**($0.030). **재사용 증거**: 통과본이
-  board.js를 베이스 그대로 두고 moves.js만 벽 세그먼트화 → 맨바닥 재작성 아닌 진짜 확장.
-  은행 3장 모두 solution 있음(확장 베이스 준비).
-- **Phase 4 완료(자율 오라클 작동 입증)**: `oracle_design.py`로 31B가 [주제+메타규격]→게임 규칙
-  +레퍼런스+시나리오 설계(theme=Snake, 첫 시도 성공). 합의 게이트 독립 11개 중 **10/11 일치**.
-- **Phase 5 완료**: `campaign.py` 주제 10개(뱀·심즈·심시티·CK·삼국지·풋매·방치형·오토배틀러·
-  타워디펜스·카드배틀). 설계 성공 **10/10**(31B 자율 오라클 전부 성공). 합의율(passed/11):
-  뱀8·심즈11·심시티8·CK11·삼국지10·풋매11·방치형11·오토배틀러11·**타워디펜스0**·카드배틀11.
-  - **핵심 발견**: 9개는 8~11/11 높음, **타워디펜스만 0/11 완전 실패** = frontier 신호(경로·웨이브·
-    타워·투사체·경제가 틱 단위로 동시에 맞물리는 창발적 통합 — ARAG 예측 벽과 일치). 단 1회 31B
-    자율설계라 규칙 모호 가능성도 있음(부품 분해 시 gemma가 할 수도 = 검증 대상).
-  - 운영 메모: 1차 런이 4번(auto-ck)서 구글 5xx로 죽음 → 키 11/11 생존(`key_probe.py`) 후
-    `campaign.py --start 4`(resume 신규)로 재개·완주. 폰 모니터 `status.html`(8731 정적서버,
-    `http://100.89.73.83:8731/status.html`). 결과 장부 = `campaign_ledger.jsonl`(slug별 1줄).
-- **본 방향 확정(G11, 2026-06-16)**: golem = **부품공장(gemma) × 시공자(Claude)**. 작은 게임 통째가
-  아니라 **큰 게임을 부품 붙여 키운다**. 목표 = **턴제 로그라이크**(부품0 격자이동→적→전투→아이템→
-  층→다양화). **두 목표**: ① 한 번 끝까지 만들며 Claude 손 필요지점 실측 → ② 반복가능 패턴·도구로
-  굳혀 **Claude 개입 점점 깎기**(개입량=측정지표). 합의율 캠페인 재해석 = 부품별 gemma 신뢰도 지도.
+**선회 결정**:
+- 기존 다음 작업이던 **생산 분할 Step 1 오케스트레이터**는 보류가 아니라 폐기된 예정분으로 본다.
+- 새 방향은 `GolemStudioMode.md`에 정리한 **Golem Studio Mode**다.
+- 핵심은 11개 Auth Key를 독립 인격이 아니라 **11 worker slots / 병렬 샘플링 슬롯**으로 쓰는 것이다.
+- 단, 바로 11개 슬롯을 투입하지 않는다. 먼저 키를 쓰지 않는 v0.1 계약 검증 마이크로커널을 만든다.
+
+**현재 정본**:
+- 새 설계 정본: `golem/GolemStudioMode.md`.
+- 구현 시작점: `Contract Microkernel Replay`.
+- v0.1 목표: 게임 생성이 아니라 **manifest에 적힌 파일/export/import와 실제 CommonJS 코드가 기계적으로 일치하는지 검증**하는 것.
+- v0.1 module format: **CommonJS only**.
+- v0.1 manifest 최소 필드: `schema_version`, `module_format`, `entry`, `files[].path`, `files[].exports`, `files[].imports`.
+- v0.1 static_gate bridge 입력: `workspace_path`, `manifest_path`.
+- v0.1 static_gate bridge 출력: `ok`, `checks`, `errors`, `warnings`.
+
+**기존 성과는 버리지 않는다**:
+- `static_gate.py`, `grade.py`의 Node 권한모델 실행 격리, CommonJS 멀티파일 규칙은 계속 재사용한다.
+- 기존 로그라이크 부품과 캠페인 결과는 배경 자료다. v0.1 구현의 직접 목표는 아니다.
+- `HANDOFF.md`에 있던 생산 분할 계획은 `context-notes.md`의 G20 기록으로만 남기고, 다음 작업으로 실행하지 않는다.
 
 ## 다음 액션 (★다음 세션 여기부터)
 
-### 다음 할 일 = 생산 분할 Step 1 (G20, 사용자 방향)
-계층적 분해로 게임을 키운다. 지금 select-best(11개가 *같은 전체* 중복 생산→1개 채택)와 달리, **서로
-다른 부분을 생산→조립**한다. Step 1 PoC.
-1. **설계자 확장** — 설계자가 RULES·SCENARIOS·레퍼런스에 더해 **모듈 계약 manifest**(각 모듈의 export
-   시그니처 + 누가 누굴 require)를 내게 한다. (`oracle_design_ext.py` 변형 or 신규.)
-2. **분배기(신규)** — 모듈 A 빌더에 *A의 계약 + 의존 모듈 B·C의 시그니처만*(구현 코드 X) 줘서 A만 생성.
-   B·C도 병렬. (모듈 크면 재귀 분할은 Step 3.)
-3. **조립기(신규)** — 모듈들 합쳐 `static_gate`+격리실행으로 **전체 골든** 채점. 실패 시 어느 모듈이
-   계약 깼는지 보고.
-- 검증 순서: 분배·조립 로직은 **--replay로 키 없이 먼저** 확인 → 그다음 설계 콜(★키)→분산 빌드(★키).
-- **측정 목표**: (1)조립 가능성(독립 모듈이 계약대로 맞물리나 = golem이 아직 못 잰 축) (2)콜당 출력이
-  작게 유지되나 (3)계약 정밀도와 합의의 관계. **리스크**: 계약 모호하면 첫 시도 조립 실패 가능(=그게 데이터).
-- 모듈 경계 첫 케이스는 Claude가 잡아 사용자에게 보여주고 진행.
+### Step 0: 파일 확인
 
-### 작은 미결
-- **rogue-elem 시연** — `demo_part.py`가 모듈 `run(sc)` 시그니처 + `grid` 출력 필드를 아직 못 그림.
-  데모 러너 확장하면 원소(불 번짐) 시연 가능. (키X)
+1. `golem/GolemStudioMode.md`의 13장 구현 우선순위와 19장 Pending Decisions를 읽는다.
+2. `golem/static_gate.py`의 현재 CLI/함수 구조를 확인한다.
+3. 기존 `driver.py`, `grade.py`는 참고만 하고 v0.1에서는 실제 키 호출을 붙이지 않는다.
 
-### 이번 세션 완료(요약, 자세히는 context-notes G14~G20)
-- 큰 걸음 검증(G14): 4메카닉 동시도 31B 11/11. 단일메카닉은 너무 쉬움 → 큰 걸음으로.
-- 스케일 해결(G15·G16·G17): 출력토큰이 첫 천장 → **모듈화+파일별 생성**으로 부품당 출력=전체크기 무관.
-  부품4(장비) 11/11, 빌더 전원 바뀐 파일만 출력 검증.
-- 작업방식 전환(G18): gemma를 머리로(자율설계+자기오라클), 합의검증. rogue-elem 11/11, Claude 0줄.
-- 게이트 복원(G19): static_gate(콜0) + grade 권한모델 격리.
+### Step 1: v0.1 폴더와 fake artifact 생성
 
-### 운영 규칙
-- **런은 사용자 go 전 금지**(키 소비). 카드 재적재 스크립트: `bank_init.py`, `bank_add_2048*.py`,
-  `bank_add_roguelike_p{0..4}.py`, `bank_remodularize_p3.py`, `oracle_design_ext.py`(★키), 캠페인 `campaign.py`(★대량 키).
-- 매 레이어 통과 시 승격(`promote_solution.py`) + 시연(`demo_part.py`) + "Claude가 뭘 했나" 기록(②).
-- 참고: 타워디펜스 0/11→7/11(G12) = frontier는 계약 정밀도.
+`golem/studio/` 하위에 별도 실험 모드로 만든다.
 
-## 기계 정본
-- 장부: `golem/golem_ledger.jsonl`(시도별 ok·first_divergence·cost). 후보: `runs/golem/<ts>/attemptNN/`.
-- 정답지: `golem/golden/scenarios.json`(시나리오 파티+정답, make_golden으로 재생성). 오라클: `grade.py`(콜0).
-- 재사용: arag `llm.py`(gemma 호출), `game/`(레퍼런스·골든 소스), `frozen/T-000012`(파이썬 대조군).
+필수 산출물:
+- `golem/studio/schemas/module_manifest.schema.json`
+- `golem/studio/runs/demo/module_manifest.json`
+- `golem/studio/runs/demo/workspace/main.js`
+- `golem/studio/runs/demo/workspace/src/engine.js`
+- `golem/studio/runs/demo/workspace/src/state.js`
+- `golem/studio/runs/demo/workspace/src/movement.js`
+
+새 소스파일은 첫 줄에 한국어 역할 주석을 넣는다.
+
+### Step 2: import/export validator 구현
+
+v0.1 검증 범위:
+- manifest JSON schema 검증.
+- manifest에 있는 파일이 실제 존재하는지 확인.
+- CommonJS only 확인.
+- `require(...)`가 manifest의 `imports`와 일치하는지 확인.
+- manifest의 named export가 실제 코드에 존재하는지 확인.
+- `exports.name = ...` 또는 `module.exports = { name }`만 named export로 인정.
+- `module.exports = function ...` 같은 bare default export는 `exports: []`인 entry 파일 외에는 금지.
+- 순환 의존성 확인.
+
+### Step 3: static_gate bridge 연결
+
+bridge 입력:
+
+```json
+{
+  "workspace_path": "golem/studio/runs/demo/workspace",
+  "manifest_path": "golem/studio/runs/demo/module_manifest.json"
+}
+```
+
+bridge 출력:
+
+```json
+{
+  "ok": true,
+  "checks": [],
+  "errors": [],
+  "warnings": []
+}
+```
+
+`checks`에는 최소 `manifest_schema`, `file_exists`, `import_export`, `static_gate`를 넣는다.
+
+### Step 4: replay result report 생성
+
+필수 산출물:
+- `golem/studio/runs/demo/replay_result.json`
+- `golem/studio/runs/demo/contract_validation_report.md`
+
+성공 기준:
+- replay 결과 `ok: true`.
+- `static_gate`와 import/export validator가 모두 통과.
+- Gemini/Gemma API 호출 0회.
+
+### Step 5: 다음 단계로 넘어가기 전 확인
+
+v0.1이 통과한 뒤에만 Planning 팀 실제 호출 Step 2를 논의한다.
+그 전에는 11 worker slots, A/B/C 비교 실험, 실제 키 사용을 구현하지 않는다.
+
+## CLAUDE.md 충돌 점검 결과
+
+현재 `CLAUDE.md`와 새 문서의 큰 충돌은 없다.
+다만 아래는 우선순위를 명확히 해야 한다.
+
+- `CLAUDE.md`의 “gemma=손, Claude=머리” 표현은 기존 부품공장 방식 설명이다. Golem Studio Mode에서는 Gemma도 설계/리뷰 샘플링 슬롯으로 쓸 수 있다.
+- `CLAUDE.md`의 “병렬 우선”은 실제 키 런에만 적용한다. v0.1 Contract Microkernel Replay에서는 키를 쓰지 않는다.
+- `CLAUDE.md`의 CommonJS, Node 빌트인만, npm 금지, Math.random 금지 규칙은 v0.1과 일치한다.
+
+## 운영 규칙
+
+- 사용자 `go` 없이 키 쓰는 런 금지.
+- ARAG 캠페인과 키 경쟁 금지.
+- 기존 `HANDOFF.md` 변경분은 이 문서로 대체되었으므로 예전 생산 분할 다음 액션으로 돌아가지 않는다.
+- 세션 종료 시 이 파일의 `지금 어디`와 `다음 액션`을 갱신한다.

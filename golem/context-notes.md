@@ -176,3 +176,11 @@ manifest는 `schema_version/module_format/entry/files[].path,exports,imports`만
 `workspace_path`와 `manifest_path` 입력 및 `ok/checks/errors/warnings` 출력으로 고정한다. A/B/C 비교 기준은
 임시값으로 둔다: B는 A 대비 unique_issue_count +30%, C는 B 대비 +20% 또는 추가 BLOCKING issue 1개 발견 시
 유효. 10회 이상 실행 후 조정한다.
+
+## G23 — HANDOFF 선회: 생산 분할 폐기, Contract Microkernel 우선 (2026-06-17)
+사용자 지시: 기존 HANDOFF의 생산 분할 Step 1 예정분은 폐기하고, Golem Studio Mode 문서 방향으로 선회한다.
+다음 작업은 11 worker slots 투입이나 분산 빌드가 아니라 v0.1 Contract Microkernel Replay다. 이유는 구현
+시작 전에 module manifest와 실제 CommonJS 코드의 파일/export/import 계약을 기계적으로 검증할 수 있어야
+역할 순환 구조가 무너지지 않기 때문이다. CLAUDE.md는 golem 폴더 전체 지침으로 유지하되, Golem Studio 구현
+범위에서는 GolemStudioMode.md와 HANDOFF.md를 우선하도록 보강했다. CommonJS, npm 금지, Math.random 금지,
+사용자 go 없는 키 런 금지는 기존 CLAUDE.md와 충돌하지 않는다.

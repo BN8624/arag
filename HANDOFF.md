@@ -2,9 +2,10 @@
 
 ## ▶ 새 세션 여기부터 (3단계만)
 1. **읽기**: 이 파일의 `지금 어디` + `다음 액션` 두 섹션만. 그거면 바로 시작 가능.
-2. **지금 할 일 (한 줄)**: trace-diff 오라클 **구축·테스트 완료**(351 통과). 다음 =
-   **trace-diff A/B 캠페인 기동**(`python trace_run.py 11 11 5`) → trace_on vs trace_off 통과율 델타로
-   '첫-발산 힌트가 frontier를 미나' 측정. ⚠️ **런은 사용자 명시 지시 전엔 안 돌린다**(메모리 no-autostart-runs).
+2. **지금 할 일 (한 줄)**: trace-diff A/B 예정분은 폐기하고, 현재 활성 작업은
+   **golem/Golem Studio v0.1 Contract Microkernel Replay**다. 먼저 `golem/HANDOFF.md`와
+   `golem/GolemStudioMode.md`를 따라 키 없이 fake artifact + manifest/import/export 검증을 만든다.
+   ⚠️ **런은 사용자 명시 지시 전엔 안 돌린다**(메모리 no-autostart-runs).
 3. **막히면**: "왜 이렇게 정했나"는 `context-notes.md` 결정번호로, "큰 방향"은 `PLAN.md`.
 
 **문서 용도 (필요할 때만 펼쳐라):**
@@ -146,21 +147,20 @@
 
 ## 돌고 있는 것
 **측정 없음 (런 미기동, 사용자 지시 대기).** 대시보드만 8400에서 떠 있음 — http://100.89.73.83:8400.
+- ⚠️ trace-diff A/B = **부분실행·무효(2026-06-16)**: 사이클1 trace_on 11/11 실패(테스트점수 null=전멸,
+  인프라/하네스 의심), trace_off 미실행 → 비교불가. 답 0. 연구 재개 시 *깨끗이 재실행* 필요. 장부 `runs/trace_ledger.jsonl`.
+- 🆕 **golem 서브프로젝트 착수(2026-06-16)**: gemma 워커가 JS 게임 룰엔진을 짓고 Claude는 조율만 →
+  Claude 사용량 절감 실용도구. `golem/`(README·checklist·context-notes). Phase 1 = game/ 전투엔진을 JS로 재구현 스파이크.
 - warm 5사이클(110런) **완료**: cold 13/55(24%) vs warm 8/55(15%), 노트효과 비유의(z≈1.2). 장부
   `runs/warm_ledger.jsonl`. 원인 규명 끝 = (B) 모델 실행정밀도 한계, 하네스 무결(결정27).
 - 옛 폭풍런 장부는 `runs/warm_ledger.run1-storm.jsonl`로 분리 보관.
 
 ## 다음 액션 (★다음 세션 여기부터)
-> 31solo 단독(결정25). ⚠️ **런은 사용자 명시 지시 전엔 기동 금지**(memory no-autostart-runs).
-1. **trace-diff A/B 캠페인** (사용자 지시 시): `python trace_run.py 11 11 5` (4번째=사이클수, 생략=무한).
-   두 arm(둘 다 cold + --trace 요구): **trace_on**(frozen/T-000012-trace, 골든트레이스로 첫-발산 힌트
-   주입) vs **trace_off**(frozen/T-000012, 기존 골든diff만). **읽기 = on-off 통과율 델타**. on이 유의하게
-   높으면 frontier=피드백 국소화 문제, 아니면 (B) 실행정밀도 한계 확정. 장부 `runs/trace_ledger.jsonl`.
-   (24% cold 베이스라인은 --trace 세금 없어 부차참고 — 정식 대조는 trace_off arm.)
-2. **형태 확장(별도 축)**: 어댑터 → 2D 방치형(game/ 정본 재사용).
-- (메모) trace-diff 구축 = 결정27/[checklist.md](checklist.md). 조각: game 턴트레이스(`--turntrace`)·
-  trace_diff.py(콜0)·phase_gates._add_trace_hint·trace_run.py·frozen/T-000012-trace/golden_traces.
-- (메모) 대시보드 그리드는 병렬 런 돌 때 폰 http://100.89.73.83:8400 현황 탭. 단계 라벨은 머리/손.
+> 현재 활성 작업은 golem 서브프로젝트다. ⚠️ **런은 사용자 명시 지시 전엔 기동 금지**(memory no-autostart-runs).
+1. `golem/HANDOFF.md`를 먼저 읽는다.
+2. `golem/GolemStudioMode.md` 13장 구현 우선순위와 19장 Pending Decisions를 확인한다.
+3. golem v0.1 `Contract Microkernel Replay`를 키 없이 구현한다.
+4. 루트 trace-diff A/B 캠페인은 현재 다음 액션이 아니다. 연구 재개 지시가 있을 때만 깨끗이 재실행한다.
 
 ### 완료(이번 세션, 폴백)
 - ✅ **가용성 폴백**(결정16): generator 429/5xx 소진 시 critic 모델로 1회 강등. 폴백대상=critic이라

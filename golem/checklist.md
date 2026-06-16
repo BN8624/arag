@@ -91,3 +91,10 @@
 - [x] module_manifest v0.1 최소 필드 예시 추가
 - [x] static_gate bridge 입력/출력 JSON 기본값 추가
 - [x] A/B/C 비교 provisional threshold 추가
+
+## Golem Studio 선회 핸드오프 정리 (2026-06-17)
+- [x] HANDOFF의 예전 생산 분할 Step 1 예정분 폐기 표시
+- [x] 다음 작업순서를 Contract Microkernel Replay 기준으로 재작성
+- [x] CLAUDE.md와 GolemStudioMode.md 충돌 여부 점검
+- [x] 필요한 CLAUDE.md 우선순위 규칙 최소 반영
+- [x] 문서 재검색 및 커밋
