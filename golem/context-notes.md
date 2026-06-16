@@ -268,3 +268,16 @@ golden으로 미고정) → "10통과"=계약대로 굴러가는 게임 10개지
 의의: 아이디어 한 줄("방치형게임") → 리뷰→FROZEN 계약 → gemma 구현 → v0.1 매니페스트 정합 검증이
 실모델로 한 줄에 꿰임. 처음 만든 v0.1 validator가 실 gemma 산출물에서 값을 함(설계 의도 실현).
 build_runs/는 .gitignore(생성물). 다음: Build v1=오라클 골든으로 정확일치 채점 / or 측정 N≥10 장르확장.
+
+## G31 — 순서 점검 + Step 3 Design 실행 (2026-06-17, 키 씀)
+사용자 "문서 정독한거 맞아"·"처음부터 점검" 지적 → 옳음. §13 순서(1→2→3 Design→4 Spec QA→5 Build→6
+Adv QA)를 어기고 1,2 후 5(Build)로 점프했었음. Build v0는 스파이크로 남기고 순서 복원.
+점검서 design.py가 import 버그(_find_cycle은 contract_validator에 있음)로 안 돌던 것 발견·수정.
+또 회귀 replay가 planning_compare.md를 가짜로 덮은 것 git restore.
+design.py(§7·§8.2·§13 Step3 그대로): Planning 패킷 → lead 모듈분해+traceability → 리뷰어10 → synthesis
+→ system_design.md/module_manifest.json/traceability.json/traceability_report.md. validator=모든 REQ가
+≥1모듈·≥1테스트, manifest에 없는 파일/없는 test id 실패, 순환없음.
+실행(방치형 계약): REQ6, **4모듈 분해**(utils 순수계산 ← state_manager 상태전이 ← engine 조율 ← main I/O),
+각 모듈 책임·금지 명시, RULE-01~06 전부 추적연결, validator PASS, BLOCKING 2. **Build v0 통짜 2파일을
+교정 — 진짜 멀티파일 분해**(프로젝트 핵심 "파일 간 정합성"). 산출=design_packet/.
+다음(§13 순서): Step 4 Spec QA → Step 5 Build 재실행(이번엔 design 매니페스트+grade) → Step 6 Adv QA.

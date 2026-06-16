@@ -1,0 +1,71 @@
+{
+  "concept": "방치형: 틱마다 자원 축적, 업그레이드로 생산속도 상승, 1000 도달 시 승리.",
+  "state": { "turn": 0, "resources": { "energy": 0 }, "stats": { "productionRate": 1, "levels": {} }, "gameStatus": "PLAYING", "logs": [] },
+  "reqs": [
+    { "id": "RULE-01", "text": "WAIT -> turn += 1, energy += productionRate" },
+    { "id": "RULE-02", "text": "UPGRADE -> if energy>=cost then spend, level+1, recalc rate else log" },
+    { "id": "RULE-03", "text": "cost = floor(baseCost * costMultiplier^level)" },
+    { "id": "RULE-04", "text": "productionRate = 1 + sum(level*power)" },
+    { "id": "RULE-05", "text": "energy>=1000 -> gameStatus WON" },
+    { "id": "RULE-06", "text": "WON -> no further actions processed" }
+  ],
+  "test_ids": ["SCN-001", "SCN-002", "SCN-003"],
+  "design": {
+    "system_design": [
+      { "path": "main.js", "responsibility": "CLI 진입·시나리오 선택·출력", "inputs": "--scenario N", "outputs": "key:value 라인", "forbidden": "게임 규칙 계산 금지" },
+      { "path": "src/engine.js", "responsibility": "시나리오 액션을 순서대로 적용·승리판정", "inputs": "actions[]", "outputs": "final state", "forbidden": "직접 자원식 계산 금지(모듈 위임)" },
+      { "path": "src/state.js", "responsibility": "초기 상태 생성", "inputs": "-", "outputs": "state", "forbidden": "액션 처리 금지" },
+      { "path": "src/tick.js", "responsibility": "WAIT 처리(자원 축적)", "inputs": "state", "outputs": "state", "forbidden": "업그레이드 처리 금지" },
+      { "path": "src/upgrade.js", "responsibility": "UPGRADE·비용·생산속도", "inputs": "state,id", "outputs": "state", "forbidden": "승리판정 금지" }
+    ],
+    "module_manifest": {
+      "entry": "main.js",
+      "files": [
+        { "path": "main.js", "exports": [], "imports": ["src/engine.js"] },
+        { "path": "src/engine.js", "exports": ["runScenario"], "imports": ["src/state.js", "src/tick.js", "src/upgrade.js"] },
+        { "path": "src/state.js", "exports": ["createState"], "imports": [] },
+        { "path": "src/tick.js", "exports": ["applyWait"], "imports": ["src/state.js"] },
+        { "path": "src/upgrade.js", "exports": ["applyUpgrade"], "imports": ["src/state.js"] }
+      ]
+    },
+    "traceability": {
+      "RULE-01": { "text": "WAIT -> turn+1, energy+=rate", "design_modules": ["src/tick.js"], "exports": ["applyWait"], "tests": ["SCN-001"], "status": "covered" },
+      "RULE-02": { "text": "UPGRADE logic", "design_modules": ["src/upgrade.js"], "exports": ["applyUpgrade"], "tests": ["SCN-002"], "status": "covered" },
+      "RULE-03": { "text": "cost floor", "design_modules": ["src/upgrade.js"], "exports": ["applyUpgrade"], "tests": ["SCN-002"], "status": "covered" },
+      "RULE-04": { "text": "rate recalc", "design_modules": ["src/upgrade.js"], "exports": ["applyUpgrade"], "tests": ["SCN-001"], "status": "covered" },
+      "RULE-05": { "text": "win at 1000", "design_modules": ["src/engine.js"], "exports": ["runScenario"], "tests": ["SCN-003"], "status": "covered" },
+      "RULE-06": { "text": "WON ignores actions", "design_modules": ["src/engine.js"], "exports": ["runScenario"], "tests": ["SCN-003"], "status": "covered" }
+    }
+  },
+  "reviews": [
+    { "unassigned_reqs": [], "untested_reqs": [], "circular_deps": [], "responsibility_problems": ["engine.js와 upgrade.js의 rate 계산 책임 경계 모호"], "interface_problems": [], "risky_assumptions": [], "questions_for_lead": [{ "q": "rate 계산은 upgrade.js 단독 책임인가?", "class": "BLOCKING" }] },
+    { "unassigned_reqs": [], "untested_reqs": [], "circular_deps": [], "responsibility_problems": [], "interface_problems": ["state.js exports가 createState 하나뿐 — clone 필요?"], "risky_assumptions": [], "questions_for_lead": [] }
+  ],
+  "synthesis": {
+    "system_design": [
+      { "path": "main.js", "responsibility": "CLI 진입·시나리오 선택·출력", "inputs": "--scenario N", "outputs": "key:value", "forbidden": "규칙 계산 금지" },
+      { "path": "src/engine.js", "responsibility": "액션 순차 적용·승리판정(RULE-05/06)", "inputs": "actions[]", "outputs": "state", "forbidden": "자원식 직접계산 금지" },
+      { "path": "src/state.js", "responsibility": "초기 상태 생성", "inputs": "-", "outputs": "state", "forbidden": "액션 처리 금지" },
+      { "path": "src/tick.js", "responsibility": "WAIT 처리(RULE-01)", "inputs": "state", "outputs": "state", "forbidden": "업그레이드 금지" },
+      { "path": "src/upgrade.js", "responsibility": "UPGRADE·cost·rate(RULE-02/03/04) 단독", "inputs": "state,id", "outputs": "state", "forbidden": "승리판정 금지" }
+    ],
+    "module_manifest": {
+      "entry": "main.js",
+      "files": [
+        { "path": "main.js", "exports": [], "imports": ["src/engine.js"] },
+        { "path": "src/engine.js", "exports": ["runScenario"], "imports": ["src/state.js", "src/tick.js", "src/upgrade.js"] },
+        { "path": "src/state.js", "exports": ["createState"], "imports": [] },
+        { "path": "src/tick.js", "exports": ["applyWait"], "imports": ["src/state.js"] },
+        { "path": "src/upgrade.js", "exports": ["applyUpgrade"], "imports": ["src/state.js"] }
+      ]
+    },
+    "traceability": {
+      "RULE-01": { "text": "WAIT -> turn+1, energy+=rate", "design_modules": ["src/tick.js"], "exports": ["applyWait"], "tests": ["SCN-001"], "status": "covered" },
+      "RULE-02": { "text": "UPGRADE logic", "design_modules": ["src/upgrade.js"], "exports": ["applyUpgrade"], "tests": ["SCN-002"], "status": "covered" },
+      "RULE-03": { "text": "cost floor", "design_modules": ["src/upgrade.js"], "exports": ["applyUpgrade"], "tests": ["SCN-002"], "status": "covered" },
+      "RULE-04": { "text": "rate recalc (upgrade.js 단독)", "design_modules": ["src/upgrade.js"], "exports": ["applyUpgrade"], "tests": ["SCN-001"], "status": "covered" },
+      "RULE-05": { "text": "win at 1000", "design_modules": ["src/engine.js"], "exports": ["runScenario"], "tests": ["SCN-003"], "status": "covered" },
+      "RULE-06": { "text": "WON ignores actions", "design_modules": ["src/engine.js"], "exports": ["runScenario"], "tests": ["SCN-003"], "status": "covered" }
+    }
+  }
+}

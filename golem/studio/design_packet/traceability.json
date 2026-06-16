@@ -1,0 +1,80 @@
+{
+  "RULE-01": {
+    "text": "WAIT action -> turn += 1, energy += productionRate.",
+    "design_modules": [
+      "src/state_manager.js"
+    ],
+    "exports": [
+      "applyWait"
+    ],
+    "tests": [
+      "SCN-001"
+    ],
+    "status": "covered"
+  },
+  "RULE-02": {
+    "text": "UPGRADE action -> check energy, deduct cost, increment level, recalculate production.",
+    "design_modules": [
+      "src/state_manager.js"
+    ],
+    "exports": [
+      "applyUpgrade"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "RULE-03": {
+    "text": "currentCost = floor(baseCost * (costMultiplier ** level)).",
+    "design_modules": [
+      "src/utils.js"
+    ],
+    "exports": [
+      "calculateCost"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "RULE-04": {
+    "text": "productionRate = 1 + sum(level * power).",
+    "design_modules": [
+      "src/utils.js"
+    ],
+    "exports": [
+      "calculateProduction"
+    ],
+    "tests": [
+      "SCN-001"
+    ],
+    "status": "covered"
+  },
+  "RULE-05": {
+    "text": "If energy >= 1000, gameStatus = 'WON'.",
+    "design_modules": [
+      "src/state_manager.js"
+    ],
+    "exports": [
+      "checkWinCondition"
+    ],
+    "tests": [
+      "SCN-003"
+    ],
+    "status": "covered"
+  },
+  "RULE-06": {
+    "text": "If gameStatus == 'WON', no further actions are processed.",
+    "design_modules": [
+      "src/engine.js"
+    ],
+    "exports": [
+      "processScenario"
+    ],
+    "tests": [
+      "SCN-003"
+    ],
+    "status": "covered"
+  }
+}

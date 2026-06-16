@@ -12,12 +12,13 @@
 
 - **측정 신뢰 보강(G29, 키X).** dedup 토큰 Jaccard 클러스터링. 임계 0.5~0.25 어디서 재도 A6<B11<C20~25 — 결론(독립리뷰>self, 10>3) 강건. 진짜 의미 dedup(임베딩/LLM)은 보류.
 - **Build v0 완성(G30, 키 씀).** `build.py` — FROZEN 계약 → gemma 구현 → static_gate + v0.1 contract_validator(매니페스트 정합) + 스모크. 방치형 계약 **cracked@4, 10/11 통과**. attempt04 진짜(규칙 구현, sc3 turn1000 WON). 아이디어→리뷰→계약→구현→검증이 실모델로 한 줄에 꿰임.
-- caveat: Build v0는 '계약대로 굴러가나'까지. 10개가 각각 다른 숫자(golden 미고정) → 정확일치 아님(=오라클 붙이는 v1 몫).
+- **순서 복원(G31).** §13은 1→2→3 Design→4 Spec QA→5 Build→6 Adv QA. 1,2 후 5(Build)로 점프했던 것 바로잡음. Build v0는 스파이크로 남김.
+- **Step 3 Design 완료(G31, 키 씀).** `design.py` — 방치형 계약을 **4모듈 분해**(utils 순수계산←state_manager 상태전이←engine 조율←main I/O), RULE-01~06 전부 traceability 연결, §7·§8.2 validator PASS. 산출=`design_packet/`(system_design.md, module_manifest.json, traceability.json, traceability_report.md). Build v0 통짜 2파일을 교정.
 
-## 다음 액션 (사용자 선택 대기)
+## 다음 액션 — §13 순서대로
 
-1. **Build v1 — 오라클 골든 + 정확일치 채점.** 31B(or A방식)가 FROZEN 계약대로 레퍼런스 구현 → 시나리오 골든 생성(oracle.py/oracle_design.py 재사용) → build.py 게이트에 grade(정확일치) 추가. 그래야 "10개가 *같은 정답*"을 잼. ★키.
-2. **측정: N≥10을 서로 다른 장르로.** §19 일반화(모호↔명확 게임에서 리뷰어 효과 차이). 메트릭 이제 신뢰. ★키.
-3. 통과본(attempt04)을 web 표현층(golem/web)에 바인딩해 실제 플레이.
+1. **Step 4 Spec QA.** acceptance_tests를 기계 시나리오(scenarios.json, 정확입력)로 + oracle_risk_review. 모든 REQ에 ≥1 테스트, expected 모호한 시나리오 표시. (키X 골격→replay→★키 실행)
+2. **Step 5 Build 재실행.** 이번엔 design_packet의 4모듈 manifest로 빌드 + grade(정확일치). build.py가 design 매니페스트를 받게 + 합의/골든. ★키.
+3. **Step 6 Adversarial QA.** edge_cases.json.
 
 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).

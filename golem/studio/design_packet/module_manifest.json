@@ -1,0 +1,43 @@
+{
+  "schema_version": "0.1",
+  "module_format": "commonjs",
+  "entry": "main.js",
+  "files": [
+    {
+      "path": "src/utils.js",
+      "exports": [
+        "CONFIG",
+        "calculateCost",
+        "calculateProduction"
+      ],
+      "imports": []
+    },
+    {
+      "path": "src/state_manager.js",
+      "exports": [
+        "applyWait",
+        "applyUpgrade",
+        "checkWinCondition"
+      ],
+      "imports": [
+        "src/utils.js"
+      ]
+    },
+    {
+      "path": "src/engine.js",
+      "exports": [
+        "processScenario"
+      ],
+      "imports": [
+        "src/state_manager.js"
+      ]
+    },
+    {
+      "path": "main.js",
+      "exports": [],
+      "imports": [
+        "src/engine.js"
+      ]
+    }
+  ]
+}
