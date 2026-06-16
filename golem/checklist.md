@@ -51,6 +51,11 @@
       $0.027. attempt04 독립 재채점 4/4 정확일치(멀티파일 board/moves/main 157줄). 통과본=카드 solution 갱신.
       → **A 방식이 처음 보는 게임(2048)에도 됨 확정.** 전투(5/11)보다 깔끔 — 규칙이 명확할수록 잘 됨.
 
-### 3단계 — 확장 루프 (다음, ★go 필요)
-- [ ] 은행 카드(merge-2048 또는 tempo-combat)를 베이스로 "메카닉 하나 더" 확장이 되는지.
-      Claude가 베이스 솔루션+추가 규칙을 주고 gemma가 확장 구현 → 새 골든 채점. 여기까지면 도구 완성형.
+### 3단계 — 확장 루프 (준비=키X 완료, 런=go필요)
+선택 메카닉 = 2048 + 벽(장애물). 베이스 solution을 워커에 줘 "맨바닥 대비 확장이 싸게 되나" 측정.
+- [x] 베이스 주입 경로 — worker_prompt.build_prompt(base_files=), driver `--base <slug>`.
+- [x] 카드#3 "merge-2048-walls" — 확장 레퍼런스(moves.js만 벽 세그먼트화)+전체 규칙+4 벽시나리오 →
+      oracle 골든. self-채점 PASS, 골든 손검산 OK(sc1 [2,-1,2,2]L→2,-1,4,2 등).
+- [x] 확장 프롬프트 점검 — BASE IMPLEMENTATION(베이스 코드)+벽 규칙 포함(8966자).
+- [ ] **(★go 필요) 확장 런** `python golem/driver.py --card merge-2048-walls --base merge-2048` —
+      gemma가 베이스 위에 벽 확장. cracked@N + 11/11 대비 난이도. 통과본=카드#3 solution.

@@ -106,9 +106,23 @@ def _scenario_block(scenarios):
     return "\n".join(lines)
 
 
-def build_prompt(card, self_fix_hint=None):
-    """카드의 규칙(card['rules']) + 시나리오 입력 + 응답형식으로 워커 지시문 조립."""
-    parts = [card["rules"], _scenario_block(card["scenarios"]), RESPONSE_FORMAT]
+def _base_block(base_files):
+    """확장 모드 — 더 단순한 게임의 '통과한 구현'을 컨텍스트로 준다(맨바닥 대신 위에 얹기)."""
+    lines = ["== BASE IMPLEMENTATION =="
+             "\nA WORKING implementation of a SIMPLER version of this game is given below."
+             "\nExtend/modify it to satisfy the rules above (which add new mechanics)."
+             "\nReuse what still applies; change only what the new rules require. Resend ALL files."]
+    for name, body in base_files.items():
+        lines.append(f"--- {name} ---\n{body.rstrip()}")
+    return "\n".join(lines)
+
+
+def build_prompt(card, self_fix_hint=None, base_files=None):
+    """카드의 규칙 + 시나리오 입력 + (확장 모드면 베이스 구현) + 응답형식으로 워커 지시문 조립."""
+    parts = [card["rules"], _scenario_block(card["scenarios"])]
+    if base_files:
+        parts.append(_base_block(base_files))
+    parts.append(RESPONSE_FORMAT)
     if self_fix_hint:
         parts.append(
             "== PREVIOUS ATTEMPT FAILED ==\n"

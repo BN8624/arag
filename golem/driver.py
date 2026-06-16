@@ -83,7 +83,7 @@ def _log(entry):
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def _attempt(attempt, base, key, model, run_id, card=None):
+def _attempt(attempt, base, key, model, run_id, card=None, base_files=None):
     """한 시도: 주입된 key로 LLMClient → JS 생성 → 채점. (attempt, ok, first_div, cost) 반환."""
     from llm import LLMClient
     cdir = base / f"attempt{attempt:02d}"
@@ -92,7 +92,7 @@ def _attempt(attempt, base, key, model, run_id, card=None):
     client.record_path = cdir / "llm_calls.jsonl"
     t0 = time.time()
     try:
-        resp = client.generate("generator", build_prompt(card=card))   # 독립 시도(힌트 없음)
+        resp = client.generate("generator", build_prompt(card, base_files=base_files))  # 독립 시도
     except Exception as err:   # noqa: BLE001 - 한 시도 폭주가 풀을 안 죽이게
         cost = client.cost_usd().get("total", 0.0)
         _log({"t": datetime.now().isoformat(timespec="seconds"), "run": run_id,
@@ -121,6 +121,8 @@ def main(argv=None):
                     help="LLM 대신 이 파일 응답으로 1회 파이프라인(키 안 씀, 점검용)")
     ap.add_argument("--card", default="tempo-combat",
                     help="은행(game_bank)의 카드 slug. 기본 tempo-combat")
+    ap.add_argument("--base", default=None,
+                    help="확장 모드: 이 카드의 solution을 베이스 구현으로 워커에 컨텍스트로 준다")
     args = ap.parse_args(argv)
 
     import game_bank
@@ -128,6 +130,13 @@ def main(argv=None):
     if card is None:
         print(f"[GOLEM] 카드 '{args.card}' 없음 — bank_init.py로 적재하거나 game_bank.py로 확인")
         return 2
+    base_files = None
+    if args.base:
+        base_card = game_bank.get_card(args.base)
+        if base_card is None or not base_card.get("solution"):
+            print(f"[GOLEM] 베이스 카드 '{args.base}'의 solution 없음")
+            return 2
+        base_files = base_card["solution"]
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = Path(args.out) if args.out else (HERE.parent / "runs" / "golem" / run_id)
@@ -153,9 +162,9 @@ def main(argv=None):
     pool = KeyPool(keys, models=[model])
     width = args.width or min(len(keys), args.cap)
 
-    card_name = args.card or "tempo-combat(기본)"
+    base_note = f" base={args.base}" if args.base else ""
     print(f"[GOLEM] 병렬 select-best (cap {args.cap}, width {width}/{len(keys)}키) "
-          f"model={model} card={card_name}, run={run_id}")
+          f"model={model} card={args.card}{base_note}, run={run_id}")
 
     cracked_at = None
     started = 0
@@ -168,7 +177,7 @@ def main(argv=None):
         with pool.checkout() as key:
             with started_lock:
                 started += 1
-            return _attempt(attempt, base, key, model, run_id, card=card)
+            return _attempt(attempt, base, key, model, run_id, card=card, base_files=base_files)
 
     with ThreadPoolExecutor(max_workers=width) as ex:
         futs = {ex.submit(worker, a): a for a in range(1, args.cap + 1)}
