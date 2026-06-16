@@ -184,3 +184,8 @@ manifest는 `schema_version/module_format/entry/files[].path,exports,imports`만
 역할 순환 구조가 무너지지 않기 때문이다. CLAUDE.md는 golem 폴더 전체 지침으로 유지하되, Golem Studio 구현
 범위에서는 GolemStudioMode.md와 HANDOFF.md를 우선하도록 보강했다. CommonJS, npm 금지, Math.random 금지,
 사용자 go 없는 키 런 금지는 기존 CLAUDE.md와 충돌하지 않는다.
+
+## G24 — 문서 역할 축소 정리 (2026-06-17)
+사용자 지시로 golem 문서 역할을 좁혔다. HANDOFF.md는 현재 위치와 다음 액션만, CLAUDE.md는 작업 규칙만,
+GolemStudioMode.md는 새 설계 정본, context-notes.md는 결정 로그, checklist.md는 현재 활성 체크리스트를
+맨 위에 두고 과거 Phase는 히스토리로 둔다. README.md는 전체 내용을 삭제하고 "개인 프로젝트 임."만 남겼다.
