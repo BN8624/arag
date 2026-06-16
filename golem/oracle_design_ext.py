@@ -128,6 +128,15 @@ def main(argv=None):
         if sorted(scen) != ["1", "2", "3", "4"]:
             print(f"  시도 {i+1}: 시나리오 키가 1..4 아님 — {list(scen)}")
             continue
+        import tempfile
+        import static_gate
+        with tempfile.TemporaryDirectory(prefix="golem_sg_") as td:
+            for nm, bd in merged.items():
+                (Path(td) / nm).write_text(bd, encoding="utf-8")
+            sg = static_gate.check(td)
+        if not sg["ok"]:
+            print(f"  시도 {i+1}: 정적게이트 실패 — {sg['reason']}")
+            continue
         try:
             golden = oracle.golden_from_reference(merged, ["1", "2", "3", "4"])
         except RuntimeError as err:

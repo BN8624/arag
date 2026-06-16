@@ -14,10 +14,13 @@ TIMEOUT = 30
 
 
 def _run_scenario(cdir, n):
-    """node main.js --scenario N 실행 → {key: value_str} 평면 dict. (dict, None) 또는 (None, err)."""
+    """node main.js --scenario N 실행 → {key: value_str} 평면 dict. (dict, None) 또는 (None, err).
+    모델 생성 코드라 Node 권한모델로 격리(파일쓰기·자식프로세스·워커·네이티브 차단) + stdin 차단."""
     try:
-        r = subprocess.run(["node", "main.js", "--scenario", str(n)],
-                           cwd=cdir, capture_output=True, text=True, timeout=TIMEOUT)
+        r = subprocess.run(
+            ["node", "--permission", "--allow-fs-read=*", "main.js", "--scenario", str(n)],
+            cwd=cdir, capture_output=True, text=True, timeout=TIMEOUT,
+            stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         return None, f"scenario {n}: TIMEOUT ({TIMEOUT}s)"
     except FileNotFoundError as e:

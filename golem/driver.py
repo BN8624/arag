@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE))          # golem(worker_prompt, grade)
 
 from worker_prompt import build_prompt   # noqa: E402
 import grade as grader                    # noqa: E402
+import static_gate                        # noqa: E402  (콜0 정적 게이트)
 
 FILE_RE = re.compile(r"^===\s*FILE:\s*(.+?)\s*===\s*$", re.MULTILINE)
 LEDGER = HERE / "golem_ledger.jsonl"
@@ -77,6 +78,9 @@ def _one_attempt(resp, cdir, card=None, base_files=None):
         return emitted, {"pass": False,
                          "first_divergence": "no main.js (베이스에도 응답에도 없음 — unparseable?)"}
     write_candidate(cdir, merged)
+    sg = static_gate.check(cdir)            # 콜0: 실행 전 정적 게이트(구문·위장·npm·결정성)
+    if not sg["ok"]:
+        return emitted, {"pass": False, "first_divergence": f"static_gate: {sg['reason']}"}
     return emitted, grader.grade(str(cdir), card["scenarios"])
 
 
