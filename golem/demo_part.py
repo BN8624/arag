@@ -29,7 +29,8 @@ except Exception:  # noqa: BLE001
 import game_bank as gb
 
 DIR_NAME = {"U": "위", "D": "아래", "L": "왼쪽", "R": "오른쪽", "Q": "포션"}
-CELL_NAME = {"$": "골드", "!": "포션", "^": "함정", ">": "계단"}
+CELL_NAME = {"$": "골드", "!": "포션", "^": "함정", ">": "계단",
+             "W": "무기", "A": "방어구", "+": "제단"}
 
 
 def build_frames(card, slug):
@@ -63,6 +64,7 @@ def narrate(card, slug, frames):
         has_combat = "player_hp" in inp
 
         has_items = "gold" in scenario["golden"]
+        has_gear = "player_atk" in scenario["golden"]
         consumed = set()        # 소모된 특수칸 (x,y) — 1회성 + 격자 렌더에서 제거
 
         steps_frames = []
@@ -104,6 +106,12 @@ def narrate(card, slug, frames):
                                     parts.append("함정을 밟음.")
                                 elif cell == ">":
                                     parts.append("계단 발견 — 아래층으로 하강!")
+                                elif cell == "W":
+                                    parts.append(f"무기를 주움 (공격 {f['patk']}).")
+                                elif cell == "A":
+                                    parts.append(f"방어구를 주움 (방어 {f['defense']}).")
+                                elif cell == "+":
+                                    parts.append("제단에서 HP 최대치로 회복.")
                     else:
                         parts.append("벽/경계에 막혀 제자리.")
                     # --- PHASE 2: 적 (계단으로 내려간 턴엔 적 행동 없음) ---
@@ -136,6 +144,9 @@ def narrate(card, slug, frames):
                 frame["gold"] = f["gold"]
                 frame["potions"] = f["potions"]
                 frame["descended"] = f["descended"]
+            if has_gear:
+                frame["patk"] = f["patk"]
+                frame["defense"] = f["defense"]
             steps_frames.append(frame)
 
         g = scenario["golden"]
@@ -146,6 +157,8 @@ def narrate(card, slug, frames):
             summary += f", 플레이어HP {g['player_hp']}, 적HP {g['enemy_hp']}"
         if has_items:
             summary += f", 골드 {g['gold']}, 포션 {g['potions']}, 하강 {g['descended']}"
+        if has_gear:
+            summary += f", 공격 {g['player_atk']}, 방어 {g['defense']}"
         summary += " — 정답과 일치."
         scens.append({"sid": sid, "moves": moves, "frames": steps_frames, "summary": summary})
     return scens
@@ -198,6 +211,8 @@ HTML_TMPL = """<!doctype html>
  .c-p{background:var(--p);color:#001} .c-e{background:var(--e);color:#fff} .c-x{background:var(--acc);color:#001}
  .c-gold{background:var(--floor);color:#ffd24a} .c-pot{background:var(--floor);color:#5be3a0}
  .c-trap{background:var(--floor);color:#ff8a5b} .c-stair{background:var(--floor);color:#b58bff}
+ .c-wpn{background:var(--floor);color:#7fd1ff} .c-arm{background:var(--floor);color:#cfd6e4}
+ .c-altar{background:var(--floor);color:#ff9ec7}
  .line{font-size:15px;min-height:42px;line-height:1.4;margin:6px 2px}
  .meta{color:var(--dim);font-size:13px;margin-bottom:4px}
  .hp{font-size:14px;margin:2px 0 2px;font-weight:600;min-height:20px}
@@ -251,7 +266,8 @@ function render(){
   const sc=cur(); const f=sc.frames[fi]; const g=f.grid;
   const grid=document.getElementById('grid');
   grid.style.gridTemplateColumns='repeat('+g[0].length+',34px)'; grid.innerHTML='';
-  const ITEM={'$':['c-gold','$'],'!':['c-pot','!'],'^':['c-trap','^'],'>':['c-stair','>']};
+  const ITEM={'$':['c-gold','$'],'!':['c-pot','!'],'^':['c-trap','^'],'>':['c-stair','>'],
+              'W':['c-wpn','W'],'A':['c-arm','A'],'+':['c-altar','+']};
   for(const row of g)for(const ch of row){const d=document.createElement('div');
     let cls='c-floor',t='';
     if(ch==='#')cls='c-wall'; else if(ch==='@'){cls='c-p';t='@'} else if(ch==='E'){cls='c-e';t='E'}
@@ -261,6 +277,7 @@ function render(){
   const hp=document.getElementById('hp');
   let h=(f.php!==undefined)?('<span class="pp">@ HP '+f.php+'</span>  ·  <span class="ee">E HP '+f.ehp+'</span>'):'';
   if(f.gold!==undefined){h+='  ·  골드 '+f.gold+'  ·  포션 '+f.potions+(f.descended?'  ·  ⬇ 하강':'');}
+  if(f.patk!==undefined){h+='  ·  ⚔ '+f.patk+'  ·  🛡 '+f.defense;}
   hp.innerHTML=h;
   document.getElementById('line').textContent=f.line;
   document.getElementById('prog').textContent=fi+' / '+(sc.frames.length-1);

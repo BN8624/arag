@@ -29,6 +29,7 @@ for (const sid of Object.keys(scenarios)) {
       r = run(sc.grid, sc.start, sc.enemy, prefix, stats);
       const f = { k, px: r.x, py: r.y, steps: r.steps, ex: r.ex, ey: r.ey, php: r.php, ehp: r.ehp };
       if (typeof r.gold === 'number') { f.gold = r.gold; f.potions = r.potions; f.descended = r.descended; }
+      if (typeof r.patk === 'number') { f.patk = r.patk; f.defense = r.defense; }
       frames.push(f);
     } else if (hasEnemy) {
       r = run(sc.grid, sc.start, sc.enemy, prefix);
