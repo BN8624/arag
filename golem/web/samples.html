@@ -1,0 +1,135 @@
+<!doctype html>
+<!-- golem 표현층 룩 비교 샘플 — 같은 전투 장면을 3가지 껍데기로 나란히 (룩 결정용 목업) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>golem 룩 샘플 비교</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#0e1014; color:#e6e9ef;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif; -webkit-text-size-adjust:100%; }
+  .wrap { max-width:480px; margin:0 auto; padding:14px 12px 40px; }
+  h1 { font-size:17px; margin:2px 0 4px; }
+  .sub { color:#8b93a3; font-size:12px; margin-bottom:16px; }
+  .opt { border-radius:14px; overflow:hidden; margin-bottom:18px; border:1px solid #262d39; }
+  .opt > .head { padding:9px 13px; font-weight:700; font-size:14px; display:flex; justify-content:space-between; align-items:center; }
+  .opt > .head .pick { font-size:11px; font-weight:600; color:#0e1014; background:#46d39a; padding:3px 9px; border-radius:20px; }
+  .stage { padding:16px 14px; position:relative; min-height:150px; }
+  .pop { position:absolute; font-weight:800; animation:pop 1.6s ease-out infinite; pointer-events:none; }
+  @keyframes pop { 0%{opacity:0; transform:translateY(6px) scale(.8);} 15%{opacity:1;} 60%{opacity:1; transform:translateY(-14px) scale(1.1);} 100%{opacity:0; transform:translateY(-26px);} }
+  .shake { animation:shake 1.6s ease-in-out infinite; }
+  @keyframes shake { 0%,38%,100%{transform:translateX(0);} 42%{transform:translateX(-5px);} 46%{transform:translateX(5px);} 50%{transform:translateX(-3px);} 54%{transform:translateX(0);} }
+  .lunge { animation:lunge 1.6s ease-in-out infinite; }
+  @keyframes lunge { 0%,30%,100%{transform:translateX(0);} 44%{transform:translateX(14px);} 60%{transform:translateX(0);} }
+
+  /* ===== A) 이모지 ===== */
+  .emoji { background:radial-gradient(120% 100% at 50% 0%,#2a3142,#1a1f2b); }
+  .emoji .row { display:flex; justify-content:space-between; align-items:flex-end; }
+  .emoji .unit { text-align:center; width:84px; }
+  .emoji .ava { font-size:42px; line-height:1; filter:drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+  .emoji .nm { font-size:12px; margin-top:4px; }
+  .emoji .hp { height:7px; background:#0b0d12; border-radius:5px; margin-top:5px; overflow:hidden; }
+  .emoji .hp>i { display:block; height:100%; border-radius:5px; }
+  .emoji .hp.ally>i { background:linear-gradient(90deg,#4f9dff,#7bd2ff); }
+  .emoji .hp.foe>i { background:linear-gradient(90deg,#ff6b6b,#ffa36b); }
+  .emoji .bolt { position:absolute; left:46%; top:46%; font-size:26px; animation:flash 1.6s ease-out infinite; }
+  @keyframes flash { 0%,40%{opacity:0; transform:scale(.4);} 50%{opacity:1; transform:scale(1.3);} 70%{opacity:.6;} 100%{opacity:0;} }
+
+  /* ===== B) 레트로 도트 ===== */
+  .retro { background:#0a160a; font-family:"Courier New",monospace; image-rendering:pixelated; }
+  .retro::after { content:""; position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0 1px,transparent 1px 3px); }
+  .retro .row { display:flex; justify-content:space-between; align-items:flex-end; }
+  .retro .unit { text-align:center; width:84px; }
+  .retro .px { width:48px; height:48px; margin:0 auto;
+    background:
+      /* 아주 단순한 도트 캐릭터(머리/몸) */
+      linear-gradient(#000 0 0) 18px 4px/12px 12px no-repeat,
+      linear-gradient(#000 0 0) 12px 18px/24px 20px no-repeat; }
+  .retro .px.ally { box-shadow:inset 0 0 0 48px #2f7; }
+  .retro .px.foe { box-shadow:inset 0 0 0 48px #f55; }
+  .retro .nm { font-size:11px; margin-top:5px; color:#9f9; letter-spacing:1px; }
+  .retro .hearts { font-size:11px; margin-top:3px; letter-spacing:1px; }
+  .retro .pop { color:#fe4; text-shadow:2px 2px 0 #000; font-family:"Courier New",monospace; }
+  .retro .label { position:absolute; bottom:8px; left:0; right:0; text-align:center; color:#9f9; font-size:11px; letter-spacing:1px; }
+
+  /* ===== C) 미니멀 네온 ===== */
+  .neon { background:#0b0e16; }
+  .neon .row { display:flex; justify-content:space-between; align-items:center; }
+  .neon .unit { text-align:center; width:90px; }
+  .neon .glyph { width:46px; height:46px; margin:0 auto; border-radius:14px; position:relative; }
+  .neon .glyph.ally { border:1.5px solid #5cc8ff; box-shadow:0 0 14px rgba(92,200,255,.6),inset 0 0 10px rgba(92,200,255,.3); }
+  .neon .glyph.foe { border:1.5px solid #ff5c8a; box-shadow:0 0 14px rgba(255,92,138,.6),inset 0 0 10px rgba(255,92,138,.3); transform:rotate(45deg); border-radius:8px; }
+  .neon .nm { font-size:11px; margin-top:8px; color:#aeb6c6; letter-spacing:2px; text-transform:uppercase; }
+  .neon .hp { height:2px; background:#1a2030; margin-top:7px; position:relative; }
+  .neon .hp>i { display:block; height:100%; }
+  .neon .hp.ally>i { background:#5cc8ff; box-shadow:0 0 8px #5cc8ff; }
+  .neon .hp.foe>i { background:#ff5c8a; box-shadow:0 0 8px #ff5c8a; }
+  .neon .pop { color:#ffe45c; text-shadow:0 0 10px rgba(255,228,92,.8); }
+  .neon .beam { position:absolute; left:30%; right:30%; top:42%; height:2px;
+    background:linear-gradient(90deg,transparent,#ffe45c,transparent); box-shadow:0 0 12px #ffe45c;
+    animation:beam 1.6s ease-out infinite; }
+  @keyframes beam { 0%,40%{opacity:0;} 50%{opacity:1;} 100%{opacity:0;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>껍데기 룩 샘플 — 같은 장면 3가지</h1>
+  <div class="sub">장면: <b>Volt</b>가 <b>Imp</b>에게 전격(shock_bolt). 위=적, 아래=아군. 엔진은 동일, 보이는 것만 다름.</div>
+
+  <!-- A 이모지 -->
+  <div class="opt">
+    <div class="head emoji-h" style="background:#222a38">A · 이모지 캐릭터 <span class="pick">빠름·무의존</span></div>
+    <div class="stage emoji">
+      <div class="bolt">⚡</div>
+      <div class="pop" style="left:20%; top:18%; color:#ffd24a">-18</div>
+      <div class="row" style="margin-bottom:18px">
+        <div class="unit shake"><div class="ava">👹</div><div class="nm">Imp</div><div class="hp foe"><i style="width:36%"></i></div></div>
+        <div class="unit"><div class="ava">🪨</div><div class="nm">Golem</div><div class="hp foe"><i style="width:100%"></i></div></div>
+      </div>
+      <div class="row">
+        <div class="unit lunge"><div class="ava">⚡</div><div class="nm">Volt</div><div class="hp ally"><i style="width:62%"></i></div></div>
+        <div class="unit"><div class="ava">🛡️</div><div class="nm">Tank</div><div class="hp ally"><i style="width:100%"></i></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B 레트로 -->
+  <div class="opt">
+    <div class="head" style="background:#0d240d; color:#9f9">B · 레트로 도트 <span class="pick" style="background:#9f9">픽셀 RPG</span></div>
+    <div class="stage retro">
+      <div class="pop" style="left:20%; top:16%">-18</div>
+      <div class="row" style="margin-bottom:18px">
+        <div class="unit shake"><div class="px foe"></div><div class="nm">IMP</div><div class="hearts">♥♥♡♡♡</div></div>
+        <div class="unit"><div class="px foe"></div><div class="nm">GOLEM</div><div class="hearts">♥♥♥♥♥</div></div>
+      </div>
+      <div class="row">
+        <div class="unit lunge"><div class="px ally"></div><div class="nm">VOLT</div><div class="hearts">♥♥♥♡♡</div></div>
+        <div class="unit"><div class="px ally"></div><div class="nm">TANK</div><div class="hearts">♥♥♥♥♥</div></div>
+      </div>
+      <div class="label">&gt; VOLT의 전격!</div>
+    </div>
+  </div>
+
+  <!-- C 네온 -->
+  <div class="opt">
+    <div class="head" style="background:#101727; color:#aeb6c6">C · 미니멀 네온 <span class="pick" style="background:#5cc8ff">모던</span></div>
+    <div class="stage neon">
+      <div class="beam"></div>
+      <div class="pop" style="left:22%; top:16%">-18</div>
+      <div class="row" style="margin-bottom:20px">
+        <div class="unit shake"><div class="glyph foe"></div><div class="nm">Imp</div><div class="hp foe"><i style="width:36%"></i></div></div>
+        <div class="unit"><div class="glyph foe"></div><div class="nm">Golem</div><div class="hp foe"><i style="width:100%"></i></div></div>
+      </div>
+      <div class="row">
+        <div class="unit lunge"><div class="glyph ally"></div><div class="nm">Volt</div><div class="hp ally"><i style="width:62%"></i></div></div>
+        <div class="unit"><div class="glyph ally"></div><div class="nm">Tank</div><div class="hp ally"><i style="width:100%"></i></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub" style="margin-top:20px">마음에 드는 걸 <b>A / B / C</b>로 말해줘. 고르면 그 룩으로 관전기 전체를 입힌다.</div>
+</div>
+</body>
+</html>

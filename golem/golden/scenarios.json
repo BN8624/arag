@@ -1,0 +1,376 @@
+{
+  "1": {
+    "seed": 53,
+    "party": {
+      "heroes": [
+        {
+          "id": "hero1",
+          "name": "Tank",
+          "team": "hero",
+          "max_hp": 140,
+          "atk": 12,
+          "defense": 9,
+          "spd": 7,
+          "skills": [
+            "charge",
+            "combo_strike",
+            "venom"
+          ]
+        },
+        {
+          "id": "hero2",
+          "name": "Volt",
+          "team": "hero",
+          "max_hp": 85,
+          "atk": 16,
+          "defense": 3,
+          "spd": 15,
+          "skills": [
+            "shock_bolt",
+            "venom",
+            "combo_strike"
+          ]
+        }
+      ],
+      "enemies": [
+        {
+          "id": "enemy1",
+          "name": "Imp",
+          "team": "enemy",
+          "max_hp": 60,
+          "atk": 15,
+          "defense": 2,
+          "spd": 14,
+          "skills": [
+            "ignite",
+            "frost",
+            "detonate"
+          ]
+        },
+        {
+          "id": "enemy2",
+          "name": "Golem",
+          "team": "enemy",
+          "max_hp": 160,
+          "atk": 14,
+          "defense": 11,
+          "spd": 5,
+          "skills": [
+            "combo_strike",
+            "charge",
+            "frost"
+          ]
+        },
+        {
+          "id": "enemy3",
+          "name": "Orc",
+          "team": "enemy",
+          "max_hp": 120,
+          "atk": 17,
+          "defense": 6,
+          "spd": 8,
+          "skills": [
+            "shock_bolt",
+            "detonate",
+            "combo_strike"
+          ]
+        }
+      ]
+    },
+    "golden": {
+      "winner": "enemy",
+      "turns": 23,
+      "final_hp": {
+        "hero1": 0,
+        "hero2": 0,
+        "enemy1": 0,
+        "enemy2": 160,
+        "enemy3": 11
+      }
+    }
+  },
+  "2": {
+    "seed": 3,
+    "party": {
+      "heroes": [
+        {
+          "id": "hero1",
+          "name": "Volt",
+          "team": "hero",
+          "max_hp": 85,
+          "atk": 16,
+          "defense": 3,
+          "spd": 15,
+          "skills": [
+            "shock_bolt",
+            "venom",
+            "combo_strike"
+          ]
+        },
+        {
+          "id": "hero2",
+          "name": "Tank",
+          "team": "hero",
+          "max_hp": 140,
+          "atk": 12,
+          "defense": 9,
+          "spd": 7,
+          "skills": [
+            "charge",
+            "combo_strike",
+            "venom"
+          ]
+        }
+      ],
+      "enemies": [
+        {
+          "id": "enemy1",
+          "name": "Golem",
+          "team": "enemy",
+          "max_hp": 160,
+          "atk": 14,
+          "defense": 11,
+          "spd": 5,
+          "skills": [
+            "combo_strike",
+            "charge",
+            "frost"
+          ]
+        },
+        {
+          "id": "enemy2",
+          "name": "Imp",
+          "team": "enemy",
+          "max_hp": 60,
+          "atk": 15,
+          "defense": 2,
+          "spd": 14,
+          "skills": [
+            "ignite",
+            "frost",
+            "detonate"
+          ]
+        }
+      ]
+    },
+    "golden": {
+      "winner": "hero",
+      "turns": 17,
+      "final_hp": {
+        "hero1": 23,
+        "hero2": 140,
+        "enemy1": 0,
+        "enemy2": 0
+      }
+    }
+  },
+  "3": {
+    "seed": 0,
+    "party": {
+      "heroes": [
+        {
+          "id": "hero1",
+          "name": "Pyro",
+          "team": "hero",
+          "max_hp": 90,
+          "atk": 18,
+          "defense": 4,
+          "spd": 12,
+          "skills": [
+            "ignite",
+            "detonate",
+            "combo_strike"
+          ]
+        },
+        {
+          "id": "hero2",
+          "name": "Frost",
+          "team": "hero",
+          "max_hp": 100,
+          "atk": 14,
+          "defense": 6,
+          "spd": 10,
+          "skills": [
+            "frost",
+            "ignite",
+            "combo_strike"
+          ]
+        },
+        {
+          "id": "hero3",
+          "name": "Volt",
+          "team": "hero",
+          "max_hp": 85,
+          "atk": 16,
+          "defense": 3,
+          "spd": 15,
+          "skills": [
+            "shock_bolt",
+            "venom",
+            "combo_strike"
+          ]
+        }
+      ],
+      "enemies": [
+        {
+          "id": "enemy1",
+          "name": "Golem",
+          "team": "enemy",
+          "max_hp": 160,
+          "atk": 14,
+          "defense": 11,
+          "spd": 5,
+          "skills": [
+            "combo_strike",
+            "charge",
+            "frost"
+          ]
+        },
+        {
+          "id": "enemy2",
+          "name": "Orc",
+          "team": "enemy",
+          "max_hp": 120,
+          "atk": 17,
+          "defense": 6,
+          "spd": 8,
+          "skills": [
+            "shock_bolt",
+            "detonate",
+            "combo_strike"
+          ]
+        },
+        {
+          "id": "enemy3",
+          "name": "Imp",
+          "team": "enemy",
+          "max_hp": 60,
+          "atk": 15,
+          "defense": 2,
+          "spd": 14,
+          "skills": [
+            "ignite",
+            "frost",
+            "detonate"
+          ]
+        }
+      ]
+    },
+    "golden": {
+      "winner": "hero",
+      "turns": 19,
+      "final_hp": {
+        "hero1": 90,
+        "hero2": 100,
+        "hero3": 20,
+        "enemy1": 0,
+        "enemy2": 0,
+        "enemy3": 0
+      }
+    }
+  },
+  "4": {
+    "seed": 45,
+    "party": {
+      "heroes": [
+        {
+          "id": "hero1",
+          "name": "Tank",
+          "team": "hero",
+          "max_hp": 140,
+          "atk": 12,
+          "defense": 9,
+          "spd": 7,
+          "skills": [
+            "charge",
+            "combo_strike",
+            "venom"
+          ]
+        },
+        {
+          "id": "hero2",
+          "name": "Frost",
+          "team": "hero",
+          "max_hp": 100,
+          "atk": 14,
+          "defense": 6,
+          "spd": 10,
+          "skills": [
+            "frost",
+            "ignite",
+            "combo_strike"
+          ]
+        },
+        {
+          "id": "hero3",
+          "name": "Pyro",
+          "team": "hero",
+          "max_hp": 90,
+          "atk": 18,
+          "defense": 4,
+          "spd": 12,
+          "skills": [
+            "ignite",
+            "detonate",
+            "combo_strike"
+          ]
+        }
+      ],
+      "enemies": [
+        {
+          "id": "enemy1",
+          "name": "Imp",
+          "team": "enemy",
+          "max_hp": 60,
+          "atk": 15,
+          "defense": 2,
+          "spd": 14,
+          "skills": [
+            "ignite",
+            "frost",
+            "detonate"
+          ]
+        },
+        {
+          "id": "enemy2",
+          "name": "Orc",
+          "team": "enemy",
+          "max_hp": 120,
+          "atk": 17,
+          "defense": 6,
+          "spd": 8,
+          "skills": [
+            "shock_bolt",
+            "detonate",
+            "combo_strike"
+          ]
+        },
+        {
+          "id": "enemy3",
+          "name": "Goblin",
+          "team": "enemy",
+          "max_hp": 70,
+          "atk": 13,
+          "defense": 3,
+          "spd": 11,
+          "skills": [
+            "venom",
+            "combo_strike"
+          ]
+        }
+      ]
+    },
+    "golden": {
+      "winner": "hero",
+      "turns": 29,
+      "final_hp": {
+        "hero1": 18,
+        "hero2": 0,
+        "hero3": 0,
+        "enemy1": 0,
+        "enemy2": 0,
+        "enemy3": 0
+      }
+    }
+  }
+}

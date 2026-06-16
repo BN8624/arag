@@ -1,0 +1,201 @@
+<!doctype html>
+<!-- golem Phase 2 관전기 — 공유 엔진(engine.browser.js) + 이모지 스킨. 껍데기(SKIN)만 갈아끼우면 룩 교체. -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>golem 전투 관전기</title>
+<style>
+  :root {
+    --bg:#14161c; --panel:#1d2129; --panel2:#252b36; --ink:#e6e9ef; --dim:#8b93a3; --line:#313846;
+    --hero:#4f9dff; --enemy:#ff6b6b; --gauge:#ffd24a;
+    --burn:#ff7a45; --freeze:#56c4ff; --poison:#9d6bff; --shock:#ffd24a;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif; -webkit-text-size-adjust:100%; }
+  .wrap { max-width:480px; margin:0 auto; padding:12px 12px 32px; }
+  h1 { font-size:18px; margin:4px 0 10px; }
+  h1 small { color:var(--dim); font-weight:400; font-size:12px; }
+  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  select, button { background:var(--panel2); color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:9px 12px; font-size:14px; cursor:pointer; }
+  button:active { transform:translateY(1px); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.primary { background:var(--hero); border-color:var(--hero); color:#06101f; font-weight:600; }
+  .status-strip { display:flex; justify-content:space-between; align-items:center; margin:12px 2px 6px; font-size:13px; color:var(--dim); }
+  .team-label { font-size:11px; color:var(--dim); margin:10px 2px 6px; letter-spacing:1px; }
+
+  /* === 전투 무대 === */
+  .stage { position:relative; }
+  .team { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+  .unit { width:96px; text-align:center; position:relative; transition:opacity .25s; }
+  .unit.dead { opacity:.32; filter:grayscale(1); }
+  .ava { font-size:44px; line-height:1; filter:drop-shadow(0 4px 5px rgba(0,0,0,.5)); transition:transform .12s; }
+  .unit.acting .ava { transform:scale(1.18) translateY(-4px); }
+  .unit.lunge.foe .ava { animation:lungeDown .45s ease; }
+  .unit.lunge.ally .ava { animation:lungeUp .45s ease; }
+  @keyframes lungeUp { 50%{ transform:translateY(-16px) scale(1.2); } }
+  @keyframes lungeDown { 50%{ transform:translateY(16px) scale(1.2); } }
+  .unit.hit .ava { animation:shake .4s ease; }
+  @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 50%{transform:translateX(6px);} 75%{transform:translateX(-3px);} }
+  .nm { font-size:12px; margin-top:4px; }
+  .nm .id { color:var(--dim); font-size:10px; }
+  .hp { height:7px; background:#0b0d12; border-radius:5px; margin-top:5px; overflow:hidden; }
+  .hp>i { display:block; height:100%; border-radius:5px; transition:width .3s; }
+  .ally .hp>i { background:linear-gradient(90deg,#4f9dff,#7bd2ff); }
+  .foe .hp>i { background:linear-gradient(90deg,#ff6b6b,#ffa36b); }
+  .hpnum { font-size:10px; color:var(--dim); margin-top:2px; font-variant-numeric:tabular-nums; }
+  .gz { height:3px; background:#0b0d12; border-radius:3px; margin-top:3px; overflow:hidden; }
+  .gz>i { display:block; height:100%; background:var(--gauge); }
+  .badges { display:flex; gap:3px; justify-content:center; margin-top:5px; min-height:16px; flex-wrap:wrap; }
+  .badge { font-size:9px; padding:1px 6px; border-radius:20px; font-weight:700; }
+  .badge.burn{background:rgba(255,122,69,.2);color:var(--burn);}
+  .badge.freeze{background:rgba(86,196,255,.2);color:var(--freeze);}
+  .badge.poison{background:rgba(157,107,255,.2);color:var(--poison);}
+  .badge.shock{background:rgba(255,210,74,.2);color:var(--shock);}
+  .dmg { position:absolute; left:50%; top:6px; transform:translateX(-50%); font-weight:800; font-size:18px;
+    color:#ffd24a; text-shadow:0 2px 4px rgba(0,0,0,.6); pointer-events:none; animation:dmgPop .8s ease-out forwards; }
+  @keyframes dmgPop { 0%{opacity:0; transform:translate(-50%,4px) scale(.7);} 25%{opacity:1;} 100%{opacity:0; transform:translate(-50%,-22px) scale(1.1);} }
+
+  .vs { text-align:center; color:var(--dim); font-size:11px; margin:8px 0; letter-spacing:3px; }
+  .log { background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:11px 13px;
+    margin:14px 0; font-size:14px; min-height:20px; text-align:center; }
+  .log .ico { margin-right:6px; }
+  .log .turnno { color:var(--dim); font-size:12px; }
+  .banner { text-align:center; font-weight:800; font-size:18px; padding:12px; border-radius:10px; margin:10px 0; }
+  .banner.hero { background:rgba(79,157,255,.16); color:var(--hero); }
+  .banner.enemy { background:rgba(255,107,107,.16); color:var(--enemy); }
+  .banner.draw { background:var(--panel2); color:var(--dim); }
+  .hidden { display:none; }
+  .speed { font-size:12px; color:var(--dim); display:flex; align-items:center; gap:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>golem 전투 관전기 <small>gemma 엔진 · 이모지 스킨</small></h1>
+
+  <div class="controls">
+    <select id="scenario">
+      <option value="1">시나리오 1 (2 vs 3)</option>
+      <option value="2">시나리오 2 (2 vs 2)</option>
+      <option value="3">시나리오 3 (3 vs 3)</option>
+      <option value="4">시나리오 4 (3 vs 3)</option>
+    </select>
+    <button class="primary" id="startBtn">전투 시작</button>
+  </div>
+
+  <div class="status-strip">
+    <span>턴 <b id="turnNow">0</b></span>
+    <div class="controls" style="margin:0">
+      <button id="stepBtn" disabled>스텝 ▶</button>
+      <button id="playBtn" disabled>자동재생</button>
+      <span class="speed">속도
+        <select id="speed" style="padding:4px 6px">
+          <option value="800">느리게</option>
+          <option value="450" selected>보통</option>
+          <option value="180">빠르게</option>
+        </select>
+      </span>
+    </div>
+  </div>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <div class="stage">
+    <div class="team-label">적</div>
+    <div id="enemyTeam" class="team"></div>
+    <div class="vs">⚔ VS ⚔</div>
+    <div class="team-label">아군</div>
+    <div id="heroTeam" class="team"></div>
+  </div>
+
+  <div class="log" id="log">시나리오를 고르고 <b>전투 시작</b>을 누르세요.</div>
+</div>
+
+<script src="engine.browser.js"></script>
+<script>
+// ===== 껍데기(SKIN) — 여기만 바꾸면 룩 교체. 캐릭터 이모지 + 스킬 연출 매핑. =====
+const SKIN = {
+  avatar: {
+    Tank:"🛡️", Volt:"⚡", Pyro:"🔥", Frost:"❄️", Volt2:"⚡",
+    Imp:"👹", Golem:"🗿", Orc:"🧌", Goblin:"👺"
+  },
+  fallback: "❓",
+  skill: { // 표시 이름 + 아이콘
+    charge:{ko:"기력 모으기", ico:"✊"}, combo_strike:{ko:"연속 베기", ico:"⚔️"},
+    venom:{ko:"맹독", ico:"☠️"}, shock_bolt:{ko:"전격", ico:"⚡"},
+    ignite:{ko:"점화", ico:"🔥"}, frost:{ko:"빙결탄", ico:"❄️"}, detonate:{ko:"폭발", ico:"💥"}
+  }
+};
+function avatarOf(name){ return SKIN.avatar[name] || SKIN.fallback; }
+
+// ===== 표현층 골격 (스킨 비의존) =====
+const $ = id => document.getElementById(id);
+let engine=null, step=0, timer=null;
+
+function unitHTML(e, actingId, dmg, hit, lunge){
+  const pct = Math.round((e.hp/e.max_hp)*100);
+  const gpct = Math.min(100, Math.round(e.gauge));
+  const side = e.team==="hero" ? "ally" : "foe";
+  const badges = e.statuses.map(s=>`<span class="badge ${s.type}">${s.type}${s.stacks>1?(" x"+s.stacks):""}</span>`).join("");
+  const cls = [ "unit", side, e.alive?"":"dead",
+    e.id===actingId?"acting":"", lunge?"lunge":"", hit?"hit":"" ].join(" ");
+  const dmgEl = dmg>0 ? `<div class="dmg">-${dmg}</div>` : "";
+  return `<div class="${cls}">${dmgEl}
+    <div class="ava">${avatarOf(e.name)}</div>
+    <div class="nm">${e.name} <span class="id">${e.id}</span></div>
+    <div class="hp"><i style="width:${pct}%"></i></div>
+    <div class="hpnum">${e.hp}/${e.max_hp}</div>
+    <div class="gz"><i style="width:${gpct}%"></i></div>
+    <div class="badges">${badges}</div></div>`;
+}
+
+function render(){
+  const cur = engine.trace[step];
+  const prev = step>0 ? engine.trace[step-1] : null;
+  if(!cur) return;
+  // 프레임 간 HP diff로 데미지/피격 산출 (엔진 무수정)
+  const dmgMap={}, hitSet={};
+  if(prev){
+    const pm={}; prev.entities.forEach(e=>pm[e.id]=e.hp);
+    cur.entities.forEach(e=>{ const d=(pm[e.id]??e.hp)-e.hp; if(d>0){dmgMap[e.id]=d; hitSet[e.id]=true;} });
+  }
+  const draw = team => cur.entities.filter(e=>e.team===team)
+    .map(e=>unitHTML(e, cur.actor, dmgMap[e.id]||0, hitSet[e.id], e.id===cur.actor)).join("");
+  $("enemyTeam").innerHTML = draw("enemy");
+  $("heroTeam").innerHTML = draw("hero");
+  $("turnNow").textContent = cur.turn;
+
+  const ac = cur.entities.find(e=>e.id===cur.actor);
+  const nm = ac?ac.name:"";
+  if(cur.skill && cur.skill.startsWith("(")){
+    $("log").innerHTML = `<span class="turnno">턴 ${cur.turn}</span> · ${nm} ${cur.skill}`;
+  } else {
+    const s = SKIN.skill[cur.skill] || {ko:cur.skill, ico:""};
+    $("log").innerHTML = `<span class="turnno">턴 ${cur.turn}</span> · <span class="ico">${s.ico}</span>${nm} 가 <b>${s.ko}</b>`;
+  }
+
+  if(step===engine.trace.length-1){
+    const b=$("banner"); b.className="banner "+engine.winner;
+    const t = engine.winner==="hero"?"🎉 아군 승리!":engine.winner==="enemy"?"💀 적 승리":"무승부";
+    b.textContent = `${t}  (${engine.turns}턴)`; b.classList.remove("hidden");
+  } else $("banner").classList.add("hidden");
+}
+
+function gotoStep(i){ step=Math.max(0,Math.min(engine.trace.length-1,i)); render(); $("stepBtn").disabled = step>=engine.trace.length-1; }
+function play(){
+  if(timer){ stopPlay(); return; }
+  $("playBtn").textContent="일시정지";
+  const tick=()=>{ if(step>=engine.trace.length-1){stopPlay();return;} gotoStep(step+1); timer=setTimeout(tick,+$("speed").value); };
+  timer=setTimeout(tick,+$("speed").value);
+}
+function stopPlay(){ clearTimeout(timer); timer=null; $("playBtn").textContent="자동재생"; }
+
+$("startBtn").onclick=()=>{ stopPlay(); engine=GolemEngine.buildEngine($("scenario").value); step=0; render();
+  $("stepBtn").disabled=false; $("playBtn").disabled=false; play(); };
+$("stepBtn").onclick=()=>{ stopPlay(); gotoStep(step+1); };
+$("playBtn").onclick=()=>play();
+</script>
+</body>
+</html>
