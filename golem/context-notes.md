@@ -322,3 +322,22 @@ build_graded 프롬프트에 **고정 출력계약**(정확히 4 key: turn/energ
 미고정**이라 빌드가 입력을 못 읽음. 즉 합의 일부는 "기본값 우연 동의"=hollow.
 다음 변수: **입력(시나리오) 스키마 고정** — scenarios.json 형식을 한 가지로 못박고 builds가 actions를
 실제 실행하게 → 합의 재측정(진짜 수렴 보기). 이게 §11/§13 흐름상 Spec QA 강화 + Step6로 이어짐.
+
+## G35 — 한 변수 실험: 입력 스키마 고정 → 합의 0.66→0.98 (2026-06-17, 키 씀)
+G34의 반쪽 caveat(빌드가 actions 미실행) 원인 규명·제거. **원인 = 입력 스키마 미고정으로 액션 키 추측**:
+시나리오 데이터는 `{"action":"WAIT"}`·`{"action":"UPGRADE","id":...}`인데 빌드 9개 전부 `action.type`/
+`action.generatorId`를 읽음 → 어떤 액션도 매칭 안 됨 → turn:0 no-op에 다같이 모인 것이 0.66의 정체.
+상수 키도 시나리오 `multiplier` vs 계약(RULE-03) `costMultiplier` 불일치.
+**고친 것(한 변수=입력 스키마)**: build_graded 프롬프트에 INPUT CONTRACT 추가 — 액션 형식(verb=`action`,
+gen=`id`, NOT type/generatorId), 상수 키(`costMultiplier`), 캐노니컬 디폴트(turn0/energy0/levels0/PLAYING,
+productionRate는 입력서 안 받고 RULE-04로 도출). 시나리오 상수 multiplier→costMultiplier 통일(값 동일,
+expected 불변). 출력계약·설계·모델은 G34 그대로 고정.
+**결과**: 게이트 8/11→**9/11**, 합의 0.659→**0.98**. 그리고 **진짜 수렴 확인**(no-op 아님): SCN-001
+turn2/energy6/productionRate6(업그레이드 실제 적용), SCN-002 "Insufficient energy"+energy0, SCN-007
+turn2/energy2 — 전부 expected 일치. 액션이 실제로 돈다.
+**남은 0.02 = 진짜 명세 구멍(no-op 잔재 아님)**: SCN-009/010만 합의 8/9로 갈림. 승리판정(RULE-05/06)
+**타이밍** 미고정 — SCN-010(시작 energy1000+WAIT): 다수 빌드는 WAIT 먼저 적용(turn1/energy1001/WON),
+expected는 시작 시점 WON→이후 액션 무시(turn0/energy1000). "액션 처리 전에 승리체크 하느냐"가 계약에
+안 박힘. 이건 Step6 Adversarial QA / specqa가 메울 자리(RULE-05/06에 평가시점 명문화).
+**결론**: 입력+출력 스키마 둘 다 못박으면 31B가 0.36→0.66→0.98로 거의 완전 수렴. "계약 빡빡→싼 모델
+수렴" 방향 정량 확정. 다음 frontier = 명세의 평가시점 같은 엣지를 계약에 박는 것.
