@@ -351,6 +351,7 @@ def _check_contracts(trees, design) -> list[dict]:
         # 계약이 메서드를 'run'(맨이름)으로도, 'BattleSimulator.run'(정규화)으로도 부를 수
         # 있으므로 두 형태 모두 정의로 등록한다.
         class_methods = set()
+        methods: dict[str, ast.AST] = {}   # 메서드명·정규화명 → 노드 (시그니처 대조용)
         for node in tree.body:
             if not isinstance(node, ast.ClassDef):
                 continue
@@ -358,6 +359,8 @@ def _check_contracts(trees, design) -> list[dict]:
                 if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     class_methods.add(m.name)
                     class_methods.add(f"{node.name}.{m.name}")
+                    methods.setdefault(m.name, m)
+                    methods[f"{node.name}.{m.name}"] = m
         defined = top_names | class_methods
         for iface in f.get("interfaces", []):
             iname = iface.get("name")
@@ -368,14 +371,27 @@ def _check_contracts(trees, design) -> list[dict]:
                                     f"design contract requires '{iname}' "
                                     f"to be defined in {name}"))
                 continue
-            expected_args = _contract_arg_count(iface.get("signature", ""))
-            if expected_args is not None and iname in top_funcs:
-                got = _func_arg_count(top_funcs[iname])
-                if got is not None and got != expected_args:
-                    issues.append(issue(
-                        name, top_funcs[iname].lineno, "contract-mismatch",
-                        f"'{iname}' takes {got} args but the design contract "
-                        f"specifies {expected_args}"))
+            sig = iface.get("signature", "")
+            if iname in top_funcs:
+                expected_args = _contract_arg_count(sig)
+                if expected_args is not None:
+                    got = _func_arg_count(top_funcs[iname])
+                    if got is not None and got != expected_args:
+                        issues.append(issue(
+                            name, top_funcs[iname].lineno, "contract-mismatch",
+                            f"'{iname}' takes {got} args but the design contract "
+                            f"specifies {expected_args}"))
+            elif iname in methods:
+                # 클래스 메서드도 인자수 대조 (리뷰 #3). self/cls는 계약·실제 양쪽에서
+                # 빼고 비교 — 계약이 self를 적든 안 적든 일관되게.
+                expected_args = _contract_arg_count(sig, method=True)
+                if expected_args is not None:
+                    got = _func_arg_count(methods[iname], method=True)
+                    if got is not None and got != expected_args:
+                        issues.append(issue(
+                            name, methods[iname].lineno, "contract-mismatch",
+                            f"method '{iname}' takes {got} args but the design "
+                            f"contract specifies {expected_args} (self/cls 제외)"))
     return issues
 
 
@@ -454,8 +470,11 @@ def _has_ifmain(tree) -> bool:
     return False
 
 
-def _contract_arg_count(signature: str) -> int | None:
-    """계약 시그니처 문자열에서 인자 개수를 뽑는다. 모호하면 None (검사 생략)."""
+def _contract_arg_count(signature: str, method: bool = False) -> int | None:
+    """계약 시그니처 문자열에서 인자 개수를 뽑는다. 모호하면 None (검사 생략).
+
+    method=True면 맨 앞 self/cls 하나를 뺀다(계약이 self를 적었든 말든 일관 비교).
+    """
     sig = signature.strip()
     if not sig.startswith("def "):
         return None
@@ -466,14 +485,18 @@ def _contract_arg_count(signature: str) -> int | None:
         return None
     if not isinstance(parsed, ast.FunctionDef):
         return None
-    return _func_arg_count(parsed)
+    return _func_arg_count(parsed, method=method)
 
 
-def _func_arg_count(node) -> int | None:
-    """*args/**kwargs가 있으면 유연하다고 보고 None (검사 생략)."""
+def _func_arg_count(node, method: bool = False) -> int | None:
+    """*args/**kwargs가 있으면 유연하다고 보고 None (검사 생략).
+
+    method=True면 맨 앞 위치인자가 self/cls면 하나 뺀다 (메서드 대조용).
+    """
     a = node.args
     if a.vararg or a.kwarg:
         return None
-    count = len(a.posonlyargs) + len(a.args) + len(a.kwonlyargs)
-    # self/cls는 계약 표기에 따라 다를 수 있으니 메서드 보정은 안 함 (top-level 함수만 대조)
-    return count
+    positional = list(a.posonlyargs) + list(a.args)
+    if method and positional and positional[0].arg in ("self", "cls"):
+        positional = positional[1:]
+    return len(positional) + len(a.kwonlyargs)

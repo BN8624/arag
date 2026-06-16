@@ -5,6 +5,8 @@
 31B 재설계 프롬프트에 그대로 넣는다.
 """
 
+import re
+
 from schema import MAX_FILES
 
 
@@ -92,13 +94,23 @@ def validate_design(design: dict) -> list[str]:
             errors.append(
                 f"criteria_checks[{i}].command: every '&&' step must start "
                 f"with 'python ': {bad[0]!r}")
+        inline = _inline_code_parts(cmd)
+        if inline:
+            errors.append(
+                f"criteria_checks[{i}].command: 'python -c' inline code is "
+                f"forbidden (multifile 계약 우회·오염 벡터): {inline[0]!r}")
 
     command = design["success_signal"]["command"].strip()
     bad = _non_python_parts(command)
+    inline = _inline_code_parts(command)
     if bad:
         errors.append(
             f"success_signal.command: every '&&' step must start with "
             f"'python ': {bad[0]!r}")
+    elif inline:
+        errors.append(
+            f"success_signal.command: 'python -c' inline code is forbidden "
+            f"(멀티파일 계약 우회): {inline[0]!r}")
     else:
         last = command.split("&&")[-1].strip()
         first_arg = last.split()[1] if len(last.split()) > 1 else ""
@@ -114,6 +126,13 @@ def _non_python_parts(command: str) -> list[str]:
     """'&&'로 쪼갠 각 단계 중 'python '으로 시작하지 않는 것들."""
     parts = [p.strip() for p in command.split("&&")]
     return [p for p in parts if not p.startswith("python ")]
+
+
+def _inline_code_parts(command: str) -> list[str]:
+    """'python -c ...' 인라인 코드 실행 단계들. 'python '은 통과시키되 -c는 막는다
+    (리뷰 #6 — 멀티파일 계약을 우회하는 임의 코드 실행·워크스페이스 오염 벡터)."""
+    parts = [p.strip() for p in command.split("&&")]
+    return [p for p in parts if re.match(r"python\b.*\s-c(\s|$)", p)]
 
 
 def _find_cycle(deps: dict) -> list[str] | None:

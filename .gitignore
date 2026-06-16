@@ -223,6 +223,8 @@ runs/
 STOP_AFTER_RUN
 
 .tmp/
+# Docker 실행 게이트의 워크스페이스 임시 복사본(실행 후 폐기, 리뷰 #1) — 안전망
+.sbx-*/
 
 # Design Bank: 생성 데이터 (카드 누적 — 정본은 별도 export)
 design_bank.sqlite

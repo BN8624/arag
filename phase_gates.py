@@ -155,14 +155,20 @@ class GatesPhase:
         return exec_issues
 
     def _pytest_pass_rate(self) -> float | None:
-        """마지막 실행 로그의 pytest 요약에서 통과율. 요약이 없으면 None."""
+        """마지막 실행 로그의 pytest 요약에서 통과율. 요약이 없으면 None.
+
+        분모에 error도 포함한다(리뷰 #2). '8 passed, 1 failed, 1 error'를 8/9로 세면
+        통과율이 부풀어 부분합격을 후하게 내준다 — error는 통과 못 한 것이므로 8/10.
+        """
         passed = re.findall(r"(\d+) passed", self.last_exec_log)
         failed = re.findall(r"(\d+) failed", self.last_exec_log)
-        if not passed and not failed:
+        errored = re.findall(r"(\d+) error", self.last_exec_log)  # 'error'/'errors' 둘 다
+        if not passed and not failed and not errored:
             return None
         n_pass = int(passed[-1]) if passed else 0
         n_fail = int(failed[-1]) if failed else 0
-        total = n_pass + n_fail
+        n_err = int(errored[-1]) if errored else 0
+        total = n_pass + n_fail + n_err
         return n_pass / total if total else None
 
     def _arbitrate(self, exec_issues: list[dict]) -> bool:

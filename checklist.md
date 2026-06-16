@@ -41,3 +41,17 @@
 - 힌트에 골든 숫자(정답 HP/턴값) 넣지 말 것 — 위치+범주까지만(사용자 결정).
 - 모델 트레이스 포맷이 틀려도 게이트엔 무영향(폴백). 트레이스 포맷 실패를 새 FAIL모드로 만들지 말 것.
 - T-000012-trace는 베이스라인과 *다른 카드*다. 비교는 "trace arm vs 24% cold"로 명시(같은 카드 아님).
+
+---
+
+# 리뷰 #1~#6 하네스 강화 (별도 트랙, #7·#8 보류) — 완료
+> 외부 코드리뷰 반영. 측정 신뢰도/계약 정합 보강. 각 항목 테스트 동반, 전체 회귀 0.
+- [x] **#1 Docker 워크스페이스 격리**: `_run_in_docker`가 원본 대신 *임시 복사본*(원본 부모에
+      생성→실행 후 폐기, .git·__pycache__ 제외)을 마운트. 생성코드가 success_signal 중
+      test_acceptance.py/소스 못 건드림. 게이트 의미 불변. 테스트=원본 불변·복사본 폐기 증명.
+- [x] **#2 pass rate**: `_pytest_pass_rate`가 error를 분모에 포함(`8 passed,1 failed,1 error`→8/10).
+- [x] **#3 클래스 메서드 시그니처**: `_check_contracts`가 메서드도 arg수 대조(self/cls 양쪽 strip).
+- [x] **#4 노트 로더 침묵**: `_load_notes` except가 `critique-notes-load-error` 이벤트+say 남김.
+- [x] **#5 약한 오라클 라벨**: `_oracle_strength()`(헬퍼) → index `oracle_strength` strong/weak.
+- [x] **#6 success_signal/criteria_checks 검증**: `_inline_code_parts`로 `python -c` 금지.
+- [x] 전체 테스트 **364 통과**(351+13, 회귀 0).

@@ -12,6 +12,7 @@ from pathlib import Path
 import run_index
 from config import get_model
 from gates import external_imports
+from phase_common import TEST_FILE
 from prompts import PROMPT_VERSION, extract_markdown, readme_prompt
 
 
@@ -148,6 +149,11 @@ class ReportingMixin:
         (self.run_dir / "REPORT.md").write_text(report, encoding="utf-8")
         self._record_index(idea, status)
 
+    def _oracle_strength(self) -> str:
+        """오라클 강도(리뷰 #5): test_acceptance.py가 있으면 pytest가 게이트(strong),
+        없으면 success_signal 하나로만 통과(weak) — tests-skipped 런을 분리해 본다."""
+        return "strong" if (self.workspace / TEST_FILE).exists() else "weak"
+
     def _record_index(self, idea: str, status: str) -> None:
         """runs/index.json에 런 한 줄 요약 누적 (콜 0, 실패해도 무시)."""
         cost_fn = getattr(self.llm, "cost_usd", None)
@@ -176,6 +182,7 @@ class ReportingMixin:
             "critic_model": get_model("critic"),        # 머리 = 설계·출제·비평
             "generator_model": get_model("generator"),  # 손 = 구현
             "whole": getattr(self, "whole", False),     # True=통짜, False=파일별 분해
+            "oracle_strength": self._oracle_strength(),  # 리뷰 #5
             # 비용과 짝이 되는 시간(B): 런 벽시계 경과초
             "duration_sec": (round(time.monotonic() - self.started, 1)
                              if hasattr(self, "started") else None),

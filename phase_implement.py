@@ -24,7 +24,12 @@ class ImplementPhase:
                 self.log("critique-notes-injected", count=len(found), notes=found)
                 self._say(f"[NOTE] {len(found)} critique note(s) injected")
             return found
-        except Exception:  # noqa: BLE001 - 비평노트 문제로 회차를 막지 않는다
+        except Exception as e:  # noqa: BLE001 - 회차는 막지 않되 침묵하지 않는다
+            # 빈 노트로 조용히 진행하면 warm 측정이 오염된다(겉은 warm, 실제 노트0 →
+            # '노트 효과 없음'으로 오기록). 반드시 이벤트로 남겨 분석이 잡게 한다(리뷰 #4).
+            self.log("critique-notes-load-error", error=str(e),
+                     mode=getattr(self, "mode", "warm"))
+            self._say("[NOTE] critique-notes load FAILED - proceeding without notes")
             return []
 
     def _phase_implement(self) -> None:

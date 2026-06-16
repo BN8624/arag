@@ -10,8 +10,10 @@ stdlib-only 규격이라 가능), 컨테이너는 --rm으로 자동 정리.
 
 import re
 import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import uuid
 from pathlib import Path
@@ -243,37 +245,51 @@ def _exec_issue(message: str, output: str, tail_lines: int = 15) -> dict:
 
 def _run_in_docker(workdir: Path, argv: list[str], timeout: int,
                    deps_dir: Path | None = None) -> tuple[int, str]:
-    """컨테이너에서 argv 실행. (returncode, 합쳐진 출력). 타임아웃이면 (-1, 출력)."""
+    """컨테이너에서 argv 실행. (returncode, 합쳐진 출력). 타임아웃이면 (-1, 출력).
+
+    워크스페이스를 *임시 복사본*에 떠서 마운트한다(원본 아님). 생성 코드가 실행 중
+    test_acceptance.py나 소스를 고쳐 다음 게이트(pytest)를 속이는 오염을 차단 — 자동
+    평가기 무결성(리뷰 #1). 우리 오라클은 명령 간 파일 의존이 없어 복사본 실행으로 충분.
+    복사본은 원본과 같은 부모에 둬 도커 마운트 호환을 보장하고, 실행 후 폐기한다.
+    """
+    workdir = Path(workdir)
     name = f"arag-{uuid.uuid4().hex[:12]}"
-    cmd = [
-        "docker", "run", "--rm", "--name", name,
-        "--network", "none",
-        "--memory", "512m", "--cpus", "1",  # 폭주 1개가 VM 독식 못 하게 (결정22)
-        "-v", f"{workdir}:/app", "-w", "/app",
-    ]
-    if deps_dir is not None:
-        # 설치는 install_packages가 미리 해뒀다. 실행은 네트워크 차단 유지.
-        cmd += ["-v", f"{Path(deps_dir).resolve()}:/deps", "-e", "PYTHONPATH=/deps"]
-    cmd += [
-        # 컨테이너 안 coreutils timeout이 1차 방어선, subprocess timeout이 안전망
-        IMAGE, "timeout", str(timeout), *argv,
-    ]
-    with _docker_sem:  # 동시 컨테이너 수 제한 (게이트 진입에서 막음)
-        try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, encoding="utf-8",
-                errors="replace", timeout=timeout + 60,  # +60: 컨테이너 기동 여유
-                stdin=subprocess.DEVNULL, **_hidden_console_kwargs(),
-            )
-            out = (result.stdout or "") + (result.stderr or "")
-            if result.returncode == 124:  # coreutils timeout의 시간 초과 코드
-                return -1, out
-            return result.returncode, out
-        except subprocess.TimeoutExpired as err:
-            subprocess.run(["docker", "kill", name], capture_output=True,
-                           stdin=subprocess.DEVNULL, **_hidden_console_kwargs())
-            partial = ""
-            for chunk in (err.stdout, err.stderr):
-                if chunk:
-                    partial += chunk if isinstance(chunk, str) else chunk.decode("utf-8", "replace")
-            return -1, partial
+    sandbox = Path(tempfile.mkdtemp(dir=str(workdir.parent), prefix=".sbx-"))
+    run_root = sandbox / "app"
+    try:
+        shutil.copytree(workdir, run_root, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", ".sbx-*"))
+        cmd = [
+            "docker", "run", "--rm", "--name", name,
+            "--network", "none",
+            "--memory", "512m", "--cpus", "1",  # 폭주 1개가 VM 독식 못 하게 (결정22)
+            "-v", f"{run_root.resolve()}:/app", "-w", "/app",
+        ]
+        if deps_dir is not None:
+            # 설치는 install_packages가 미리 해뒀다. 실행은 네트워크 차단 유지.
+            cmd += ["-v", f"{Path(deps_dir).resolve()}:/deps", "-e", "PYTHONPATH=/deps"]
+        cmd += [
+            # 컨테이너 안 coreutils timeout이 1차 방어선, subprocess timeout이 안전망
+            IMAGE, "timeout", str(timeout), *argv,
+        ]
+        with _docker_sem:  # 동시 컨테이너 수 제한 (게이트 진입에서 막음)
+            try:
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, encoding="utf-8",
+                    errors="replace", timeout=timeout + 60,  # +60: 컨테이너 기동 여유
+                    stdin=subprocess.DEVNULL, **_hidden_console_kwargs(),
+                )
+                out = (result.stdout or "") + (result.stderr or "")
+                if result.returncode == 124:  # coreutils timeout의 시간 초과 코드
+                    return -1, out
+                return result.returncode, out
+            except subprocess.TimeoutExpired as err:
+                subprocess.run(["docker", "kill", name], capture_output=True,
+                               stdin=subprocess.DEVNULL, **_hidden_console_kwargs())
+                partial = ""
+                for chunk in (err.stdout, err.stderr):
+                    if chunk:
+                        partial += chunk if isinstance(chunk, str) else chunk.decode("utf-8", "replace")
+                return -1, partial
+    finally:
+        shutil.rmtree(sandbox, ignore_errors=True)
