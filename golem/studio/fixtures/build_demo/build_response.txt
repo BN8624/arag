@@ -1,0 +1,86 @@
+Here is the implementation of the frozen contract.
+
+=== FILE: main.js ===
+// 진입점 — 시나리오를 받아 엔진을 돌리고 최종 상태를 key:value로 출력한다
+const { GameState, GameEngine } = require("./src/engine");
+
+const SCENARIOS = {
+  1: [{ action: "WAIT" }, { action: "UPGRADE", id: "gen1" }, { action: "WAIT" }],
+  2: [{ action: "UPGRADE", id: "gen1" }],
+  3: [{ action: "WAIT" }, { action: "WAIT" }, { action: "WAIT" }],
+};
+
+function main() {
+  const i = process.argv.indexOf("--scenario");
+  const n = i >= 0 ? parseInt(process.argv[i + 1], 10) : 1;
+  const actions = SCENARIOS[n];
+  if (!actions) {
+    console.log("error: scenario not found");
+    process.exit(1);
+  }
+  let state = GameState();
+  for (const a of actions) state = GameEngine(state, a);
+  console.log("turn: " + state.turn);
+  console.log("energy: " + state.resources.energy);
+  console.log("productionRate: " + state.stats.productionRate);
+  console.log("gen1_level: " + (state.stats.levels.gen1 || 0));
+  console.log("status: " + state.gameStatus);
+}
+
+main();
+
+=== FILE: src/engine.js ===
+// 방치형 게임 상태와 엔진 — 틱 자원축적·업그레이드 (결정적, RULE-01..06)
+const GENERATORS = { gen1: { baseCost: 10, costMultiplier: 1.5, power: 1 } };
+
+function GameState() {
+  return {
+    turn: 0,
+    resources: { energy: 0 },
+    stats: { productionRate: 1, levels: {} },
+    gameStatus: "PLAYING",
+    logs: [],
+  };
+}
+
+function cost(id, level) {
+  const g = GENERATORS[id];
+  return Math.floor(g.baseCost * Math.pow(g.costMultiplier, level));
+}
+
+function recalcRate(state) {
+  let rate = 1;
+  for (const id of Object.keys(state.stats.levels)) {
+    rate += state.stats.levels[id] * GENERATORS[id].power;
+  }
+  state.stats.productionRate = rate;
+}
+
+function GameEngine(state, action) {
+  if (state.gameStatus === "WON") return state; // RULE-06
+  if (action.action === "WAIT") {
+    state.turn += 1; // RULE-01
+    state.resources.energy += state.stats.productionRate;
+  } else if (action.action === "UPGRADE") {
+    const id = action.id;
+    if (!GENERATORS[id]) {
+      state.logs.push("Invalid action/ID");
+    } else {
+      const lvl = state.stats.levels[id] || 0;
+      const c = cost(id, lvl); // RULE-03 floor
+      if (state.resources.energy >= c) {
+        state.resources.energy -= c; // RULE-02
+        state.stats.levels[id] = lvl + 1;
+        recalcRate(state); // RULE-04
+      } else {
+        state.logs.push("Insufficient energy");
+      }
+    }
+  } else {
+    state.logs.push("Invalid action/ID");
+  }
+  if (state.resources.energy >= 1000) state.gameStatus = "WON"; // RULE-05
+  return state;
+}
+
+module.exports = { GameState, GameEngine };

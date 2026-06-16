@@ -22,8 +22,10 @@
 - [x] fake 픽스처 replay 검증 — 의도적 중복으로 dedup 작동 확인(A2<B6<C12 unique, dup 0.077), API 0회
 - [x] (★키) `planning.py --idea 방치형게임` 실측 — A6<B11<C27 unique, 독립리뷰>self·10>3 둘 다 임계 통과(G27)
 - [x] (★키) synthesis 추가 + 실발사 — BLOCKING 11→0, 부동소수점 floor() 못박음, 계약 FROZEN(G28). 패킷=planning_packet/
-- [ ] (다음, ★키, go 대기) Build 단계: FROZEN 계약 → driver 11키 select-best → static_gate+contract_validator+grade. golden용 오라클 연결 선행
-- [ ] (대안) dedup 의미기반 개선 후 A/B/C N≥10 / acceptance expect 정확값화(Spec QA)
+- [x] (키X) dedup 토큰 Jaccard 클러스터링 — 결론 강건성 확인(임계 무관 A<B<C). 진짜 의미 dedup은 보류(G29)
+- [x] (★키) Build v0 `build.py` — FROZEN 계약 → gemma 구현 → static_gate+v0.1 정합+스모크. 방치형 cracked@4 10/11(G30)
+- [ ] (다음, ★키, go 대기) Build v1: 오라클 골든 + 정확일치 채점(10개가 같은 정답인지) — oracle.py/oracle_design.py 재사용
+- [ ] (대안) 측정 N≥10 장르확장 / 통과본 web 바인딩
 
 ## 과거 히스토리
 

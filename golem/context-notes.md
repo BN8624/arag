@@ -255,3 +255,16 @@ gain 둘 다 임계 한참 위 — 어떤 자로 재도 방향 안 뒤집힘.** 
 10>3" 결론은 강건. 효과 크기가 자의 흔들림보다 큼. caveat 남음: N=1(generalization 미검).
 남은 측정 가치 = N≥10을 **서로 다른 장르 아이디어**로(모호한 게임 vs 명확한 게임에서 리뷰어 효과 다른가)
 — 이게 §19의 진짜 목적(메트릭 정밀화 아니라 일반화). ★키 필요. 신규 run은 새 dedup 자동 사용.
+
+## G30 — Build v0: FROZEN 계약 → gemma 구현 → v0.1 검증기 정합, end-to-end (2026-06-17, 키 씀)
+사용자 "빌드로 전진". Build v0 스코프 = golden 정확일치(오라클) 보류, '계약대로 굴러가나'까지.
+build.py: Planning 패킷의 interface_contract를 매니페스트로, data_contract를 규칙으로 gemma(31B critic)에
+줘 멀티파일 구현 → 3중 게이트(static_gate + contract_validator 매니페스트 정합[v0.1 재사용!] + 스모크
+node main.js --scenario 1 크래시 없이 key:value). fake build로 replay 검증 후 11키 select-best 실발사.
+결과(방치형 계약): **cracked@4, 10/11 통과**. attempt04 검수=진짜(main 55+engine 66줄, 매니페스트대로
+main.js+src/engine.js, GameState/GameEngine export). 실행: sc1 자원축적, sc2 에너지부족 처리, sc3 turn1000
+WON — 규칙 실제 구현. 1실패=스모크 빈출력. **정직 caveat: 10개가 각각 다른 숫자(상수·시나리오 입력이
+golden으로 미고정) → "10통과"=계약대로 굴러가는 게임 10개지 같은 정답 10개 아님. 정확일치=오라클(v1).**
+의의: 아이디어 한 줄("방치형게임") → 리뷰→FROZEN 계약 → gemma 구현 → v0.1 매니페스트 정합 검증이
+실모델로 한 줄에 꿰임. 처음 만든 v0.1 validator가 실 gemma 산출물에서 값을 함(설계 의도 실현).
+build_runs/는 .gitignore(생성물). 다음: Build v1=오라클 골든으로 정확일치 채점 / or 측정 N≥10 장르확장.
