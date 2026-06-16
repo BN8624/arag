@@ -1,60 +1,84 @@
 {
-  "idea": "작은 텍스트 로그라이크: 타일 이동 + 적 전투 + 아이템 획득",
-  "api_calls": 0,
+  "idea": "방치형 게임: 틱마다 자원이 자동으로 쌓이고, 모은 자원으로 업그레이드를 사서 생산 속도를 올린다 (결정적, node main.js --scenario N)",
+  "api_calls": null,
   "arms": {
     "A": {
       "reviewer_count": 1,
-      "total_issues": 2,
-      "unique_issue_count": 2,
+      "total_issues": 6,
+      "unique_issue_count": 6,
       "duplicate_issue_rate": 0.0,
-      "blocking_count": 0,
+      "blocking_count": 3,
       "unique_issues": [
-        "'fast' tile speed undefined",
-        "what happens if two enemies occupy the same tile"
+        "scenario index/ID (definition source is missing)",
+        "Error handling strategy for failed actions within a scenario sequence (e.g., skip action vs. terminate simulation)",
+        "Rounding/precision rules for floating point results of cost calculations (costMultiplier ^ level)",
+        "Priority/interaction between the resource threshold win condition and the sequence completion win condition",
+        "Format of the 'final state' printout (JSON vs formatted text)",
+        "Assumption that productionRate increases are strictly additive"
       ],
       "mode": "self-review"
     },
     "B": {
       "reviewer_count": 3,
-      "total_issues": 6,
-      "unique_issue_count": 6,
+      "total_issues": 11,
+      "unique_issue_count": 11,
       "duplicate_issue_rate": 0.0,
-      "blocking_count": 0,
+      "blocking_count": 6,
       "unique_issues": [
-        "'fast' tile speed undefined",
-        "'adjacent' includes diagonals?",
-        "'turn' vs 'tick' used interchangeably",
-        "what happens if two enemies occupy the same tile",
-        "move into wall on turn 0",
-        "inventory size limit not represented in state"
+        "current cost (unclear if level refers to level before or after the purchase)",
+        "rounding method for cost calculation (e.g., floor, ceil) when costMultiplier produces floats",
+        "behavior upon action failure (whether the simulation halts or skips the action and continues the sequence)",
+        "Behavior when an Upgrade(id) is called with an id that does not exist in the upgrades map.",
+        "Behavior when --scenario N is called with an N that does not correspond to a defined scenario.",
+        "Rounding strategy for the cost formula (baseCost * (costMultiplier ^ level)) when results are fractional.",
+        "Execution flow when a predefined scenario action fails (e.g., Upgrade fails due to insufficient resources): does the sim halt or skip to the next action?",
+        "Handling of Wait(0) (failure vs no-op).",
+        "Trigger timing for the win condition: does the simulation terminate immediately upon reaching the threshold, or only after the current action completes?",
+        "Assumption that command line arguments are always provided and valid.",
+        "The target resource threshold for the win condition is not reflected in the state object."
       ],
       "mode": "3 independent reviewers"
     },
     "C": {
       "reviewer_count": 10,
-      "total_issues": 13,
-      "unique_issue_count": 12,
-      "duplicate_issue_rate": 0.077,
-      "blocking_count": 1,
+      "total_issues": 28,
+      "unique_issue_count": 27,
+      "duplicate_issue_rate": 0.036,
+      "blocking_count": 12,
       "unique_issues": [
-        "'fast' tile speed undefined",
-        "'adjacent' includes diagonals?",
-        "'turn' vs 'tick' used interchangeably",
-        "what happens if two enemies occupy the same tile",
-        "move into wall on turn 0",
-        "inventory size limit not represented in state",
-        "log line format for BLOCKED not specified",
-        "potion behaviour at full hp is undefined",
-        "attack damage stated in two different places",
-        "enemy pathfinding toward player is underspecified",
-        "exit tile coordinates never defined",
-        "REQ ids not linked to state fields for handoff"
+        "^ (could be interpreted as XOR or exponentiation)",
+        "Handling of failed actions within a scenario sequence (e.g., does a failed Upgrade stop the sequence or is it skipped?)",
+        "The definition and source of the 'target resource threshold' mentioned in Win conditions",
+        "Floating point determinism: using multipliers like 1.5 and 1.8 may lead to different results across platforms, potentially violating REQ-006",
+        "target resource threshold",
+        "Behavior when an invalid scenario ID is provided via --scenario",
+        "Behavior when a non-numeric value is provided for --scenario",
+        "Behavior when an invalid upgrade identifier is passed to Upgrade(id)",
+        "Execution flow upon action failure: should the simulator abort the entire scenario or skip the failing action and continue?",
+        "Stopping condition: does reaching the resource threshold terminate the simulation immediately or only after the action sequence is exhausted?",
+        "Definition of where the target resource threshold is stored/defined per scenario",
+        "Log message for Wait(n) failure when n < 0",
+        "Assumption that scenario action sequences only contain valid action types and parameters",
+        "entirely deterministic",
+        "Error handling and expected output for invalid scenario IDs in REQ-001",
+        "The specific output for 'unavailable' upgrades in REQ-003 is not defined in the Requirements (only vaguely in GDD)",
+        "current cost",
+        "Rounding method for cost calculations involving costMultiplier (e.g., floor, ceil, or float)",
+        "Error handling/behavior for scenario actions that trigger failure conditions (e.g., if an Upgrade fails due to insufficient resources, does the scenario abort or skip the action?)",
+        "Assumption that resource values and production rates are floating-point numbers, given the costMultiplier is 1.5/1.8",
+        "pre-defined action sequences",
+        "Handling of failed actions within a scenario sequence (e.g., if an Upgrade fails due to insufficient resources, does the simulation stop or skip the action?)",
+        "Rounding logic for costs (costMultiplier ^ level) and resource calculations",
+        "Behavior when an invalid scenario ID is provided via CLI",
+        "Formatting of the final state console printout",
+        "Formatting of the action log console printout",
+        "Assumption that the design team has access to the action sequence data source/format"
       ],
       "mode": "10 independent reviewers"
     }
   },
   "verdict": [
-    "B vs A: unique 2->6 (gain=2.0) → 독립리뷰 채택 근거 있음",
-    "C vs B: unique 6->12 (gain=1.0) → 10리뷰어 채택 근거 있음"
+    "B vs A: unique 6->11 (gain=0.833) → 독립리뷰 채택 근거 있음",
+    "C vs B: unique 11->27 (gain=1.455) → 10리뷰어 채택 근거 있음"
   ]
 }
