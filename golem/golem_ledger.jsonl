@@ -22,3 +22,151 @@
 {"t": "2026-06-16T14:36:01", "run": "20260616-143058", "attempt": 10, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 297.5, "cost_usd": 0.0036}
 {"t": "2026-06-16T14:36:51", "run": "20260616-143058", "attempt": 3, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 347.8, "cost_usd": 0.0018}
 {"t": "2026-06-16T14:36:51", "run": "20260616-143058", "summary": true, "cracked_at": 4, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0268}
+{"t": "2026-06-16T14:51:52", "run": "20260616-144906", "attempt": 7, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 158.8, "cost_usd": 0.002}
+{"t": "2026-06-16T14:52:15", "run": "20260616-144906", "attempt": 4, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 182.1, "cost_usd": 0.0023}
+{"t": "2026-06-16T14:52:20", "run": "20260616-144906", "attempt": 3, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 187.1, "cost_usd": 0.0024}
+{"t": "2026-06-16T14:52:23", "run": "20260616-144906", "attempt": 2, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 190.2, "cost_usd": 0.0024}
+{"t": "2026-06-16T14:52:29", "run": "20260616-144906", "attempt": 1, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 195.6, "cost_usd": 0.0025}
+{"t": "2026-06-16T14:52:45", "run": "20260616-144906", "attempt": 6, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 211.8, "cost_usd": 0.0027}
+{"t": "2026-06-16T14:53:05", "run": "20260616-144906", "attempt": 8, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 232.0, "cost_usd": 0.0029}
+{"t": "2026-06-16T14:53:06", "run": "20260616-144906", "attempt": 9, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 233.1, "cost_usd": 0.0029}
+{"t": "2026-06-16T14:53:25", "run": "20260616-144906", "attempt": 10, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 252.1, "cost_usd": 0.0032}
+{"t": "2026-06-16T14:53:33", "run": "20260616-144906", "attempt": 11, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 259.4, "cost_usd": 0.0032}
+{"t": "2026-06-16T14:53:36", "run": "20260616-144906", "attempt": 5, "ok": true, "first_divergence": null, "files": ["board.js", "moves.js", "main.js"], "sec": 263.3, "cost_usd": 0.0033}
+{"t": "2026-06-16T14:53:36", "run": "20260616-144906", "summary": true, "cracked_at": 7, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0298}
+{"t": "2026-06-16T15:12:04", "run": "20260616-151003", "attempt": 11, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 115.6, "cost_usd": 0.0014}
+{"t": "2026-06-16T15:12:39", "run": "20260616-151003", "attempt": 6, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 150.6, "cost_usd": 0.0018}
+{"t": "2026-06-16T15:12:55", "run": "20260616-151003", "attempt": 3, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 166.8, "cost_usd": 0.002}
+{"t": "2026-06-16T15:12:55", "run": "20260616-151003", "attempt": 10, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 167.3, "cost_usd": 0.002}
+{"t": "2026-06-16T15:12:56", "run": "20260616-151003", "attempt": 5, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 167.5, "cost_usd": 0.002}
+{"t": "2026-06-16T15:12:57", "run": "20260616-151003", "attempt": 1, "ok": false, "first_divergence": "scenario 1: final_score = None != '1'", "files": ["game.js", "main.js"], "sec": 168.5, "cost_usd": 0.0021}
+{"t": "2026-06-16T15:13:06", "run": "20260616-151003", "attempt": 8, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 177.9, "cost_usd": 0.0021}
+{"t": "2026-06-16T15:13:45", "run": "20260616-151003", "attempt": 9, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 216.9, "cost_usd": 0.0026}
+{"t": "2026-06-16T15:16:59", "run": "20260616-151003", "attempt": 4, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 411.2, "cost_usd": 0.0016}
+{"t": "2026-06-16T15:17:00", "run": "20260616-151003", "attempt": 2, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 411.3, "cost_usd": 0.0019}
+{"t": "2026-06-16T15:19:17", "run": "20260616-151003", "attempt": 7, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 548.4, "cost_usd": 0.0012}
+{"t": "2026-06-16T15:19:17", "run": "20260616-151003", "summary": true, "cracked_at": 11, "attempts": 11, "passed": 10, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0208}
+{"t": "2026-06-16T15:40:47", "run": "20260616-153907", "attempt": 1, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 97.3, "cost_usd": 0.0012}
+{"t": "2026-06-16T15:41:10", "run": "20260616-153907", "attempt": 7, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 120.9, "cost_usd": 0.0015}
+{"t": "2026-06-16T15:41:17", "run": "20260616-153907", "attempt": 6, "ok": false, "first_divergence": "scenario 1: final_score = None != '0'", "files": ["game.js", "main.js"], "sec": 127.3, "cost_usd": 0.0015}
+{"t": "2026-06-16T15:41:19", "run": "20260616-153907", "attempt": 8, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 129.6, "cost_usd": 0.0016}
+{"t": "2026-06-16T15:41:21", "run": "20260616-153907", "attempt": 9, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 131.4, "cost_usd": 0.0016}
+{"t": "2026-06-16T15:41:23", "run": "20260616-153907", "attempt": 2, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 133.3, "cost_usd": 0.0016}
+{"t": "2026-06-16T15:41:25", "run": "20260616-153907", "attempt": 3, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 135.3, "cost_usd": 0.0017}
+{"t": "2026-06-16T15:41:37", "run": "20260616-153907", "attempt": 10, "ok": false, "first_divergence": "scenario 1: final_score = None != '0'", "files": ["game.js", "main.js"], "sec": 147.1, "cost_usd": 0.0018}
+{"t": "2026-06-16T15:41:39", "run": "20260616-153907", "attempt": 4, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 149.4, "cost_usd": 0.0018}
+{"t": "2026-06-16T15:42:20", "run": "20260616-153907", "attempt": 11, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 190.3, "cost_usd": 0.0023}
+{"t": "2026-06-16T15:42:29", "run": "20260616-153907", "attempt": 5, "ok": false, "first_divergence": "scenario 2: snake_length = '2' != '1'", "files": ["game.js", "main.js"], "sec": 199.9, "cost_usd": 0.0024}
+{"t": "2026-06-16T15:42:29", "run": "20260616-153907", "summary": true, "cracked_at": 1, "attempts": 11, "passed": 8, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0191}
+{"t": "2026-06-16T15:45:23", "run": "20260616-154418", "attempt": 10, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 61.7, "cost_usd": 0.0008}
+{"t": "2026-06-16T15:45:28", "run": "20260616-154418", "attempt": 7, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 66.1, "cost_usd": 0.0008}
+{"t": "2026-06-16T15:45:36", "run": "20260616-154418", "attempt": 3, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 73.9, "cost_usd": 0.0009}
+{"t": "2026-06-16T15:45:36", "run": "20260616-154418", "attempt": 5, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 73.8, "cost_usd": 0.0009}
+{"t": "2026-06-16T15:45:38", "run": "20260616-154418", "attempt": 8, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 76.8, "cost_usd": 0.001}
+{"t": "2026-06-16T15:45:47", "run": "20260616-154418", "attempt": 9, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 84.9, "cost_usd": 0.0011}
+{"t": "2026-06-16T15:46:29", "run": "20260616-154418", "attempt": 1, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 127.3, "cost_usd": 0.0015}
+{"t": "2026-06-16T15:49:10", "run": "20260616-154418", "attempt": 6, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 288.4, "cost_usd": 0.0008}
+{"t": "2026-06-16T15:49:10", "run": "20260616-154418", "attempt": 2, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 288.5, "cost_usd": 0.0009}
+{"t": "2026-06-16T15:49:10", "run": "20260616-154418", "attempt": 4, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 288.6, "cost_usd": 0.001}
+{"t": "2026-06-16T15:49:11", "run": "20260616-154418", "attempt": 11, "ok": true, "first_divergence": null, "files": ["sim.js", "main.js"], "sec": 289.6, "cost_usd": 0.0011}
+{"t": "2026-06-16T15:49:11", "run": "20260616-154418", "summary": true, "cracked_at": 10, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0108}
+{"t": "2026-06-16T15:58:34", "run": "20260616-155732", "attempt": 2, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 59.3, "cost_usd": 0.0007}
+{"t": "2026-06-16T15:58:46", "run": "20260616-155732", "attempt": 11, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 71.2, "cost_usd": 0.0009}
+{"t": "2026-06-16T15:58:47", "run": "20260616-155732", "attempt": 6, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 72.3, "cost_usd": 0.0009}
+{"t": "2026-06-16T15:58:52", "run": "20260616-155732", "attempt": 4, "ok": false, "first_divergence": "scenario 1: budget = None != '150'", "files": ["engine.js", "main.js"], "sec": 77.1, "cost_usd": 0.0009}
+{"t": "2026-06-16T15:58:53", "run": "20260616-155732", "attempt": 10, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 77.7, "cost_usd": 0.001}
+{"t": "2026-06-16T15:58:53", "run": "20260616-155732", "attempt": 8, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 78.4, "cost_usd": 0.001}
+{"t": "2026-06-16T15:58:58", "run": "20260616-155732", "attempt": 3, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 82.7, "cost_usd": 0.001}
+{"t": "2026-06-16T15:59:02", "run": "20260616-155732", "attempt": 5, "ok": false, "first_divergence": "scenario 3: population = '220' != '210'", "files": ["engine.js", "main.js"], "sec": 87.2, "cost_usd": 0.0011}
+{"t": "2026-06-16T15:59:12", "run": "20260616-155732", "attempt": 7, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 97.5, "cost_usd": 0.0012}
+{"t": "2026-06-16T15:59:23", "run": "20260616-155732", "attempt": 1, "ok": false, "first_divergence": "scenario 3: population = '220' != '210'", "files": ["engine.js", "main.js"], "sec": 108.2, "cost_usd": 0.0013}
+{"t": "2026-06-16T15:59:28", "run": "20260616-155732", "attempt": 9, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 113.2, "cost_usd": 0.0014}
+{"t": "2026-06-16T15:59:28", "run": "20260616-155732", "summary": true, "cracked_at": 2, "attempts": 11, "passed": 8, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0113}
+{"t": "2026-06-16T16:02:39", "run": "20260616-160118", "attempt": 2, "ok": true, "first_divergence": null, "files": ["simulation.js", "main.js"], "sec": 78.5, "cost_usd": 0.0009}
+{"t": "2026-06-16T16:03:05", "run": "20260616-160118", "attempt": 7, "ok": true, "first_divergence": null, "files": ["simulation.js", "main.js"], "sec": 104.8, "cost_usd": 0.0011}
+{"t": "2026-06-16T16:03:14", "run": "20260616-160118", "attempt": 10, "ok": true, "first_divergence": null, "files": ["simulation.js", "main.js"], "sec": 113.6, "cost_usd": 0.0014}
+{"t": "2026-06-16T16:03:47", "run": "20260616-160118", "attempt": 9, "ok": true, "first_divergence": null, "files": ["simulation.js", "main.js"], "sec": 146.5, "cost_usd": 0.0016}
+{"t": "2026-06-16T16:31:40", "run": "20260616-163026", "attempt": 6, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 71.6, "cost_usd": 0.0009}
+{"t": "2026-06-16T16:31:42", "run": "20260616-163026", "attempt": 9, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 73.5, "cost_usd": 0.0009}
+{"t": "2026-06-16T16:31:51", "run": "20260616-163026", "attempt": 3, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 82.7, "cost_usd": 0.001}
+{"t": "2026-06-16T16:31:55", "run": "20260616-163026", "attempt": 10, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 86.5, "cost_usd": 0.001}
+{"t": "2026-06-16T16:32:09", "run": "20260616-163026", "attempt": 1, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 100.4, "cost_usd": 0.0012}
+{"t": "2026-06-16T16:32:15", "run": "20260616-163026", "attempt": 4, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 106.1, "cost_usd": 0.0013}
+{"t": "2026-06-16T16:32:25", "run": "20260616-163026", "attempt": 2, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 116.2, "cost_usd": 0.0014}
+{"t": "2026-06-16T16:32:29", "run": "20260616-163026", "attempt": 8, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 120.7, "cost_usd": 0.0014}
+{"t": "2026-06-16T16:32:35", "run": "20260616-163026", "attempt": 11, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 126.8, "cost_usd": 0.0015}
+{"t": "2026-06-16T16:32:54", "run": "20260616-163026", "attempt": 7, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 145.1, "cost_usd": 0.0017}
+{"t": "2026-06-16T16:34:31", "run": "20260616-163026", "attempt": 5, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 242.0, "cost_usd": 0.0013}
+{"t": "2026-06-16T16:34:31", "run": "20260616-163026", "summary": true, "cracked_at": 6, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0136}
+{"t": "2026-06-16T16:41:15", "run": "20260616-163944", "attempt": 1, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 88.4, "cost_usd": 0.0011}
+{"t": "2026-06-16T16:41:25", "run": "20260616-163944", "attempt": 11, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 98.2, "cost_usd": 0.0012}
+{"t": "2026-06-16T16:41:27", "run": "20260616-163944", "attempt": 3, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 100.5, "cost_usd": 0.0012}
+{"t": "2026-06-16T16:41:36", "run": "20260616-163944", "attempt": 6, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 109.2, "cost_usd": 0.0013}
+{"t": "2026-06-16T16:42:05", "run": "20260616-163944", "attempt": 7, "ok": false, "first_divergence": "scenario 1: turn = None != '2'", "files": ["engine.js", "main.js"], "sec": 138.2, "cost_usd": 0.0012}
+{"t": "2026-06-16T16:42:18", "run": "20260616-163944", "attempt": 9, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 150.6, "cost_usd": 0.0018}
+{"t": "2026-06-16T16:44:53", "run": "20260616-163944", "attempt": 5, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 305.8, "cost_usd": 0.0014}
+{"t": "2026-06-16T16:44:53", "run": "20260616-163944", "attempt": 2, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 305.8, "cost_usd": 0.0017}
+{"t": "2026-06-16T16:44:54", "run": "20260616-163944", "attempt": 8, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 306.8, "cost_usd": 0.0014}
+{"t": "2026-06-16T16:44:54", "run": "20260616-163944", "attempt": 10, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 307.1, "cost_usd": 0.0017}
+{"t": "2026-06-16T16:44:55", "run": "20260616-163944", "attempt": 4, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 307.9, "cost_usd": 0.0016}
+{"t": "2026-06-16T16:44:55", "run": "20260616-163944", "summary": true, "cracked_at": 1, "attempts": 11, "passed": 10, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0157}
+{"t": "2026-06-16T16:49:37", "run": "20260616-164755", "attempt": 10, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 98.0, "cost_usd": 0.0012}
+{"t": "2026-06-16T16:50:08", "run": "20260616-164755", "attempt": 9, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 129.9, "cost_usd": 0.0016}
+{"t": "2026-06-16T16:50:13", "run": "20260616-164755", "attempt": 8, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 134.5, "cost_usd": 0.0016}
+{"t": "2026-06-16T16:50:21", "run": "20260616-164755", "attempt": 11, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 143.0, "cost_usd": 0.001}
+{"t": "2026-06-16T16:50:22", "run": "20260616-164755", "attempt": 3, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 143.7, "cost_usd": 0.0014}
+{"t": "2026-06-16T16:50:26", "run": "20260616-164755", "attempt": 5, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 147.6, "cost_usd": 0.0016}
+{"t": "2026-06-16T16:54:03", "run": "20260616-164755", "attempt": 7, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 365.1, "cost_usd": 0.0014}
+{"t": "2026-06-16T16:54:05", "run": "20260616-164755", "attempt": 4, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 366.3, "cost_usd": 0.002}
+{"t": "2026-06-16T16:54:05", "run": "20260616-164755", "attempt": 2, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 367.2, "cost_usd": 0.0019}
+{"t": "2026-06-16T16:54:06", "run": "20260616-164755", "attempt": 6, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 367.5, "cost_usd": 0.0009}
+{"t": "2026-06-16T16:54:09", "run": "20260616-164755", "attempt": 1, "ok": true, "first_divergence": null, "files": ["engine.js", "main.js"], "sec": 370.4, "cost_usd": 0.0016}
+{"t": "2026-06-16T16:54:09", "run": "20260616-164755", "summary": true, "cracked_at": 10, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0162}
+{"t": "2026-06-16T16:56:47", "run": "20260616-165545", "attempt": 1, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 59.2, "cost_usd": 0.0007}
+{"t": "2026-06-16T16:56:56", "run": "20260616-165545", "attempt": 6, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 68.4, "cost_usd": 0.0008}
+{"t": "2026-06-16T16:56:57", "run": "20260616-165545", "attempt": 2, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 68.5, "cost_usd": 0.0008}
+{"t": "2026-06-16T16:56:57", "run": "20260616-165545", "attempt": 9, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 68.5, "cost_usd": 0.0008}
+{"t": "2026-06-16T16:57:00", "run": "20260616-165545", "attempt": 8, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 71.8, "cost_usd": 0.0009}
+{"t": "2026-06-16T16:57:02", "run": "20260616-165545", "attempt": 7, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 73.9, "cost_usd": 0.0009}
+{"t": "2026-06-16T16:57:07", "run": "20260616-165545", "attempt": 10, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 78.5, "cost_usd": 0.0009}
+{"t": "2026-06-16T16:57:18", "run": "20260616-165545", "attempt": 5, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 89.9, "cost_usd": 0.001}
+{"t": "2026-06-16T16:57:30", "run": "20260616-165545", "attempt": 11, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 101.4, "cost_usd": 0.0012}
+{"t": "2026-06-16T16:57:32", "run": "20260616-165545", "attempt": 3, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 104.0, "cost_usd": 0.0012}
+{"t": "2026-06-16T16:57:48", "run": "20260616-165545", "attempt": 4, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 119.5, "cost_usd": 0.0014}
+{"t": "2026-06-16T16:57:48", "run": "20260616-165545", "summary": true, "cracked_at": 1, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0109}
+{"t": "2026-06-16T17:01:07", "run": "20260616-165951", "attempt": 11, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 73.4, "cost_usd": 0.0009}
+{"t": "2026-06-16T17:01:12", "run": "20260616-165951", "attempt": 9, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 78.7, "cost_usd": 0.001}
+{"t": "2026-06-16T17:01:15", "run": "20260616-165951", "attempt": 1, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 81.5, "cost_usd": 0.001}
+{"t": "2026-06-16T17:01:15", "run": "20260616-165951", "attempt": 4, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 82.1, "cost_usd": 0.001}
+{"t": "2026-06-16T17:01:34", "run": "20260616-165951", "attempt": 3, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 101.3, "cost_usd": 0.0012}
+{"t": "2026-06-16T17:01:37", "run": "20260616-165951", "attempt": 6, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 103.5, "cost_usd": 0.0013}
+{"t": "2026-06-16T17:01:47", "run": "20260616-165951", "attempt": 5, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 114.2, "cost_usd": 0.0014}
+{"t": "2026-06-16T17:01:50", "run": "20260616-165951", "attempt": 10, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 117.0, "cost_usd": 0.0014}
+{"t": "2026-06-16T17:01:55", "run": "20260616-165951", "attempt": 8, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 122.0, "cost_usd": 0.0015}
+{"t": "2026-06-16T17:02:18", "run": "20260616-165951", "attempt": 7, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 144.7, "cost_usd": 0.0018}
+{"t": "2026-06-16T17:04:27", "run": "20260616-165951", "attempt": 2, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 273.3, "cost_usd": 0.0014}
+{"t": "2026-06-16T17:04:27", "run": "20260616-165951", "summary": true, "cracked_at": 11, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0138}
+{"t": "2026-06-16T17:09:35", "run": "20260616-170639", "attempt": 11, "ok": false, "first_divergence": "scenario 1: node exit 1: cjs/loader:1553:32)\n    at Module._load (node:internal/modules/cjs/loader:1355:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47\n\nNode.js v24.15.0", "files": ["engine.js", "main.js"], "sec": 172.9, "cost_usd": 0.002}
+{"t": "2026-06-16T17:09:46", "run": "20260616-170639", "attempt": 6, "ok": false, "first_divergence": "scenario 1: node exit 1: ", "files": ["engine.js", "main.js"], "sec": 184.0, "cost_usd": 0.0021}
+{"t": "2026-06-16T17:09:58", "run": "20260616-170639", "attempt": 9, "ok": false, "first_divergence": "scenario 1: kills = '0' != '1'", "files": ["engine.js", "main.js"], "sec": 196.7, "cost_usd": 0.0024}
+{"t": "2026-06-16T17:10:11", "run": "20260616-170639", "attempt": 2, "ok": false, "first_divergence": "scenario 1: kills = None != '1'", "files": ["engine.js", "main.js"], "sec": 209.2, "cost_usd": 0.0024}
+{"t": "2026-06-16T17:10:18", "run": "20260616-170639", "attempt": 10, "ok": false, "first_divergence": "scenario 1: kills = None != '1'", "files": ["engine.js", "main.js"], "sec": 216.2, "cost_usd": 0.0025}
+{"t": "2026-06-16T17:10:25", "run": "20260616-170639", "attempt": 5, "ok": false, "first_divergence": "scenario 1: kills = '0' != '1'", "files": ["engine.js", "main.js"], "sec": 223.0, "cost_usd": 0.0027}
+{"t": "2026-06-16T17:10:49", "run": "20260616-170639", "attempt": 3, "ok": false, "first_divergence": "scenario 1: node exit 1: cjs/loader:1553:32)\n    at Module._load (node:internal/modules/cjs/loader:1355:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47\n\nNode.js v24.15.0", "files": ["engine.js", "main.js"], "sec": 246.9, "cost_usd": 0.0029}
+{"t": "2026-06-16T17:10:56", "run": "20260616-170639", "attempt": 1, "ok": false, "first_divergence": "scenario 1: kills = None != '1'", "files": ["engine.js", "main.js"], "sec": 254.3, "cost_usd": 0.003}
+{"t": "2026-06-16T17:11:05", "run": "20260616-170639", "attempt": 7, "ok": false, "first_divergence": "scenario 1: node exit 1: cjs/loader:1553:32)\n    at Module._load (node:internal/modules/cjs/loader:1355:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47\n\nNode.js v24.15.0", "files": ["engine.js", "main.js"], "sec": 262.9, "cost_usd": 0.003}
+{"t": "2026-06-16T17:12:04", "run": "20260616-170639", "attempt": 4, "ok": false, "first_divergence": "scenario 1: node exit 1: cjs/loader:1553:32)\n    at Module._load (node:internal/modules/cjs/loader:1355:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\n    at node:internal/main/run_main_module:33:47\n\nNode.js v24.15.0", "files": ["engine.js", "main.js"], "sec": 322.0, "cost_usd": 0.0038}
+{"t": "2026-06-16T17:12:52", "run": "20260616-170639", "attempt": 8, "ok": false, "first_divergence": "scenario 1: ticks = '2' != '1'", "files": ["engine.js", "main.js"], "sec": 369.8, "cost_usd": 0.0029}
+{"t": "2026-06-16T17:12:52", "run": "20260616-170639", "summary": true, "cracked_at": null, "attempts": 11, "passed": 0, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0296}
+{"t": "2026-06-16T17:17:47", "run": "20260616-171620", "attempt": 10, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 84.9, "cost_usd": 0.001}
+{"t": "2026-06-16T17:17:50", "run": "20260616-171620", "attempt": 3, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 88.0, "cost_usd": 0.0011}
+{"t": "2026-06-16T17:17:51", "run": "20260616-171620", "attempt": 7, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 88.3, "cost_usd": 0.0011}
+{"t": "2026-06-16T17:18:01", "run": "20260616-171620", "attempt": 1, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 98.9, "cost_usd": 0.0012}
+{"t": "2026-06-16T17:18:03", "run": "20260616-171620", "attempt": 5, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 100.9, "cost_usd": 0.0012}
+{"t": "2026-06-16T17:18:08", "run": "20260616-171620", "attempt": 4, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 105.7, "cost_usd": 0.0013}
+{"t": "2026-06-16T17:18:16", "run": "20260616-171620", "attempt": 8, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 113.6, "cost_usd": 0.0013}
+{"t": "2026-06-16T17:21:31", "run": "20260616-171620", "attempt": 2, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 308.5, "cost_usd": 0.0011}
+{"t": "2026-06-16T17:21:34", "run": "20260616-171620", "attempt": 9, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 311.4, "cost_usd": 0.0016}
+{"t": "2026-06-16T17:23:34", "run": "20260616-171620", "attempt": 6, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 431.1, "cost_usd": 0.0014}
+{"t": "2026-06-16T17:23:34", "run": "20260616-171620", "attempt": 11, "ok": true, "first_divergence": null, "files": ["game.js", "main.js"], "sec": 431.2, "cost_usd": 0.0012}
+{"t": "2026-06-16T17:23:34", "run": "20260616-171620", "summary": true, "cracked_at": 10, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0135}
