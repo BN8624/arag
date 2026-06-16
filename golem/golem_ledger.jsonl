@@ -194,3 +194,15 @@
 {"t": "2026-06-16T18:10:35", "run": "20260616-180334", "attempt": 5, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 415.9, "cost_usd": 0.0011}
 {"t": "2026-06-16T18:10:54", "run": "20260616-180334", "attempt": 3, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 434.7, "cost_usd": 0.0011}
 {"t": "2026-06-16T18:10:54", "run": "20260616-180334", "summary": true, "cracked_at": 4, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0127}
+{"t": "2026-06-16T19:38:56", "run": "20260616-193644", "attempt": 3, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 126.0, "cost_usd": 0.0014}
+{"t": "2026-06-16T19:39:02", "run": "20260616-193644", "attempt": 4, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 131.7, "cost_usd": 0.0016}
+{"t": "2026-06-16T19:39:04", "run": "20260616-193644", "attempt": 11, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 134.0, "cost_usd": 0.0016}
+{"t": "2026-06-16T19:39:04", "run": "20260616-193644", "attempt": 8, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 134.1, "cost_usd": 0.0016}
+{"t": "2026-06-16T19:39:06", "run": "20260616-193644", "attempt": 5, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 135.8, "cost_usd": 0.0016}
+{"t": "2026-06-16T19:39:08", "run": "20260616-193644", "attempt": 1, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 137.7, "cost_usd": 0.0014}
+{"t": "2026-06-16T19:39:33", "run": "20260616-193644", "attempt": 2, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 163.0, "cost_usd": 0.0019}
+{"t": "2026-06-16T19:39:36", "run": "20260616-193644", "attempt": 6, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 165.3, "cost_usd": 0.002}
+{"t": "2026-06-16T19:39:38", "run": "20260616-193644", "attempt": 7, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 167.9, "cost_usd": 0.002}
+{"t": "2026-06-16T19:39:40", "run": "20260616-193644", "attempt": 9, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 170.2, "cost_usd": 0.002}
+{"t": "2026-06-16T19:40:08", "run": "20260616-193644", "attempt": 10, "ok": true, "first_divergence": null, "files": ["dungeon.js", "engine.js", "main.js"], "sec": 197.7, "cost_usd": 0.0019}
+{"t": "2026-06-16T19:40:08", "run": "20260616-193644", "summary": true, "cracked_at": 3, "attempts": 11, "passed": 11, "cap": 11, "width": 11, "keys": 11, "cost_usd_total": 0.0191}
