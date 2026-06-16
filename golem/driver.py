@@ -95,21 +95,26 @@ def _attempt(attempt, base, key, model, run_id, card=None, base_files=None):
         resp = client.generate("generator", build_prompt(card, base_files=base_files))  # 독립 시도
     except Exception as err:   # noqa: BLE001 - 한 시도 폭주가 풀을 안 죽이게
         cost = client.cost_usd().get("total", 0.0)
+        toks = dict(client.tokens)
         _log({"t": datetime.now().isoformat(timespec="seconds"), "run": run_id,
               "attempt": attempt, "ok": False, "error": str(err)[:200],
-              "cost_usd": round(cost, 4)})
-        return attempt, False, f"generate error: {str(err)[:120]}", cost
+              "cost_usd": round(cost, 4), "tokens": toks})
+        return attempt, False, f"generate error: {str(err)[:120]}", cost, toks
     files, res = _one_attempt(resp, cdir, card=card)
     dt = time.time() - t0
     cost = client.cost_usd().get("total", 0.0)
+    toks = dict(client.tokens)   # 이 시도=콜 1회분 input/output/thinking 토큰
     _log({"t": datetime.now().isoformat(timespec="seconds"), "run": run_id,
           "attempt": attempt, "ok": res["pass"],
           "first_divergence": res.get("first_divergence"),
           "files": list(files.keys()), "sec": round(dt, 1),
-          "cost_usd": round(cost, 4)})
+          "cost_usd": round(cost, 4), "tokens": toks})
+    out_budget = toks.get("output", 0) + toks.get("thinking", 0)
     print(f"[attempt {attempt:02d}] pass={res['pass']} "
-          f"{res.get('first_divergence') or 'ALL PASS'} ({dt:.0f}s)")
-    return attempt, res["pass"], res.get("first_divergence"), cost
+          f"{res.get('first_divergence') or 'ALL PASS'} ({dt:.0f}s) "
+          f"in={toks.get('input',0)} out={toks.get('output',0)} "
+          f"think={toks.get('thinking',0)} out+think={out_budget}/32k")
+    return attempt, res["pass"], res.get("first_divergence"), cost, toks
 
 
 def main(argv=None):
@@ -170,6 +175,7 @@ def main(argv=None):
     started = 0
     passed = 0
     total_cost = 0.0
+    tok_rows = []          # 시도별 토큰(컨텍스트 한도 측정용)
     started_lock = threading.Lock()
 
     def worker(attempt):
@@ -183,7 +189,7 @@ def main(argv=None):
         futs = {ex.submit(worker, a): a for a in range(1, args.cap + 1)}
         for fut in as_completed(futs):
             try:
-                a, ok, _fd, cost = fut.result()
+                a, ok, _fd, cost, toks = fut.result()
             except CancelledError:
                 continue
             except AllKeysExhausted as err:
@@ -193,6 +199,8 @@ def main(argv=None):
                         f.cancel()
                 break
             total_cost += cost
+            if toks:
+                tok_rows.append(toks)
             if ok:
                 passed += 1
                 if cracked_at is None:
@@ -201,15 +209,28 @@ def main(argv=None):
                         if not f.done():
                             f.cancel()
 
+    def _tstat(key):
+        vals = [r.get(key, 0) for r in tok_rows]
+        return (min(vals), sum(vals) // len(vals), max(vals)) if vals else (0, 0, 0)
+
+    tin, tout, tthink = _tstat("input"), _tstat("output"), _tstat("thinking")
+    budget = [r.get("output", 0) + r.get("thinking", 0) for r in tok_rows]
+    bud_max = max(budget) if budget else 0
+
     _log({"t": datetime.now().isoformat(timespec="seconds"), "run": run_id,
           "summary": True, "cracked_at": cracked_at, "attempts": started,
           "passed": passed, "cap": args.cap, "width": width, "keys": len(keys),
-          "cost_usd_total": round(total_cost, 4)})
+          "cost_usd_total": round(total_cost, 4),
+          "tokens_min_avg_max": {"input": tin, "output": tout, "thinking": tthink},
+          "out_plus_think_max": bud_max})
     print()
     if cracked_at:
         print(f"[CRACKED @ {cracked_at}] {passed}/{started}통과, cost ~${total_cost:.3f}")
     else:
         print(f"[NOT CRACKED] {passed}/{started}통과(0), cost ~${total_cost:.3f}")
+    print(f"[TOKENS min/avg/max] input={tin} output={tout} thinking={tthink}")
+    print(f"[OUTPUT BUDGET] out+think 최대 {bud_max}/32k "
+          f"({100*bud_max//32768}% 사용) — 출력 한도 여유 측정")
     print(f"[GOLEM] 장부 {LEDGER}, 후보 {base}")
     return 0 if cracked_at else 1
 

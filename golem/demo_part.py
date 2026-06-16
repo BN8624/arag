@@ -28,7 +28,8 @@ except Exception:  # noqa: BLE001
 
 import game_bank as gb
 
-DIR_NAME = {"U": "위", "D": "아래", "L": "왼쪽", "R": "오른쪽"}
+DIR_NAME = {"U": "위", "D": "아래", "L": "왼쪽", "R": "오른쪽", "Q": "포션"}
+CELL_NAME = {"$": "골드", "!": "포션", "^": "함정", ">": "계단"}
 
 
 def build_frames(card, slug):
@@ -61,6 +62,9 @@ def narrate(card, slug, frames):
         has_enemy = "enemy" in inp
         has_combat = "player_hp" in inp
 
+        has_items = "gold" in scenario["golden"]
+        consumed = set()        # 소모된 특수칸 (x,y) — 1회성 + 격자 렌더에서 제거
+
         steps_frames = []
         for k, f in enumerate(fr):
             if k == 0:
@@ -68,38 +72,70 @@ def narrate(card, slug, frames):
             else:
                 cmd = moves[k - 1]
                 prev = fr[k - 1]
-                tag = f"명령 {cmd}({DIR_NAME[cmd]}): "
+                tag = f"명령 {cmd}({DIR_NAME.get(cmd, cmd)}): "
                 if has_combat and prev["php"] == 0:
                     line = tag + "플레이어가 이미 쓰러져 명령 무시됨."
-                    steps_frames.append({"grid": render_grid(grid, f, False),
-                                         "line": line, "steps": f["steps"],
-                                         "php": f["php"], "ehp": f["ehp"]})
-                    continue
-                if has_combat and f["ehp"] < prev["ehp"]:
-                    killed = " — 적 처치!" if f["ehp"] == 0 else ""
-                    line = tag + f"플레이어가 적을 공격 (적 HP {prev['ehp']}→{f['ehp']}){killed}"
-                elif (f["px"], f["py"]) != (prev["px"], prev["py"]):
-                    line = tag + f"플레이어 ({f['px']},{f['py']})로 이동."
+                elif has_items and prev.get("descended"):
+                    line = tag + "이미 계단으로 내려가 명령 무시됨."
                 else:
-                    line = tag + "벽/경계에 막혀 제자리."
-                if has_combat and f["php"] < prev["php"]:
-                    dead = " 플레이어 쓰러짐 — 이후 명령 무시." if f["php"] == 0 else ""
-                    line += f" 적이 반격 (플레이어 HP {prev['php']}→{f['php']}).{dead}"
-                elif has_enemy:
-                    if has_combat and f["ehp"] == 0:
-                        line += " 적은 쓰러져 있음."
-                    elif (f["ex"], f["ey"]) != (prev["ex"], prev["ey"]):
-                        line += f" 적이 ({f['ex']},{f['ey']})로 추격."
+                    parts = []
+                    moved = (f["px"], f["py"]) != (prev["px"], prev["py"])
+                    descended_now = has_items and f.get("descended") and not prev.get("descended")
+                    # --- PHASE 1: 플레이어 ---
+                    if cmd == "Q":
+                        parts.append("포션을 마셔 회복."
+                                     if (has_items and f["potions"] < prev["potions"])
+                                     else "포션이 없어 아무 일 없음.")
+                    elif has_combat and f["ehp"] < prev["ehp"]:
+                        killed = " — 적 처치!" if f["ehp"] == 0 else ""
+                        parts.append(f"적을 공격 (적 HP {prev['ehp']}→{f['ehp']}){killed}")
+                    elif moved:
+                        parts.append(f"({f['px']},{f['py']})로 이동.")
+                        if has_items:
+                            cell = grid[f["py"]][f["px"]]
+                            pos = (f["px"], f["py"])
+                            if cell in CELL_NAME and pos not in consumed:
+                                consumed.add(pos)
+                                if cell == "$":
+                                    parts.append(f"골드 +10 (총 {f['gold']}).")
+                                elif cell == "!":
+                                    parts.append(f"포션을 주움 (보유 {f['potions']}).")
+                                elif cell == "^":
+                                    parts.append("함정을 밟음.")
+                                elif cell == ">":
+                                    parts.append("계단 발견 — 아래층으로 하강!")
                     else:
-                        line += " 적은 제자리."
-            frame = {
-                "grid": render_grid(grid, f, has_enemy and (not has_combat or f.get("ehp", 1) > 0)),
-                "line": line,
-                "steps": f["steps"],
-            }
+                        parts.append("벽/경계에 막혀 제자리.")
+                    # --- PHASE 2: 적 (계단으로 내려간 턴엔 적 행동 없음) ---
+                    if has_enemy and not descended_now:
+                        enemy_moved = "ex" in f and (f["ex"], f["ey"]) != (prev["ex"], prev["ey"])
+                        man = abs(f["px"] - f["ex"]) + abs(f["py"] - f["ey"]) if "ex" in f else 9
+                        if has_combat and f["ehp"] == 0:
+                            if prev["ehp"] > 0:
+                                pass            # 방금 처치 — 공격 절에서 이미 다룸
+                            else:
+                                parts.append("적은 쓰러져 있음.")
+                        elif enemy_moved:
+                            parts.append(f"적이 ({f['ex']},{f['ey']})로 추격.")
+                        elif has_combat and man == 1:
+                            parts.append("적이 반격.")
+                        else:
+                            parts.append("적은 제자리.")
+                    # --- 순 HP 변화(항상 정확) ---
+                    if has_combat and f["php"] != prev["php"]:
+                        dead = " 플레이어 쓰러짐 — 이후 명령 무시." if f["php"] == 0 else ""
+                        parts.append(f"HP {prev['php']}→{f['php']}.{dead}")
+                    line = tag + " ".join(parts)
+            draw_e = has_enemy and (not has_combat or f.get("ehp", 1) > 0)
+            frame = {"grid": render_grid(grid, f, draw_e, consumed),
+                     "line": line, "steps": f["steps"]}
             if has_combat:
                 frame["php"] = f["php"]
                 frame["ehp"] = f["ehp"]
+            if has_items:
+                frame["gold"] = f["gold"]
+                frame["potions"] = f["potions"]
+                frame["descended"] = f["descended"]
             steps_frames.append(frame)
 
         g = scenario["golden"]
@@ -108,20 +144,25 @@ def narrate(card, slug, frames):
             summary += f", 적 ({g['enemy_x']},{g['enemy_y']})"
         if has_combat:
             summary += f", 플레이어HP {g['player_hp']}, 적HP {g['enemy_hp']}"
+        if has_items:
+            summary += f", 골드 {g['gold']}, 포션 {g['potions']}, 하강 {g['descended']}"
         summary += " — 정답과 일치."
         scens.append({"sid": sid, "moves": moves, "frames": steps_frames, "summary": summary})
     return scens
 
 
-def render_grid(grid, f, has_enemy):
-    """격자를 셀 행렬로. #=벽, .=바닥, @=플레이어, E=적, X=둘이 겹침(부품1엔 안 생김)."""
+def render_grid(grid, f, has_enemy, consumed=None):
+    """격자를 셀 행렬로. #=벽, .=바닥, @=플레이어, E=적, X=겹침, $!^>=특수칸(소모되면 바닥)."""
+    consumed = consumed or set()
     rows = []
     for y, row in enumerate(grid):
         cells = []
         for x, ch in enumerate(row):
             c = ch
+            if c in CELL_NAME and (x, y) in consumed:
+                c = "."
             is_p = (x == f["px"] and y == f["py"])
-            is_e = has_enemy and (x == f["ex"] and y == f["ey"])
+            is_e = has_enemy and ("ex" in f) and (x == f["ex"] and y == f["ey"])
             if is_p and is_e:
                 c = "X"
             elif is_p:
@@ -155,6 +196,8 @@ HTML_TMPL = """<!doctype html>
    border-radius:6px;font-size:18px;font-weight:700}
  .c-wall{background:var(--wall)} .c-floor{background:var(--floor)}
  .c-p{background:var(--p);color:#001} .c-e{background:var(--e);color:#fff} .c-x{background:var(--acc);color:#001}
+ .c-gold{background:var(--floor);color:#ffd24a} .c-pot{background:var(--floor);color:#5be3a0}
+ .c-trap{background:var(--floor);color:#ff8a5b} .c-stair{background:var(--floor);color:#b58bff}
  .line{font-size:15px;min-height:42px;line-height:1.4;margin:6px 2px}
  .meta{color:var(--dim);font-size:13px;margin-bottom:4px}
  .hp{font-size:14px;margin:2px 0 2px;font-weight:600;min-height:20px}
@@ -208,14 +251,17 @@ function render(){
   const sc=cur(); const f=sc.frames[fi]; const g=f.grid;
   const grid=document.getElementById('grid');
   grid.style.gridTemplateColumns='repeat('+g[0].length+',34px)'; grid.innerHTML='';
+  const ITEM={'$':['c-gold','$'],'!':['c-pot','!'],'^':['c-trap','^'],'>':['c-stair','>']};
   for(const row of g)for(const ch of row){const d=document.createElement('div');
     let cls='c-floor',t='';
     if(ch==='#')cls='c-wall'; else if(ch==='@'){cls='c-p';t='@'} else if(ch==='E'){cls='c-e';t='E'}
-    else if(ch==='X'){cls='c-x';t='X'}
+    else if(ch==='X'){cls='c-x';t='X'} else if(ITEM[ch]){cls=ITEM[ch][0];t=ITEM[ch][1];}
     d.className='cell '+cls; d.textContent=t; grid.appendChild(d);}
   document.getElementById('meta').textContent='명령열 "'+sc.moves+'"  ·  걸음 '+f.steps;
   const hp=document.getElementById('hp');
-  hp.innerHTML=(f.php!==undefined)?('<span class="pp">@ 플레이어 HP '+f.php+'</span>  ·  <span class="ee">E 적 HP '+f.ehp+'</span>'):'';
+  let h=(f.php!==undefined)?('<span class="pp">@ HP '+f.php+'</span>  ·  <span class="ee">E HP '+f.ehp+'</span>'):'';
+  if(f.gold!==undefined){h+='  ·  골드 '+f.gold+'  ·  포션 '+f.potions+(f.descended?'  ·  ⬇ 하강':'');}
+  hp.innerHTML=h;
   document.getElementById('line').textContent=f.line;
   document.getElementById('prog').textContent=fi+' / '+(sc.frames.length-1);
   document.getElementById('sum').textContent=(fi===sc.frames.length-1)?('✓ '+sc.summary):'';
