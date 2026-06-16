@@ -47,5 +47,10 @@
 - [x] 카드#1 무회귀 — 일반화 후 bank_init 재적재, 솔루션 여전히 4/4 PASS.
 - [x] 카드#2 "merge-2048" — Claude 결정적 2048 레퍼런스(board/moves/main.js)+규칙+4시나리오 →
       oracle 골든 → 적재. 레퍼런스 self-채점 PASS. 골든 손검산 OK(sc1 L→4·sc2 L→12 등).
-- [ ] **(★go 필요) 생성 런** `python golem/driver.py --card merge-2048` — gemma 독립 구현, 카드
-      골든 채점. cracked@N 보고. 통과본은 카드 solution에 갱신(확장 베이스).
+- [x] **생성 런** `driver.py --card merge-2048` (런 20260616-143058) — **cracked@4, 11/11 전부 통과**,
+      $0.027. attempt04 독립 재채점 4/4 정확일치(멀티파일 board/moves/main 157줄). 통과본=카드 solution 갱신.
+      → **A 방식이 처음 보는 게임(2048)에도 됨 확정.** 전투(5/11)보다 깔끔 — 규칙이 명확할수록 잘 됨.
+
+### 3단계 — 확장 루프 (다음, ★go 필요)
+- [ ] 은행 카드(merge-2048 또는 tempo-combat)를 베이스로 "메카닉 하나 더" 확장이 되는지.
+      Claude가 베이스 솔루션+추가 규칙을 주고 gemma가 확장 구현 → 새 골든 채점. 여기까지면 도구 완성형.
