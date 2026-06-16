@@ -1,0 +1,189 @@
+[
+  {
+    "id": "ACC-001",
+    "category": "normal",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        },
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        },
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-01",
+      "RULE-02",
+      "RULE-04"
+    ],
+    "expected": {
+      "turn": 2,
+      "energy": 6,
+      "levels": {
+        "gen1": 1
+      },
+      "productionRate": 6,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "ACC-002",
+    "category": "failure",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 10,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-02"
+    ],
+    "expected": {
+      "turn": 0,
+      "energy": 0,
+      "levels": {},
+      "productionRate": 1,
+      "gameStatus": "PLAYING",
+      "logs": [
+        "Insufficient energy"
+      ]
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "ACC-003",
+    "category": "boundary",
+    "input": {
+      "initialState": {
+        "energy": 999
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-05",
+      "RULE-06"
+    ],
+    "expected": {
+      "turn": 1,
+      "energy": 1000,
+      "productionRate": 1,
+      "gameStatus": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "ACC-004",
+    "category": "normal",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 10
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        },
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-03"
+    ],
+    "expected": {
+      "turn": 0,
+      "energy": 7,
+      "levels": {
+        "gen1": 2
+      },
+      "productionRate": 11,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "ACC-005",
+    "category": "boundary",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 1
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-02"
+    ],
+    "expected": {
+      "turn": 0,
+      "energy": 0,
+      "levels": {
+        "gen1": 1
+      },
+      "productionRate": 6,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  }
+]

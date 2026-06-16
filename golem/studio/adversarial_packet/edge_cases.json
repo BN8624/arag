@@ -1,0 +1,478 @@
+[
+  {
+    "id": "EDGE-001",
+    "input": {
+      "initialState": {
+        "energy": 1000
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-05",
+      "RULE-06"
+    ],
+    "breaks": "Processes actions even if gameStatus is WON at scenario start",
+    "expected": {
+      "turn": 0,
+      "energy": 1000,
+      "productionRate": 1,
+      "gameStatus": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-002",
+    "input": {
+      "initialState": {
+        "energy": 999
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        },
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-06"
+    ],
+    "breaks": "Processes subsequent actions after the win threshold is reached mid-sequence",
+    "expected": {
+      "turn": 1,
+      "energy": 1000,
+      "productionRate": 1,
+      "gameStatus": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-003",
+    "input": {
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-04"
+    ],
+    "breaks": "Sets production rate to 0 instead of 1 when no generators are owned",
+    "expected": {
+      "turn": 1,
+      "energy": 1,
+      "productionRate": 1,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-004",
+    "input": {
+      "constants": {
+        "g1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        },
+        "g2": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 10
+        }
+      },
+      "initialState": {
+        "levels": {
+          "g1": 1,
+          "g2": 2
+        }
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-04"
+    ],
+    "breaks": "Incorrectly sums production rate when multiple generator types are present",
+    "expected": {
+      "turn": 1,
+      "energy": 26,
+      "productionRate": 26,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-005",
+    "input": {
+      "constants": {
+        "g1": {
+          "baseCost": 10,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 30
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "g1"
+        },
+        {
+          "action": "UPGRADE",
+          "id": "g1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-03"
+    ],
+    "breaks": "Calculates upgrade cost using the new level instead of the current level",
+    "expected": {
+      "turn": 0,
+      "energy": 0,
+      "levels": {
+        "g1": 2
+      },
+      "productionRate": 11,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-006",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 999,
+        "levels": {
+          "gen1": 1
+        }
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-05"
+    ],
+    "breaks": "Fails to trigger WON status when energy overshoots the 1000 threshold (checks for equality instead of >=)",
+    "expected": {
+      "turn": 1,
+      "energy": 1005,
+      "productionRate": 6,
+      "gameStatus": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-007",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 999
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        },
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-06"
+    ],
+    "breaks": "Processes a state-changing UPGRADE action after the win threshold is reached via a preceding WAIT action in the same sequence.",
+    "expected": {
+      "turn": 1,
+      "energy": 1000,
+      "levels": {},
+      "productionRate": 1,
+      "gameStatus": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-008",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 1
+        }
+      },
+      "initialState": {
+        "energy": 0,
+        "levels": {
+          "gen1": 31
+        }
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-03"
+    ],
+    "breaks": "Large costMultiplier**level (2^31) overflows standard 32-bit signed integers, potentially resulting in a negative cost calculation that allows the upgrade to proceed despite zero energy.",
+    "expected": {
+      "turn": 0,
+      "energy": 0,
+      "levels": {
+        "gen1": 31
+      },
+      "productionRate": 32,
+      "gameStatus": "PLAYING",
+      "logs": [
+        "Insufficient energy"
+      ]
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-009",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 10,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 9
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-02"
+    ],
+    "breaks": "Boundary condition where energy is exactly one unit less than the currentCost, ensuring the failure trigger is precise and not a 'less than or equal' error.",
+    "expected": {
+      "turn": 0,
+      "energy": 9,
+      "levels": {},
+      "productionRate": 1,
+      "gameStatus": "PLAYING",
+      "logs": [
+        "Insufficient energy"
+      ]
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-010",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 10
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        },
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        },
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-04"
+    ],
+    "breaks": "Ensures that multiple UPGRADES in a single sequence are all reflected in the subsequent WAIT energy gain, rather than only the first upgrade or the final rate being applied.",
+    "expected": {
+      "turn": 1,
+      "energy": 18,
+      "levels": {
+        "gen1": 2
+      },
+      "productionRate": 11,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-011",
+    "input": {},
+    "covers_reqs": [
+      "RULE-01"
+    ],
+    "breaks": "Crashes or fails to return the canonical default state when the input object is empty (absent actions list and absent initialState).",
+    "expected": {
+      "turn": 0,
+      "energy": 0,
+      "levels": {},
+      "productionRate": 1,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-012",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 10
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen_unknown"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-02"
+    ],
+    "breaks": "Does not gracefully handle UPGRADE actions for generator IDs missing from the constants map",
+    "expected": {
+      "turn": 0,
+      "energy": 10,
+      "levels": {},
+      "productionRate": 1,
+      "gameStatus": "PLAYING",
+      "logs": [
+        "Invalid generator ID"
+      ]
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "EDGE-013",
+    "input": {
+      "constants": {
+        "g1": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 5
+        },
+        "g2": {
+          "baseCost": 1,
+          "costMultiplier": 2,
+          "power": 10
+        }
+      },
+      "initialState": {
+        "energy": 10
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "g1"
+        },
+        {
+          "action": "UPGRADE",
+          "id": "g2"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-03"
+    ],
+    "breaks": "Fails to independently track costs and levels when multiple generator IDs are present in constants",
+    "expected": {
+      "turn": 0,
+      "energy": 8,
+      "levels": {
+        "g1": 1,
+        "g2": 1
+      },
+      "productionRate": 16,
+      "gameStatus": "PLAYING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  }
+]

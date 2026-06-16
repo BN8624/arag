@@ -1,0 +1,7 @@
+{
+  "risky_cases": [],
+  "notes": [
+    "RULE-03 specifies 'floor', but schema restricts costs/multipliers to 'int'. Flooring only becomes relevant if the implementation allows floating point constants or if the multiplier is not an integer.",
+    "Resolved BLOCKING: UPGRADE actions for IDs absent from the constants map are treated as invalid, resulting in no state change and adding 'Invalid generator ID' to the logs."
+  ]
+}

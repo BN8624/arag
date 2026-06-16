@@ -1,8 +1,8 @@
 # HANDOFF.md — golem 현재 위치와 다음 액션
 
 ## ▶ 새 세션 여기부터
-- 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G35) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
-- **지금 할 일 한 줄**: Step 6 Adversarial QA — RULE-05/06 승리판정 **평가시점**을 계약에 명문화(SCN-009/010 갈림 원인) + edge_cases·acceptance 다듬기(ACTIVE 오라클오류 교정).
+- 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G37) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
+- **지금 할 일 한 줄**: rung5 — Adversarial QA가 찾은 두 구멍(① actions 부재 시 []로 디폴트 ② 미지 generator id 처리=무변화+로그)을 계약에 명문화 → build_graded 재측정(합의 1.0 유지 + EDGE-011/012 크래시 소거되나).
 - 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
 
 ## 지금 어디 (2026-06-17)
@@ -16,16 +16,18 @@ Golem Studio = `GolemStudioMode.md` §13의 6단계 파이프라인을 실모델
 | Step3 Design | `design.py` | 4모듈 분해(utils←state_manager←engine←main)+traceability, §7·§8.2 PASS → `design_packet/`. |
 | Step4 Spec QA | `specqa.py` | 11 시나리오 구체화 → `specqa_packet/`. **초안**(결함: SCN-006 "ACTIVE" 오라클오류, BLOCKING 추적안됨). |
 | Step5 Build v1 | `build_graded.py` | design 4모듈+시나리오+**합의 채점**(특권 golden 아님). `build.py`는 v0 스파이크로 잔존. |
+| Step6 Adversarial QA | `adversarial.py` | 팀(lead+리뷰어8+synth)이 edge_cases 13+acceptance 5 → `adversarial_packet/`. 수렴 11빌드에 실측: 10개 일치(11/11), **EDGE-011 빈입력 10/11 크래시·EDGE-012 미지id 갈림** 발견. |
 
 **핵심 측정(G33·G34·G35)** — Build 합의(특권 golden 아닌 다수합의)로 "계약이 얼마나 빡빡한가"를 잰다. 한 번에 한 변수.
 - 출력계약 미고정 → 합의 **0.36**.
 - 출력계약 고정 → 합의 **0.66**, 게이트 3/11→8/11. 단 반쪽(빌드가 actions 미실행, turn:0 no-op 합의).
-- 입력 스키마 고정(액션 키 `action`/`id`·`costMultiplier`·캐노니컬 디폴트) → 합의 **0.98**, 게이트 9/11. **진짜 수렴 확인**(SCN-001 turn2/energy6 등 expected 일치, no-op 아님). **"입력+출력 둘 다 못박으면 31B가 거의 완전 수렴" 정량 확정.**
-- 남은 0.02 = no-op 잔재 아니라 **진짜 명세 구멍**: SCN-009/010만 합의 8/9 — RULE-05/06 승리판정 **평가시점** 미고정("액션 처리 전 승리체크 하나"). → Step6가 메울 자리.
+- 입력 스키마 고정(액션 키 `action`/`id`·`costMultiplier`·캐노니컬 디폴트) → 합의 **0.98**, 게이트 9/11. 진짜 수렴.
+- 평가시점 명문화(RULE-05/06 시작+액션후 체크, WON시 중단) + SCN-006 ACTIVE→PLAYING → 합의 **1.0**, 게이트 11/11, 11빌드 expected 완전 수렴(G36). **사다리 0.36→0.66→0.98→1.0 = 계약 한 칸 박을 때마다 한 칸 수렴.**
+- Step6 실측(G37): 수렴 11빌드가 edge 10개는 11/11 일치하나 **EDGE-011(빈 {})·EDGE-012(미지 id)에서 깨짐** → 남은 두 구멍 지목.
 
-주의: Step4는 초안(결함 있음, Step6가 다듬을 예정). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G35.
+주의: Step4는 초안(결함 있음). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G37.
 
 ## 다음 액션
 
-1. **Step 6 Adversarial QA**(위 "지금 할 일 한 줄"). RULE-05/06 승리판정 평가시점을 계약에 명문화(SCN-009/010 갈림 = 0.98의 남은 구멍) + edge_cases.json + acceptance draft 다듬기(SCN-006 "ACTIVE" 오라클오류 교정). ★키.
-2. (backlog) specqa validator 강화(계약 외 상태값 거부 + BLOCKING 해소 추적) / 측정 N≥10 장르확장.
+1. **rung5 — 두 구멍 계약 명문화 + 재측정**(위 "지금 할 일 한 줄"). ① contract.json에 "actions 부재 시 [] 디폴트"(빈입력 견고성) ② "미지 generator id = 무변화 + 'Invalid generator ID' 로그"(adversarial_packet 제안) 박고 → build_graded 재실행, 합의 1.0 유지 + EDGE-011/012 크래시 소거 확인(edge를 채점 시나리오에 포함해 잴 수도). 한 번에 한 변수. ★키.
+2. (backlog) specqa/adversarial validator 강화(BLOCKING 해소 추적) / 측정 N≥10 장르확장.

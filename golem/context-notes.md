@@ -354,3 +354,18 @@ turn0/energy1000/WON(시작 체크로 WAIT 스킵=expected), SCN-003 turn1/energ
 **의미**: "계약 빡빡→싼 모델 수렴" 사다리 완성 — 0.36(미고정)→0.66(출력)→0.98(입력)→1.0(평가시점).
 명세 구멍을 계약에 박을 때마다 31B가 한 칸씩 수렴. 합의 채점이 "어디가 안 박혔나"를 매번 정확히 지목.
 다음(Step6 PhaseB): Adversarial QA 팀 모듈(adversarial.py) — 모델이 깨는 edge_cases를 능동 탐색.
+
+## G37 — Adversarial QA 실측: 깨는 edge 둘 발견 (2026-06-17, 키 씀, Step6 PhaseB)
+adversarial.py(§13 Step6) 실행: 31B 팀(lead+리뷰어 8축+synthesis)이 edge_cases 13 + acceptance 5 생성,
+validator PASS. 골든을 계약 대비 손검증 → EDGE-001~010·013 계약과 일치(EDGE-008 "32bit overflow"
+설명만 JS float64엔 틀림, 골든은 맞음).
+**핵심 — 새 키 0으로 수렴한 11빌드(graded-042747)에 edge를 먹여 실측**(관측 우선):
+- EDGE-001~010·013: **합의 11/11, golden 일치**. 경계(999/1000/1005)·다중제너레이터·floor·insufficient
+  경계까지 수렴 빌드가 동일·정확 처리. → 계약이 그만큼 빡빡하다는 직접 증거.
+- **EDGE-011(빈입력 {}) : 10/11 크래시**. actions 키 부재를 대부분 못 버팀(캐노니컬 디폴트 1개만).
+- **EDGE-012(미지 generator id) : 5 크래시 / 6 무변화·무로그 / 골든 로그 0개**. 계약 침묵 영역 → 빌드 갈림.
+**의미**: §8.5 "구현을 깨는 edge_cases" 충족 — 단순 충족이 아니라 다음 명세 구멍 둘을 정확 지목:
+① actions 부재 시 []로 디폴트(빈입력 견고성) ② 미지 generator id 처리(무변화+로그 명문화).
+EDGE-012 골든은 계약에 없던 동작이라 synthesis가 BLOCKING 해소로 제안한 **계약 확장 후보**(notes 기록).
+**다음 사다리(rung5)**: 이 둘을 계약에 박고 build_graded로 합의가 1.0 유지+크래시 소거되나 재측정.
+adversarial_packet/은 커밋(packet=정본). build_runs/는 gitignore.
