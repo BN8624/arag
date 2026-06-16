@@ -85,3 +85,9 @@
 - [x] 질문 등급, 변경 등급, deprecation, Spec QA/Adversarial QA, JSON traceability, 롤백 분류 반영
 - [x] 문서 내부 충돌 표현 재검색
 - [x] 문서 검증 결과 보고
+
+## Golem Studio v0.1 Pending 기본값 정리 (2026-06-17)
+- [x] v0.1 JS module format을 CommonJS only로 고정
+- [x] module_manifest v0.1 최소 필드 예시 추가
+- [x] static_gate bridge 입력/출력 JSON 기본값 추가
+- [x] A/B/C 비교 provisional threshold 추가
