@@ -20,8 +20,10 @@
 - [x] A안 정의 = lead 자기검토(self-review, 편향) → A/B/C가 "독립리뷰가 self-review 이기나" 측정
 - [x] 리뷰 스키마(§6)·10축(§2.2)·PENDING-004 판정(§19) 반영
 - [x] fake 픽스처 replay 검증 — 의도적 중복으로 dedup 작동 확인(A2<B6<C12 unique, dup 0.077), API 0회
-- [ ] (★키, go 대기) `python golem/studio/planning.py --idea "..."` 실제 31B 호출 — 진짜 A/B/C 측정
-- [ ] 실측 후: 독립리뷰가 self-review 이기나 / C가 B 이기나(PENDING-004 임계) 판정 → reviewer 기본값 결정
+- [x] (★키) `planning.py --idea 방치형게임` 실측 — A6<B11<C27 unique, 독립리뷰>self·10>3 둘 다 임계 통과(G27)
+- [x] (★키) synthesis 추가 + 실발사 — BLOCKING 11→0, 부동소수점 floor() 못박음, 계약 FROZEN(G28). 패킷=planning_packet/
+- [ ] (다음, ★키, go 대기) Build 단계: FROZEN 계약 → driver 11키 select-best → static_gate+contract_validator+grade. golden용 오라클 연결 선행
+- [ ] (대안) dedup 의미기반 개선 후 A/B/C N≥10 / acceptance expect 정확값화(Spec QA)
 
 ## 과거 히스토리
 

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "SCN-001",
+    "setup": "Scenario defined as: [{action: 'WAIT'}, {action: 'UPGRADE', id: 'gen1'}, {action: 'WAIT'}]",
+    "input": "node main.js --scenario 1",
+    "expect": "State should show turn: 2, energy increased by initial rate then by upgraded rate, and gen1 level: 1."
+  },
+  {
+    "id": "SCN-002",
+    "setup": "Scenario defined as: [{action: 'UPGRADE', id: 'gen1'}] where energy is 0 and cost is 10",
+    "input": "node main.js --scenario 2",
+    "expect": "State energy remains 0, gen1 level remains 0, logs contains 'Insufficient energy'."
+  },
+  {
+    "id": "SCN-003",
+    "setup": "Scenario defined as: [{action: 'WAIT'} (until 1000 energy), {action: 'WAIT'}]",
+    "input": "node main.js --scenario 3",
+    "expect": "gameStatus is 'WON', and the final 'WAIT' action was ignored."
+  }
+]

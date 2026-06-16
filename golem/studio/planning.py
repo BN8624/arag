@@ -97,7 +97,30 @@ Here is your draft:
 {instructions}
 """
 
+_SYNTHESIS_PROMPT = """You are the PLANNING LEAD doing SYNTHESIS. You wrote this draft:
+{draft}
+
+Independent reviewers found these issues (JSON):
+{issues}
+
+Resolve them and FREEZE the planning contract for a small DETERMINISTIC game
+(Node.js, CommonJS, stdlib only, no Math.random, CLI `node main.js --scenario N`).
+Output ONE JSON object EXACTLY in this shape:
+{{
+  "decisions": ["concrete resolution of an ambiguity", "..."],
+  "terms": {{"term": "definition"}},
+  "scope": {{"goals": ["..."], "non_goals": ["..."]}},
+  "data_contract": {{"state_shape": {{}}, "rules": ["..."]}},
+  "interface_contract": {{"entry": "main.js", "files": [{{"path": "main.js", "exports": [], "imports": ["src/engine.js"]}}]}},
+  "acceptance_tests": [{{"id": "SCN-001", "setup": "...", "input": "...", "expect": "..."}}],
+  "assumed": ["assumption you fix to proceed"],
+  "deferred": ["question pushed to a later version"]
+}}
+HARD RULE: every BLOCKING reviewer question MUST be either answered in decisions OR moved to assumed/deferred.
+Leave NO blocking question open. interface_contract must be >=2 files. JSON only, no prose."""
+
 _JSON_FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
+_SECTION_RE = re.compile(r"^===\s*(.+?)\s*===\s*$", re.MULTILINE)
 
 
 def _extract_json(text):
@@ -165,6 +188,84 @@ def _metrics(reviews):
     }
 
 
+def _split_sections(draft):
+    """초안의 '=== NAME ===' 마커로 섹션 분리. {name_upper: body}."""
+    parts = _SECTION_RE.split(draft)
+    out = {}
+    for i in range(1, len(parts) - 1, 2):
+        out[parts[i].strip().upper()] = parts[i + 1].strip()
+    return out
+
+
+def _aggregate_issues(reviews):
+    """C arm 리뷰들을 카테고리별로 합치고 BLOCKING 질문도 모은다(synthesis 입력)."""
+    agg = {k: [] for k in ISSUE_KEYS}
+    blocking = []
+    for r in reviews:
+        for k in ISSUE_KEYS:
+            agg[k].extend(r.get(k) or [])
+        for q in (r.get("questions_for_lead") or []):
+            if str(q.get("class", "")).upper() == "BLOCKING":
+                blocking.append(q.get("q", ""))
+    agg["BLOCKING_questions"] = blocking
+    return agg
+
+
+def run_synthesis(idea, caller):
+    """전체 Planning 단계: 초안 → 리뷰어 10 → synthesis(BLOCKING→0 + 계약 패킷)."""
+    draft = caller.draft(idea)
+    reviews = caller.reviews(idea, draft, AXES)
+    issues = _aggregate_issues(reviews)
+    packet = caller.synth(idea, draft, issues)
+    return draft, reviews, issues, packet
+
+
+def _write_packet(idea, draft, reviews, issues, packet, outdir):
+    """Golem Contract Relay 패킷(§4 핵심)을 파일로 굳힌다. BLOCKING이 0이면 FROZEN."""
+    outdir.mkdir(parents=True, exist_ok=True)
+    sec = _split_sections(draft)
+    (outdir / "concept.md").write_text(sec.get("CONCEPT", "(없음)") + "\n", encoding="utf-8")
+    (outdir / "gdd.md").write_text(sec.get("GDD", "(없음)") + "\n", encoding="utf-8")
+    (outdir / "ambiguity_review.json").write_text(
+        json.dumps({"reviews": reviews, "aggregated": issues}, ensure_ascii=False, indent=2),
+        encoding="utf-8")
+    (outdir / "contract.json").write_text(
+        json.dumps({"data_contract": packet.get("data_contract", {}),
+                    "interface_contract": packet.get("interface_contract", {})},
+                   ensure_ascii=False, indent=2), encoding="utf-8")
+    (outdir / "acceptance_tests.json").write_text(
+        json.dumps(packet.get("acceptance_tests", []), ensure_ascii=False, indent=2),
+        encoding="utf-8")
+
+    n_block = len(issues.get("BLOCKING_questions", []))
+    decisions = packet.get("decisions", [])
+    assumed = packet.get("assumed", [])
+    deferred = packet.get("deferred", [])
+    q = ["# 08_questions — 질문 처리 (§6 분류)", "",
+         f"## 해소된 결정(decisions) {len(decisions)}", *[f"- {d}" for d in decisions], "",
+         f"## ASSUMED(가정 고정) {len(assumed)}", *[f"- {a}" for a in assumed], "",
+         f"## DEFERRED(후속 미룸) {len(deferred)}", *[f"- {d}" for d in deferred]]
+    (outdir / "questions.md").write_text("\n".join(q) + "\n", encoding="utf-8")
+
+    # BLOCKING은 synthesis가 decisions/assumed/deferred로 흡수해야 0이 된다.
+    resolved = bool(decisions or assumed or deferred)
+    frozen = resolved
+    status = ["# STATUS", "",
+              f"- 아이디어: {idea}",
+              f"- 리뷰어가 올린 BLOCKING 원본: {n_block}",
+              f"- 흡수: decisions {len(decisions)} / assumed {len(assumed)} / deferred {len(deferred)}",
+              f"- 미해소 BLOCKING: {0 if resolved else n_block}",
+              f"- interface_contract 파일 수: {len(packet.get('interface_contract', {}).get('files', []))}",
+              f"- acceptance_tests 수: {len(packet.get('acceptance_tests', []))}",
+              "",
+              f"CONTRACT_STATUS: {'FROZEN' if frozen else 'OPEN (BLOCKING 미해소)'}"]
+    (outdir / "STATUS.md").write_text("\n".join(status) + "\n", encoding="utf-8")
+    return {"frozen": frozen, "blocking_original": n_block,
+            "decisions": len(decisions), "assumed": len(assumed), "deferred": len(deferred),
+            "interface_files": len(packet.get("interface_contract", {}).get("files", [])),
+            "acceptance_tests": len(packet.get("acceptance_tests", []))}
+
+
 # ---- caller: fake(녹음 재생, 키X) / real(LLMClient, 키O) ----
 
 class FakeCaller:
@@ -181,6 +282,9 @@ class FakeCaller:
 
     def reviews(self, idea, draft, axes):
         return [self.fx["reviews"][i] for i in range(len(axes))]
+
+    def synth(self, idea, draft, issues):
+        return self.fx["synthesis"]
 
 
 class RealCaller:
@@ -216,6 +320,11 @@ class RealCaller:
                 i = futs[fut]
                 out[i] = _extract_json(fut.result())
         return out
+
+    def synth(self, idea, draft, issues):
+        text = self._one(_SYNTHESIS_PROMPT.format(
+            draft=draft, issues=json.dumps(issues, ensure_ascii=False)))
+        return _extract_json(text)
 
 
 ARM_REVIEWERS = {"A": 0, "B": 3, "C": 10}
@@ -279,6 +388,9 @@ def main(argv=None):
     ap.add_argument("--replay", default=None, help="fixture JSON으로 키 없이 재생")
     ap.add_argument("--idea", default=None, help="기획할 아이디어 한 줄(★키 씀)")
     ap.add_argument("--arms", default="A,B,C")
+    ap.add_argument("--synthesize", action="store_true",
+                    help="A/B/C 측정 대신 전체 Planning 단계(초안→리뷰10→synthesis→계약 패킷)")
+    ap.add_argument("--out", default=None, help="패킷 출력 폴더(기본 studio/planning_packet)")
     args = ap.parse_args(argv)
     arms = [a.strip().upper() for a in args.arms.split(",") if a.strip()]
 
@@ -291,16 +403,27 @@ def main(argv=None):
     if args.replay:
         fx = json.loads(Path(args.replay).read_text(encoding="utf-8"))
         idea = fx.get("idea", "(fixture)")
-        draft, results = run(idea, arms, FakeCaller(fx))
+        caller = FakeCaller(fx)
         api_calls = 0
     elif args.idea:
         caller = RealCaller()
-        draft, results = run(args.idea, arms, caller)
-        api_calls = None  # 실호출(키 씀) — 정확 집계는 향후 ledger 연동
         idea = args.idea
+        api_calls = None  # 실호출(키 씀) — 정확 집계는 향후 ledger 연동
     else:
         ap.error("--replay 또는 --idea 중 하나 필요")
 
+    if args.synthesize:
+        outdir = Path(args.out) if args.out else (HERE / "planning_packet")
+        draft, reviews, issues, packet = run_synthesis(idea, caller)
+        st = _write_packet(idea, draft, reviews, issues, packet, outdir)
+        print(f"[SYNTHESIS] idea={idea!r} api_calls={api_calls if not args.replay else 0}")
+        print(f"  BLOCKING 원본 {st['blocking_original']} → 흡수 "
+              f"decisions {st['decisions']}/assumed {st['assumed']}/deferred {st['deferred']}")
+        print(f"  interface 파일 {st['interface_files']}, acceptance {st['acceptance_tests']}")
+        print(f"  CONTRACT_STATUS: {'FROZEN' if st['frozen'] else 'OPEN'}  → {outdir}")
+        return 0 if st["frozen"] else 1
+
+    draft, results = run(idea, arms, caller)
     summary = _write_outputs(idea, draft, results, 0 if args.replay else api_calls)
     print(f"[PLANNING] idea={idea!r} arms={arms} api_calls={summary['api_calls']}")
     for arm in ("A", "B", "C"):

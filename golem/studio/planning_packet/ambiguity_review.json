@@ -1,0 +1,259 @@
+{
+  "reviews": [
+    {
+      "ambiguous_terms": [
+        "cost",
+        "value"
+      ],
+      "missing_rules": [
+        "Formula for calculating current cost using baseCost and costMultiplier",
+        "Rule for incrementing generatorLevel upon successful UPGRADE",
+        "Mapping between Upgrade ID and specific Generator entities"
+      ],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Assumption that state.generatorLevel tracks all upgrades globally despite UPGRADE requiring an ID",
+        "Assumption that value refers to the Generator's power"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "How is the cost of an upgrade calculated from baseCost and costMultiplier (e.g., linear or exponential)?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Since UPGRADE takes an ID, should the state track levels per generator (a map) rather than a single generatorLevel integer?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Is the 'value' mentioned in the UPGRADE action identical to the 'power' field in the Generator entity?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [
+        "Behavior when a scenario sequence contains an invalid action (not WAIT or UPGRADE)",
+        "Behavior when an UPGRADE action provides an Upgrade ID that does not exist",
+        "Whether the scenario runner stops processing actions immediately upon transition to 'WON' or continues until the sequence is exhausted",
+        "Error handling for when the CLI argument '--scenario N' refers to a non-existent or malformed scenario"
+      ],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Assumption that the 'cost' used in the UPGRADE action is automatically calculated from baseCost and costMultiplier without a defined formula"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "How should the system respond to invalid inputs within a scenario (e.g., invalid Action or Upgrade ID)? Should it crash, skip, or log an error?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Once the status transitions to 'WON', should the remaining actions in the scenario sequence be ignored?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "What is the expected CLI output/exit code if the provided scenario N is missing?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "The state's 'generatorLevel' assumes a single generator type, but the UPGRADE action requires an 'Upgrade ID', implying multiple possible generator types whose individual levels must be tracked to calculate costs."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "Since the UPGRADE action takes an 'Upgrade ID', should the state track a mapping of levels per generator ID rather than a single 'generatorLevel'?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "cost",
+        "value",
+        "Upgrade ID"
+      ],
+      "missing_rules": [],
+      "conflicting_rules": [
+        "The UPGRADE action requires an 'Upgrade ID', but the STATE only provides a single 'generatorLevel' to track progress."
+      ],
+      "underspecified_outputs": [
+        "The specific energy deduction for UPGRADE (formula for cost using baseCost and costMultiplier is missing).",
+        "The specific productionRate increase for UPGRADE (relationship between 'value' and 'power' is not defined)."
+      ],
+      "risky_assumptions": [],
+      "questions_for_lead": [
+        {
+          "q": "What is the mathematical formula to calculate the current cost of an upgrade based on its baseCost, costMultiplier, and current level?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Are there multiple types of generators? If so, should the state track levels in a map/list rather than a single 'generatorLevel'?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "REQ-002, REQ-003, REQ-004, and REQ-005 are duplicates of rules already defined in the GDD section, creating a risk of divergence during updates."
+      ],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [
+        "value (used in UPGRADE state change, likely refers to 'power' in Generator definition)"
+      ],
+      "missing_rules": [
+        "The mathematical formula for calculating current upgrade cost using baseCost and costMultiplier"
+      ],
+      "conflicting_rules": [
+        "The STATE defines a single 'generatorLevel', but the GDD specifies that 'UPGRADE' takes an 'Upgrade ID' and 'Generator' is a static definition, implying multiple different generator types."
+      ],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Assuming 'generatorLevel' increments by 1 upon every successful UPGRADE action."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "What is the exact formula for cost calculation (e.g., baseCost * (multiplier ^ level))?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Does the state need to track levels per generator ID instead of a single global 'generatorLevel'?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [],
+      "questions_for_lead": [
+        {
+          "q": "The 'Generator' entity includes 'costMultiplier', but the 'UPGRADE' action logic only references a flat 'cost'. Is cost scaling a required feature, or is 'costMultiplier' out-of-scope for this MVP?",
+          "class": "ASSUMED"
+        },
+        {
+          "q": "The state contains a 'logs' array, but the GDD describes logs as 'output'. Is persisting the full history of logs within the game state a required feature, or can it be handled via standard CLI stdout?",
+          "class": "DEFERRED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "Upgrade ID (singular vs plural context)"
+      ],
+      "missing_rules": [
+        "Formula for calculating current cost using baseCost and costMultiplier",
+        "Whether an UPGRADE action increments the turn counter"
+      ],
+      "conflicting_rules": [
+        "GDD specifies 'Upgrade ID' (implying multiple generator types), but STATE only tracks a single 'generatorLevel'"
+      ],
+      "underspecified_outputs": [
+        "Format/source of the 'predefined sequence of actions' for --scenario N"
+      ],
+      "risky_assumptions": [
+        "Assumption that productionRate only increases by 'power' and doesn't scale with level"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "Is there only one type of Generator, or should the state track levels for multiple Generator IDs?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "What is the exact mathematical formula for the upgrade cost scaling?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Does performing an UPGRADE action count as a turn/tick?",
+          "class": "ASSUMED"
+        }
+      ]
+    }
+  ],
+  "aggregated": {
+    "ambiguous_terms": [
+      "cost",
+      "value",
+      "cost",
+      "value",
+      "Upgrade ID",
+      "value (used in UPGRADE state change, likely refers to 'power' in Generator definition)",
+      "Upgrade ID (singular vs plural context)"
+    ],
+    "missing_rules": [
+      "Formula for calculating current cost using baseCost and costMultiplier",
+      "Rule for incrementing generatorLevel upon successful UPGRADE",
+      "Mapping between Upgrade ID and specific Generator entities",
+      "Behavior when a scenario sequence contains an invalid action (not WAIT or UPGRADE)",
+      "Behavior when an UPGRADE action provides an Upgrade ID that does not exist",
+      "Whether the scenario runner stops processing actions immediately upon transition to 'WON' or continues until the sequence is exhausted",
+      "Error handling for when the CLI argument '--scenario N' refers to a non-existent or malformed scenario",
+      "The mathematical formula for calculating current upgrade cost using baseCost and costMultiplier",
+      "Formula for calculating current cost using baseCost and costMultiplier",
+      "Whether an UPGRADE action increments the turn counter"
+    ],
+    "conflicting_rules": [
+      "The UPGRADE action requires an 'Upgrade ID', but the STATE only provides a single 'generatorLevel' to track progress.",
+      "The STATE defines a single 'generatorLevel', but the GDD specifies that 'UPGRADE' takes an 'Upgrade ID' and 'Generator' is a static definition, implying multiple different generator types.",
+      "GDD specifies 'Upgrade ID' (implying multiple generator types), but STATE only tracks a single 'generatorLevel'"
+    ],
+    "underspecified_outputs": [
+      "The specific energy deduction for UPGRADE (formula for cost using baseCost and costMultiplier is missing).",
+      "The specific productionRate increase for UPGRADE (relationship between 'value' and 'power' is not defined).",
+      "Format/source of the 'predefined sequence of actions' for --scenario N"
+    ],
+    "risky_assumptions": [
+      "Assumption that state.generatorLevel tracks all upgrades globally despite UPGRADE requiring an ID",
+      "Assumption that value refers to the Generator's power",
+      "Assumption that the 'cost' used in the UPGRADE action is automatically calculated from baseCost and costMultiplier without a defined formula",
+      "The state's 'generatorLevel' assumes a single generator type, but the UPGRADE action requires an 'Upgrade ID', implying multiple possible generator types whose individual levels must be tracked to calculate costs.",
+      "REQ-002, REQ-003, REQ-004, and REQ-005 are duplicates of rules already defined in the GDD section, creating a risk of divergence during updates.",
+      "Assuming 'generatorLevel' increments by 1 upon every successful UPGRADE action.",
+      "Assumption that productionRate only increases by 'power' and doesn't scale with level"
+    ],
+    "BLOCKING_questions": [
+      "How is the cost of an upgrade calculated from baseCost and costMultiplier (e.g., linear or exponential)?",
+      "Since UPGRADE takes an ID, should the state track levels per generator (a map) rather than a single generatorLevel integer?",
+      "How should the system respond to invalid inputs within a scenario (e.g., invalid Action or Upgrade ID)? Should it crash, skip, or log an error?",
+      "Once the status transitions to 'WON', should the remaining actions in the scenario sequence be ignored?",
+      "Since the UPGRADE action takes an 'Upgrade ID', should the state track a mapping of levels per generator ID rather than a single 'generatorLevel'?",
+      "What is the mathematical formula to calculate the current cost of an upgrade based on its baseCost, costMultiplier, and current level?",
+      "Are there multiple types of generators? If so, should the state track levels in a map/list rather than a single 'generatorLevel'?",
+      "What is the exact formula for cost calculation (e.g., baseCost * (multiplier ^ level))?",
+      "Does the state need to track levels per generator ID instead of a single global 'generatorLevel'?",
+      "Is there only one type of Generator, or should the state track levels for multiple Generator IDs?",
+      "What is the exact mathematical formula for the upgrade cost scaling?"
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+A deterministic incremental game where the player accumulates "Energy" over discrete ticks. The player spends Energy to purchase "Generators" that increase the amount of Energy produced per tick. The goal is to reach a target energy threshold through strategic upgrades.

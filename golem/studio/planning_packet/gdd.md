@@ -1,0 +1,21 @@
+- Player actions:
+    - `WAIT`: 
+        - Input: None. 
+        - State change: `turn` increases by 1; `energy` increases by `productionRate`. 
+        - Failure case: None. 
+        - Log output: "Tick [N]: Produced [X] energy. Total: [Y]"
+    - `UPGRADE`: 
+        - Input: Upgrade ID. 
+        - State change: `energy` decreases by `cost`; `productionRate` increases by `value`. 
+        - Failure case: `energy < cost` (no state change). 
+        - Log output: "Upgrade purchased! New Rate: [Z]" or "Insufficient energy."
+- Entities:
+    - `Generator`: A static definition containing `baseCost`, `costMultiplier`, and `power` (production increase).
+- Win/lose conditions:
+    - Win: `energy >= 1000`.
+    - Lose: None (infinite turns), but scenario ends upon Win.
+- NON-GOALS:
+    - Real-time timers (everything is tick-based).
+    - Random events or critical hits.
+    - Graphical User Interface (GUI).
+    - Complex save/load systems (state is managed per scenario run).

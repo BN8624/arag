@@ -62,5 +62,19 @@
       "underspecified_outputs": ["REQ ids not linked to state fields for handoff"],
       "risky_assumptions": [], "questions_for_lead": []
     }
-  ]
+  ],
+  "synthesis": {
+    "decisions": [
+      "crafting is OUT of scope for v0 (resolves the BLOCKING question)",
+      "BLOCKED log line format is fixed: 'BLOCKED <DIR>'",
+      "two enemies never occupy the same tile; spawns must be on distinct tiles"
+    ],
+    "terms": {"turn": "one processed player command", "tile": "grid cell at integer x,y"},
+    "scope": {"goals": ["tile move", "enemy combat", "item pickup"], "non_goals": ["graphics", "random map", "crafting"]},
+    "data_contract": {"state_shape": {"turn": 0, "player": {"x": 1, "y": 1, "hp": 5, "inventory": []}, "enemies": [], "tiles": [], "log": []}, "rules": ["move into wall keeps position", "adjacent enemy attacks for 1"]},
+    "interface_contract": {"entry": "main.js", "files": [{"path": "main.js", "exports": [], "imports": ["src/engine.js"]}, {"path": "src/engine.js", "exports": ["runScenario"], "imports": ["src/state.js"]}, {"path": "src/state.js", "exports": ["createInitialState"], "imports": []}]},
+    "acceptance_tests": [{"id": "SCN-001", "setup": "player(1,1), wall(2,1)", "input": "MOVE_EAST", "expect": "player stays (1,1), turn 1, log 'BLOCKED EAST'"}],
+    "assumed": ["potion at full hp is a no-op but still consumes a turn"],
+    "deferred": ["multiple item types beyond potion"]
+  }
 }

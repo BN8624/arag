@@ -5,14 +5,15 @@
 - **v0.1 Contract Microkernel Replay 완료** + **Step 2 Planning A/B/C 측정 하니스 빌드+replay 검증 완료**. 둘 다 키 0.
 - v0.1: replay 5/5(통과1+음성4 각각 지정 check 실패). `static_gate.py`는 src/ 지원 확장, 기존 평면 게임 무회귀.
 - Step 2: `planning.py` — A(self-review)/B(1+3)/C(1+10) arm, 리뷰어 키 병렬, dedup 메트릭. fake 픽스처 replay로 A2<B6<C12 unique·dup 0.077·BLOCKING 1 측정 확인(plumbing 증명, 데이터는 가짜).
-- **Planning A/B/C 첫 실측 완료**(아이디어=방치형게임, 키 씀). A(self) 6 → B(1+3) 11 → C(1+10) 27 unique. B>A·C>B 둘 다 PENDING-004 임계 통과 → 독립리뷰가 self-review 이기고 10이 3을 이김. 부동소수점 반올림 등 오라클 깨는 실질 모호성 포착(G27).
-- caveat: N=1(§19는 ≥10), dedup이 문자열기반이라 의미중복 과대계상 → 방향은 신뢰, 크기는 부풀려짐.
-- 반박/결정 로그: context-notes G25(v0.1)·G26(하니스)·G27(첫 실측 결과+caveat).
+- **Planning 단계 완성 — 방치형게임 계약 FROZEN**(키 씀). 초안→리뷰어10→synthesis로 BLOCKING 11→0(decisions 9/assumed 3/deferred 2). 부동소수점 모호성을 RULE-03 floor()로 못박는 등 결정성 깨던 모호점 전부 닫음. 패킷=`golem/studio/planning_packet/`.
+- A/B/C 측정(G27): A6<B11<C27 unique, 독립리뷰>self·10>3 둘 다 임계 통과. caveat: N=1, dedup 문자열기반 과대계상(방향 신뢰/크기 부풀림).
+- interface_contract(2파일)는 v0.1 contract_validator의 module_manifest와 동형 → Build에서 그대로 검증 가능.
+- 반박/결정 로그: context-notes G25(v0.1)·G26(하니스)·G27(A/B/C 실측)·G28(synthesis FROZEN).
 
 ## 다음 액션 (사용자 선택 대기)
 
-1. **(c) 권고 — synthesis로 진행.** lead가 리뷰 이슈를 받아 BLOCKING→0 정리 + contract_packet(§4) 생성. 구조 실효는 정성적으로 충분히 확인됨. `planning.py`에 synthesis arm 추가 필요(현재 미구현).
-2. (b) dedup 의미기반 개선 — unique 과대계상 교정(측정 신뢰 먼저).
-3. (a) 아이디어 더 돌려 N≥10 쌓기 — §19 통계 근거. 단 dedup 고치기 전엔 부풀린 수가 쌓임.
+1. **Build 단계(권고).** FROZEN 계약을 기존 `driver.py` 11키 select-best에 줘 gemma가 구현 → `static_gate` + `studio/contract_validator.py`(매니페스트 정합) + `grade`. 단 grade=정확일치엔 **golden 필요** → 오라클(A방식 Claude 레퍼런스 or 31B 자율 레퍼런스, oracle.py/oracle_design.py 재사용) 연결이 선행. ★키.
+2. (대안) dedup 의미기반 개선 후 A/B/C를 아이디어 여러 개로 N≥10 (§19 통계 확정). ★키.
+3. (대안) acceptance expect를 정확값으로 끌어올리는 Spec QA 단계.
 
 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).

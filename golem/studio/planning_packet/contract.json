@@ -1,0 +1,46 @@
+{
+  "data_contract": {
+    "state_shape": {
+      "turn": "number",
+      "resources": {
+        "energy": "number"
+      },
+      "stats": {
+        "productionRate": "number",
+        "levels": {
+          "generatorId": "number"
+        }
+      },
+      "gameStatus": "PLAYING | WON",
+      "logs": "string[]"
+    },
+    "rules": [
+      "RULE-01: WAIT action -> turn += 1, energy += productionRate.",
+      "RULE-02: UPGRADE action -> if energy >= currentCost then { energy -= currentCost, levels[id] += 1, recalculate productionRate } else { log 'Insufficient energy' }.",
+      "RULE-03: currentCost = floor(baseCost * (costMultiplier ** level)).",
+      "RULE-04: productionRate = 1 + sum(level * power).",
+      "RULE-05: If energy >= 1000, gameStatus = 'WON'.",
+      "RULE-06: If gameStatus == 'WON', no further actions from the scenario sequence are processed."
+    ]
+  },
+  "interface_contract": {
+    "entry": "main.js",
+    "files": [
+      {
+        "path": "main.js",
+        "exports": [],
+        "imports": [
+          "src/engine.js"
+        ]
+      },
+      {
+        "path": "src/engine.js",
+        "exports": [
+          "GameState",
+          "GameEngine"
+        ],
+        "imports": []
+      }
+    ]
+  }
+}

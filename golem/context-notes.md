@@ -229,3 +229,17 @@ C>B gain 1.46(≥0.20✓). **둘 다 PENDING-004 임계 통과 = 독립리뷰가
 즉 방향(리뷰어 도움됨)은 신뢰, 크기(27 등)는 부풀려짐. 콜 비용=AI Studio 무료(api_calls 정밀집계 미연동).
 다음 선택지: (a)아이디어 더 돌려 N 쌓기 (b)dedup 의미기반 개선 (c)synthesis로 진행(lead가 BLOCKING→0
 정리+contract_packet). 권고=(c) 먼저(구조 실효는 정성적으로 충분히 확인) 또는 (b)로 측정 신뢰 먼저.
+
+## G28 — Planning synthesis 실측: 방치형게임 계약 FROZEN (2026-06-17, 키 씀, 사용자 (c) 선택)
+planning.py에 synthesis 추가: 초안→리뷰어10→lead가 이슈 흡수해 BLOCKING→0 + 계약 패킷(§4 핵심) 굳힘.
+fake replay 검증(BLOCKING1→흡수→FROZEN) 후 실발사. 결과: 방치형게임 리뷰어 BLOCKING 11개 →
+decisions 9/assumed 3/deferred 2로 전부 흡수 → 미해소 0 → **CONTRACT_STATUS: FROZEN**.
+핵심 성과: 리뷰어가 잡은 부동소수점 모호성을 계약이 못박음 — **RULE-03 currentCost =
+floor(baseCost*(costMultiplier**level))**. 그 외 WAIT만 턴증가, 잘못된 id 로그+스킵, energy>=1000 승리,
+WON후 액션무시, 잘못된 scenario exit(1) 등 결정적 정확일치 깨던 모호점 전부 닫음. interface_contract=
+2파일(main.js+engine.js, v0.1 validator의 module_manifest와 동형 → 그대로 물림), acceptance 3.
+산출물: golem/studio/planning_packet/(concept/gdd/ambiguity_review/contract/acceptance_tests/questions/STATUS).
+→ Golem Studio thesis(역할순환 리뷰→모호성 없는 FROZEN 계약) 실물 산출. caveat: acceptance expect가
+아직 산문(정확값 아님) — golden 정확일치는 Build/오라클 단계 몫.
+다음 후보: Build 단계 = FROZEN 계약을 기존 driver.py 11키 select-best에 줘 gemma 구현 → static_gate +
+v0.1 contract_validator(매니페스트 정합!) + grade. 단 grade는 golden 필요 → 오라클(A방식/31B 레퍼런스) 연결 필요.
