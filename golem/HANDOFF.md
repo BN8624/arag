@@ -1,30 +1,31 @@
 # HANDOFF.md — golem 현재 위치와 다음 액션
 
+## ▶ 새 세션 여기부터
+- 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G34) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
+- **지금 할 일 한 줄**: 시나리오 입력 스키마를 한 형식으로 고정하고 `build_graded.py` 합의 재측정(0.66→?).
+- 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
+
 ## 지금 어디 (2026-06-17)
 
-- **v0.1 Contract Microkernel Replay 완료** + **Step 2 Planning A/B/C 측정 하니스 빌드+replay 검증 완료**. 둘 다 키 0.
-- v0.1: replay 5/5(통과1+음성4 각각 지정 check 실패). `static_gate.py`는 src/ 지원 확장, 기존 평면 게임 무회귀.
-- Step 2: `planning.py` — A(self-review)/B(1+3)/C(1+10) arm, 리뷰어 키 병렬, dedup 메트릭. fake 픽스처 replay로 A2<B6<C12 unique·dup 0.077·BLOCKING 1 측정 확인(plumbing 증명, 데이터는 가짜).
-- **Planning 단계 완성 — 방치형게임 계약 FROZEN**(키 씀). 초안→리뷰어10→synthesis로 BLOCKING 11→0(decisions 9/assumed 3/deferred 2). 부동소수점 모호성을 RULE-03 floor()로 못박는 등 결정성 깨던 모호점 전부 닫음. 패킷=`golem/studio/planning_packet/`.
-- A/B/C 측정(G27): A6<B11<C27 unique, 독립리뷰>self·10>3 둘 다 임계 통과. caveat: N=1, dedup 문자열기반 과대계상(방향 신뢰/크기 부풀림).
-- interface_contract(2파일)는 v0.1 contract_validator의 module_manifest와 동형 → Build에서 그대로 검증 가능.
-- 반박/결정 로그: context-notes G25(v0.1)·G26(하니스)·G27(A/B/C 실측)·G28(synthesis FROZEN).
+Golem Studio = `GolemStudioMode.md` §13의 6단계 파이프라인을 실모델로 구축 중. 아이디어 한 줄("방치형게임")로 Step 1~5를 실제 통과했다. 산출물은 `golem/studio/`.
 
-- **측정 신뢰 보강(G29, 키X).** dedup 토큰 Jaccard 클러스터링. 임계 0.5~0.25 어디서 재도 A6<B11<C20~25 — 결론(독립리뷰>self, 10>3) 강건. 진짜 의미 dedup(임베딩/LLM)은 보류.
-- **Build v0 완성(G30, 키 씀).** `build.py` — FROZEN 계약 → gemma 구현 → static_gate + v0.1 contract_validator(매니페스트 정합) + 스모크. 방치형 계약 **cracked@4, 10/11 통과**. attempt04 진짜(규칙 구현, sc3 turn1000 WON). 아이디어→리뷰→계약→구현→검증이 실모델로 한 줄에 꿰임.
-- **순서 복원(G31).** §13은 1→2→3 Design→4 Spec QA→5 Build→6 Adv QA. 1,2 후 5(Build)로 점프했던 것 바로잡음. Build v0는 스파이크로 남김.
-- **Step 3 Design 완료(G31, 키 씀).** `design.py` — 방치형 계약을 **4모듈 분해**(utils 순수계산←state_manager 상태전이←engine 조율←main I/O), RULE-01~06 전부 traceability 연결, §7·§8.2 validator PASS. 산출=`design_packet/`(system_design.md, module_manifest.json, traceability.json, traceability_report.md). Build v0 통짜 2파일을 교정.
+| §13 단계 | 코드 | 산출/상태 |
+|---|---|---|
+| Step1 v0.1 Contract Microkernel | `contract_validator.py`·`replay.py` | replay 5/5(키0). `static_gate.py` src/ 확장(strict 모드 보유). |
+| Step2 Planning | `planning.py` | A/B/C 측정 + synthesis. 방치형 FROZEN 계약 → `planning_packet/`. A6<B11<C27(독립리뷰>self·10>3). |
+| Step3 Design | `design.py` | 4모듈 분해(utils←state_manager←engine←main)+traceability, §7·§8.2 PASS → `design_packet/`. |
+| Step4 Spec QA | `specqa.py` | 11 시나리오 구체화 → `specqa_packet/`. **초안**(결함: SCN-006 "ACTIVE" 오라클오류, BLOCKING 추적안됨). |
+| Step5 Build v1 | `build_graded.py` | design 4모듈+시나리오+**합의 채점**(특권 golden 아님). `build.py`는 v0 스파이크로 잔존. |
 
-- **Step 4 Spec QA 완료(G32, 키 씀, 초안).** `specqa.py` — 11 시나리오 구체화(기계입력+정확 expected), RULE-01~06 커버, validator PASS. 산출=`specqa_packet/`. **결함 있음(초안)**: SCN-006 "ACTIVE"(계약엔 PLAYING) 오라클오류, RULE-03 float경로 미검, BLOCKING 5 해소 추적안됨. 사용자=초안으로 두고 진행(Step5 합의·Step6가 잡음).
+**핵심 측정(G33·G34)** — Build 합의(특권 golden 아닌 다수합의)로 "계약이 얼마나 빡빡한가"를 잰다.
+- 출력계약 미고정 → 합의 **0.36**.
+- 출력계약 고정(한 변수만 바꿈) → 합의 **0.66**, 게이트 3/11→8/11. **"계약 빡빡 → 싼 모델 수렴" 방향 확인.**
+- 단 **0.66은 반쪽**: 통과 빌드들이 시나리오 actions를 실제 실행 안 함(turn:0/undefined). **입력 스키마 미고정**이 남은 원인.
 
-- **Step 5 Build v1 완료(G33, 키 씀).** `build_graded.py` — design 4모듈 + specqa 시나리오 + 합의 채점(특권 golden 아님). contract_validator에 strict 모드 추가(빌드=느슨, v0.1 5/5 무회귀). 결과: 게이트 3/11, **합의 0.36**. 점검: 통과 빌드들이 출력 key를 제각각 찍음(undefined 버그 포함) → **출력 계약 미고정**이 원인. 합의 채점이 "스펙 아직 안 빡빡"을 특권golden 없이 정량화·원인지목.
-
-- **출력 계약 고정 실험(G34, 키 씀).** build_graded에 고정 4-key 출력계약 추가 → 한 변수 재측정: 게이트 3/11→8/11, **합의 0.36→0.66**. 방향("계약 빡빡→수렴") 확인. 단 점검: 0.66은 반쪽 — 빌드들이 시나리오 actions를 실제 실행 안 함(turn:0/undefined). **입력 스키마 미고정**이 남은 원인.
+주의: Step4는 초안(결함 있음, Step6가 다듬을 예정). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G34.
 
 ## 다음 액션
 
-1. **입력(시나리오) 스키마 고정(다음 변수).** scenarios.json 형식을 한 가지로 못박고(현재 constants/initialState/actions 이질적·일부 산문), 빌드가 actions를 실제 실행하게 → build_graded 합의 재측정(진짜 수렴 보기, 0.66→?). 한 번에 한 변수. ★키.
-2. **Step 6 Adversarial QA.** edge_cases.json + acceptance draft 다듬기(ACTIVE).
-3. (backlog) specqa validator 강화 / 측정 N≥10.
-
-키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
+1. **입력(시나리오) 스키마 고정 → 합의 재측정**(위 "지금 할 일 한 줄"). scenarios.json을 한 형식으로 못박고(현재 constants/initialState/actions 이질적·일부 산문) 빌드가 actions를 실제 실행하게 → 0.66이 진짜 수렴으로 오르나 본다. 한 번에 한 변수. ★키.
+2. **Step 6 Adversarial QA** — edge_cases.json + acceptance draft 다듬기(ACTIVE 오라클오류 교정).
+3. (backlog) specqa validator 강화(계약 외 상태값 거부 + BLOCKING 해소 추적) / 측정 N≥10 장르확장.
