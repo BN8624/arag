@@ -1,0 +1,50 @@
+{
+  "concept": "방치형: 틱 자원축적, 업그레이드, 1000 도달 승리.",
+  "rules": [
+    "RULE-01: WAIT -> turn+1, energy+=rate",
+    "RULE-02: UPGRADE -> if energy>=cost spend/level+1/recalc else log",
+    "RULE-03: cost = floor(baseCost * costMultiplier^level)",
+    "RULE-04: rate = 1 + sum(level*power)",
+    "RULE-05: start+after-each-action win check; energy>=1000 -> WON",
+    "RULE-06: WON -> stop, no further actions"
+  ],
+  "reqs": [
+    { "id": "RULE-01", "text": "WAIT -> turn+1, energy+=rate" },
+    { "id": "RULE-02", "text": "UPGRADE spend or log" },
+    { "id": "RULE-03", "text": "cost floor" },
+    { "id": "RULE-04", "text": "rate recompute" },
+    { "id": "RULE-05", "text": "win check timing" },
+    { "id": "RULE-06", "text": "stop on win" }
+  ],
+  "scenarios": [
+    { "id": "SCN-001", "input": { "constants": { "gen1": { "baseCost": 1, "costMultiplier": 2, "power": 5 } }, "actions": [{ "action": "WAIT" }, { "action": "UPGRADE", "id": "gen1" }, { "action": "WAIT" }] }, "covers_reqs": ["RULE-01", "RULE-02", "RULE-04"], "expected": { "turn": 2, "energy": 6 } }
+  ],
+  "cases": {
+    "acceptance_tests": [
+      { "id": "ACC-001", "category": "normal", "input": { "actions": [{ "action": "WAIT" }, { "action": "WAIT" }] }, "covers_reqs": ["RULE-01"], "expected": { "turn": 2, "energy": 2, "productionRate": 1, "gameStatus": "PLAYING" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "ACC-002", "category": "failure", "input": { "constants": { "gen1": { "baseCost": 10, "costMultiplier": 2, "power": 5 } }, "actions": [{ "action": "UPGRADE", "id": "gen1" }] }, "covers_reqs": ["RULE-02"], "expected": { "turn": 0, "energy": 0, "productionRate": 1, "gameStatus": "PLAYING" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "ACC-003", "category": "boundary", "input": { "initialState": { "energy": 999 }, "actions": [{ "action": "WAIT" }] }, "covers_reqs": ["RULE-05"], "expected": { "turn": 1, "energy": 1000, "productionRate": 1, "gameStatus": "WON" }, "oracle_risk": { "risk": false, "reason": "" } }
+    ],
+    "edge_cases": [
+      { "id": "EDGE-001", "input": { "initialState": { "energy": 1000 }, "actions": [{ "action": "WAIT" }] }, "covers_reqs": ["RULE-05", "RULE-06"], "breaks": "naive build applies WAIT before checking win", "expected": { "turn": 0, "energy": 1000, "productionRate": 1, "gameStatus": "WON" }, "oracle_risk": { "risk": false, "reason": "" } }
+    ],
+    "notes": ["RULE-03 cost floor at high levels needs cross-impl check"]
+  },
+  "reviews": [
+    { "missing_edge_cases": [{ "input": { "constants": { "gen1": { "baseCost": 1, "costMultiplier": 2, "power": 5 } }, "initialState": { "energy": 1 }, "actions": [{ "action": "UPGRADE", "id": "gen1" }] }, "expected": { "turn": 0, "energy": 0, "productionRate": 6, "gameStatus": "PLAYING" }, "breaks": "energy exactly equals cost — >= boundary" }], "uncovered_reqs": ["RULE-03"], "weak_expected": [], "questions_for_lead": [] },
+    { "missing_edge_cases": [], "uncovered_reqs": [], "weak_expected": [], "questions_for_lead": [{ "q": "unknown generator id 처리?", "class": "DEFERRED" }] }
+  ],
+  "synthesis": {
+    "acceptance_tests": [
+      { "id": "ACC-001", "category": "normal", "input": { "actions": [{ "action": "WAIT" }, { "action": "WAIT" }] }, "covers_reqs": ["RULE-01"], "expected": { "turn": 2, "energy": 2, "productionRate": 1, "gameStatus": "PLAYING" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "ACC-002", "category": "failure", "input": { "constants": { "gen1": { "baseCost": 10, "costMultiplier": 2, "power": 5 } }, "actions": [{ "action": "UPGRADE", "id": "gen1" }] }, "covers_reqs": ["RULE-02"], "expected": { "turn": 0, "energy": 0, "productionRate": 1, "gameStatus": "PLAYING" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "ACC-003", "category": "boundary", "input": { "initialState": { "energy": 999 }, "actions": [{ "action": "WAIT" }] }, "covers_reqs": ["RULE-05"], "expected": { "turn": 1, "energy": 1000, "productionRate": 1, "gameStatus": "WON" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "ACC-004", "category": "normal", "input": { "constants": { "gen1": { "baseCost": 1, "costMultiplier": 2, "power": 5 } }, "initialState": { "energy": 10 }, "actions": [{ "action": "UPGRADE", "id": "gen1" }, { "action": "UPGRADE", "id": "gen1" }] }, "covers_reqs": ["RULE-03", "RULE-04"], "expected": { "turn": 0, "energy": 7, "productionRate": 11, "gameStatus": "PLAYING" }, "oracle_risk": { "risk": false, "reason": "" } }
+    ],
+    "edge_cases": [
+      { "id": "EDGE-001", "input": { "initialState": { "energy": 1000 }, "actions": [{ "action": "WAIT" }] }, "covers_reqs": ["RULE-05", "RULE-06"], "breaks": "naive build applies WAIT before checking win", "expected": { "turn": 0, "energy": 1000, "productionRate": 1, "gameStatus": "WON" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "EDGE-002", "input": { "constants": { "gen1": { "baseCost": 1, "costMultiplier": 2, "power": 5 } }, "initialState": { "energy": 1 }, "actions": [{ "action": "UPGRADE", "id": "gen1" }] }, "covers_reqs": ["RULE-02", "RULE-03"], "breaks": "energy exactly equals cost — >= boundary", "expected": { "turn": 0, "energy": 0, "productionRate": 6, "gameStatus": "PLAYING" }, "oracle_risk": { "risk": false, "reason": "" } }
+    ],
+    "notes": ["RULE-03 cost floor at high levels needs cross-impl check"]
+  }
+}
