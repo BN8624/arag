@@ -62,11 +62,15 @@ print the canonical initial state. NEVER crash on a missing field.
 `node main.js --scenario N` MUST read scenarios.json, start from the canonical defaults merged with the
 scenario's constants/initialState, apply every action in `actions` in order, then print the final state.
 
-OUTPUT CONTRACT (FIXED — print EXACTLY these four lines, this order, nothing else):
+OUTPUT CONTRACT (FIXED — print EXACTLY these five lines, this order, nothing else):
 turn: <integer>
 energy: <integer>
 productionRate: <integer>
 gameStatus: <PLAYING or WON>
+logs: <a JSON array of log strings in the order they occurred, e.g. [] or ["Insufficient energy"]>
+Emit a log ONLY for these events, with this EXACT wording: "Insufficient energy" (an UPGRADE rejected by
+RULE-02) and "Invalid generator ID" (an UPGRADE on an id absent from constants, RULE-07). No other logs,
+no other lines (do NOT print logs as separate bare lines — only the `logs:` JSON array line).
 Use the constants/initialState from the scenario input. If a generator config is absent, default
 gen1 = {{ baseCost: 10, costMultiplier: 2, power: 1 }}. All values must be integers (cost uses floor).
 
@@ -103,6 +107,11 @@ def _norm_output(stdout):
         if ":" in line:
             k, _, v = line.partition(":")
             d[k.strip()] = v.strip()
+    if "logs" in d:  # 공백·따옴표 차이로 헛갈리지 않게 JSON 정규화(순서는 보존)
+        try:
+            d["logs"] = json.dumps(json.loads(d["logs"]))
+        except Exception:  # noqa: BLE001
+            pass
     return tuple(sorted(d.items()))
 
 
