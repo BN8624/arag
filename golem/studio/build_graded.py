@@ -49,7 +49,15 @@ FILES YOU MUST CREATE (exact paths/exports/imports):
 
 A file `scenarios.json` is provided in the working directory: a JSON array; scenario N (1-based) is its
 input object (may contain `constants`, `initialState`, `actions`). `node main.js --scenario N` MUST read
-scenarios.json, run scenario N deterministically, and print ONLY the final state as `key: value` lines.
+scenarios.json, apply scenario N's constants/initialState/actions deterministically.
+
+OUTPUT CONTRACT (FIXED — print EXACTLY these four lines, this order, nothing else):
+turn: <integer>
+energy: <integer>
+productionRate: <integer>
+gameStatus: <PLAYING or WON>
+Use the constants/initialState from the scenario input. If a generator config is absent, default
+gen1 = {{ baseCost: 10, costMultiplier: 2, power: 1 }}. All values must be integers (cost uses floor).
 
 Output every file with EXACT markers, one per file:
 === FILE: <path> ===

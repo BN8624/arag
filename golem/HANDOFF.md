@@ -19,10 +19,12 @@
 
 - **Step 5 Build v1 완료(G33, 키 씀).** `build_graded.py` — design 4모듈 + specqa 시나리오 + 합의 채점(특권 golden 아님). contract_validator에 strict 모드 추가(빌드=느슨, v0.1 5/5 무회귀). 결과: 게이트 3/11, **합의 0.36**. 점검: 통과 빌드들이 출력 key를 제각각 찍음(undefined 버그 포함) → **출력 계약 미고정**이 원인. 합의 채점이 "스펙 아직 안 빡빡"을 특권golden 없이 정량화·원인지목.
 
+- **출력 계약 고정 실험(G34, 키 씀).** build_graded에 고정 4-key 출력계약 추가 → 한 변수 재측정: 게이트 3/11→8/11, **합의 0.36→0.66**. 방향("계약 빡빡→수렴") 확인. 단 점검: 0.66은 반쪽 — 빌드들이 시나리오 actions를 실제 실행 안 함(turn:0/undefined). **입력 스키마 미고정**이 남은 원인.
+
 ## 다음 액션
 
-1. **출력 계약 못박기(핵심, 다음).** 시나리오별 **expected key 집합·형식**을 계약에 고정(어떤 key:value를 정확히 찍나). 지금 빌드 불일치의 직접 원인. Spec QA/Planning 계약 강화 → build_graded 합의 재측정해서 0.36→상승 확인. ★키.
-2. **Step 6 Adversarial QA.** edge_cases.json + acceptance draft 다듬기(ACTIVE 오라클오류).
-3. (backlog) specqa validator 강화(계약 외 상태값 거부+BLOCKING 해소 추적) / 측정 N≥10.
+1. **입력(시나리오) 스키마 고정(다음 변수).** scenarios.json 형식을 한 가지로 못박고(현재 constants/initialState/actions 이질적·일부 산문), 빌드가 actions를 실제 실행하게 → build_graded 합의 재측정(진짜 수렴 보기, 0.66→?). 한 번에 한 변수. ★키.
+2. **Step 6 Adversarial QA.** edge_cases.json + acceptance draft 다듬기(ACTIVE).
+3. (backlog) specqa validator 강화 / 측정 N≥10.
 
 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
