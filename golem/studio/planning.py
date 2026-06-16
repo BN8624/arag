@@ -148,9 +148,36 @@ def _extract_json(text):
     return {}
 
 
+_STOP = {"the", "and", "for", "are", "not", "что", "when", "with", "this", "that",
+         "will", "may", "via", "per", "into", "from", "does", "between"}
+
+
 def _norm(s):
     """이슈 문자열 정규화(중복 판정용): 소문자·영숫자만·공백 단일화."""
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", str(s).lower())).strip()
+
+
+def _tokens(s):
+    """의미어 토큰 집합(3글자 이상, 불용어 제거) — 어순 무관 중복 판정용."""
+    return {w for w in _norm(s).split() if len(w) > 2 and w not in _STOP}
+
+
+def _similar(a, b, th):
+    """두 이슈가 같은 문제를 가리키나(토큰 Jaccard ≥ th). 토큰 없으면 정규화 동일성."""
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta or not tb:
+        return _norm(a) == _norm(b)
+    return len(ta & tb) / len(ta | tb) >= th
+
+
+def _dedup(items, th=0.5):
+    """어휘 유사도 클러스터링으로 의미중복을 접는다(stdlib only, 키X).
+    완전한 의미 dedup은 임베딩/LLM 필요 — 여긴 어휘기반 휴리스틱으로 과대계상만 줄인다."""
+    reps = []
+    for it in items:
+        if not any(_similar(it, r, th) for r in reps):
+            reps.append(it)
+    return reps
 
 
 def _issues_of(review):
@@ -169,13 +196,8 @@ def _blocking_count(review):
 
 def _metrics(reviews):
     """여러 리뷰의 이슈를 합쳐 total/unique/duplicate_rate/blocking 계산."""
-    flat = [t for r in reviews for (_c, t) in _issues_of(r)]
-    seen, unique = set(), []
-    for t in flat:
-        n = _norm(t)
-        if n and n not in seen:
-            seen.add(n)
-            unique.append(t)
+    flat = [t for r in reviews for (_c, t) in _issues_of(r) if str(t).strip()]
+    unique = _dedup(flat)
     total = len(flat)
     dup_rate = 0.0 if total == 0 else round(1 - len(unique) / total, 3)
     return {

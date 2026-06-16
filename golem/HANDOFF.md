@@ -10,10 +10,12 @@
 - interface_contract(2파일)는 v0.1 contract_validator의 module_manifest와 동형 → Build에서 그대로 검증 가능.
 - 반박/결정 로그: context-notes G25(v0.1)·G26(하니스)·G27(A/B/C 실측)·G28(synthesis FROZEN).
 
+- **측정 신뢰 보강(G29, 키X).** dedup을 토큰 Jaccard 클러스터링으로 교체. 어휘기반 한계로 C 27→25만 줄지만, 임계 0.5~0.25 어디서 재도 A6<B11<C20~25 — **결론(독립리뷰>self, 10>3) 강건**(자 흔들림보다 효과 큼). 진짜 의미 dedup(임베딩/LLM)은 보류.
+
 ## 다음 액션 (사용자 선택 대기)
 
-1. **Build 단계(권고).** FROZEN 계약을 기존 `driver.py` 11키 select-best에 줘 gemma가 구현 → `static_gate` + `studio/contract_validator.py`(매니페스트 정합) + `grade`. 단 grade=정확일치엔 **golden 필요** → 오라클(A방식 Claude 레퍼런스 or 31B 자율 레퍼런스, oracle.py/oracle_design.py 재사용) 연결이 선행. ★키.
-2. (대안) dedup 의미기반 개선 후 A/B/C를 아이디어 여러 개로 N≥10 (§19 통계 확정). ★키.
-3. (대안) acceptance expect를 정확값으로 끌어올리는 Spec QA 단계.
+1. **측정: N≥10을 서로 다른 장르 아이디어로(권고).** §19의 진짜 목적=일반화(모호한 게임 vs 명확한 게임에서 리뷰어 효과 다른가). 메트릭은 이제 충분히 신뢰. ★키(싸다, AI Studio 무료). 신규 run은 새 dedup 자동.
+2. **Build 단계.** FROZEN 계약 → `driver.py` 11키 select-best → `static_gate`+`contract_validator`+`grade`. grade 정확일치엔 **golden 필요** → 오라클(oracle.py/oracle_design.py 재사용) 선행. ★키.
+3. acceptance expect 정확값화(Spec QA).
 
 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
