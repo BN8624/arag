@@ -28,10 +28,10 @@
 - [x] (★키) Step 3 Design `design.py` — 방치형 4모듈 분해(utils←state_manager←engine←main), RULE 6개 traceability, §7·§8.2 PASS. design_packet/
 
 ## §13 순서 — 남은 단계
-- [ ] (다음, ★키) Step 4 Spec QA — acceptance를 scenarios.json 정확입력으로 + oracle_risk_review
-- [ ] (★키) Step 5 Build 재실행 — design 4모듈 manifest + grade(정확일치/합의)
-- [ ] (★키) Step 6 Adversarial QA — edge_cases.json
-- [ ] (보류) Build v1 오라클 골든은 Step 5에 흡수 / 측정 N≥10 장르확장은 별도
+- [x] (★키) Step 4 Spec QA `specqa.py` — 11 시나리오 구체화·RULE 6개 커버·오라클위험 표시. 단 초안(결함: ACTIVE 오라클오류·float경로 미검·BLOCKING 추적안됨 G32). 사용자: 초안으로 두고 진행
+- [ ] (다음, ★키) Step 5 Build 재실행 — design 4모듈 manifest + specqa 시나리오 + 합의 채점
+- [ ] (★키) Step 6 Adversarial QA — edge_cases.json + acceptance_tests draft 다듬기(ACTIVE 등 잡기)
+- [ ] (backlog) specqa validator 강화(계약 외 상태값 거부+BLOCKING 해소 추적) / 측정 N≥10 장르확장
 
 ## 과거 히스토리
 

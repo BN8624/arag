@@ -1,0 +1,37 @@
+{
+  "concept": "방치형: 틱 자원축적, 업그레이드, 1000 도달 승리.",
+  "reqs": [
+    { "id": "RULE-01", "text": "WAIT -> turn+1, energy+=rate" },
+    { "id": "RULE-02", "text": "UPGRADE -> if energy>=cost spend/level+1/recalc else log" },
+    { "id": "RULE-03", "text": "cost = floor(baseCost * costMultiplier^level)" },
+    { "id": "RULE-04", "text": "rate = 1 + sum(level*power)" },
+    { "id": "RULE-05", "text": "energy>=1000 -> WON" },
+    { "id": "RULE-06", "text": "WON -> no further actions" }
+  ],
+  "acceptance": [
+    { "id": "SCN-001", "setup": "WAIT,UPGRADE,WAIT", "expect": "turn 2, level 1" }
+  ],
+  "spec": {
+    "scenarios": [
+      { "id": "SCN-001", "input": { "actions": [{ "action": "WAIT" }, { "action": "UPGRADE", "id": "gen1" }, { "action": "WAIT" }] }, "covers_reqs": ["RULE-01", "RULE-02", "RULE-04"], "expected": { "turn": 2 }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "SCN-002", "input": { "actions": [{ "action": "UPGRADE", "id": "gen1" }] }, "covers_reqs": ["RULE-02"], "expected": { "energy": 0, "log": "Insufficient energy" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "SCN-003", "input": { "actions": "WAIT x1000 then WAIT" }, "covers_reqs": ["RULE-05", "RULE-06"], "expected": { "gameStatus": "WON" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "SCN-004", "input": { "actions": [{ "action": "UPGRADE", "id": "gen1" }], "energy": 100 }, "covers_reqs": ["RULE-03"], "expected": null, "oracle_risk": { "risk": true, "reason": "cost = floor(10 * 1.5^level) — float precision may vary across implementations" } }
+    ],
+    "oracle_risk_summary": ["RULE-03 cost uses costMultiplier^level (float) — pin floor() but verify cross-impl"]
+  },
+  "reviews": [
+    { "untestable_reqs": [], "ambiguous_expected": ["SCN-003 input 'WAIT x1000' is prose, not concrete"], "missing_scenarios": [], "nondeterministic": [], "oracle_errors": [], "risky_assumptions": [], "questions_for_lead": [{ "q": "gen1 baseCost/costMultiplier/power 상수는 고정값인가?", "class": "BLOCKING" }] },
+    { "untestable_reqs": [], "ambiguous_expected": [], "missing_scenarios": ["UPGRADE 성공(에너지 충분) 시나리오 없음"], "nondeterministic": [], "oracle_errors": [], "risky_assumptions": [], "questions_for_lead": [] }
+  ],
+  "synthesis": {
+    "scenarios": [
+      { "id": "SCN-001", "input": { "actions": [{ "action": "WAIT" }, { "action": "UPGRADE", "id": "gen1" }, { "action": "WAIT" }] }, "covers_reqs": ["RULE-01", "RULE-02", "RULE-04"], "expected": { "turn": 2 }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "SCN-002", "input": { "actions": [{ "action": "UPGRADE", "id": "gen1" }], "energy": 0 }, "covers_reqs": ["RULE-02"], "expected": { "energy": 0, "log": "Insufficient energy" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "SCN-003", "input": { "actions": "1000 WAIT then 1 WAIT", "note": "concretize as repeated WAIT" }, "covers_reqs": ["RULE-05", "RULE-06"], "expected": { "gameStatus": "WON" }, "oracle_risk": { "risk": false, "reason": "" } },
+      { "id": "SCN-004", "input": { "actions": [{ "action": "UPGRADE", "id": "gen1" }], "energy": 100 }, "covers_reqs": ["RULE-03"], "expected": null, "oracle_risk": { "risk": true, "reason": "cost = floor(10 * 1.5^level) float precision" } },
+      { "id": "SCN-005", "input": { "actions": [{ "action": "UPGRADE", "id": "gen1" }], "energy": 50 }, "covers_reqs": ["RULE-02", "RULE-03", "RULE-04"], "expected": { "gen1_level": 1 }, "oracle_risk": { "risk": false, "reason": "" } }
+    ],
+    "oracle_risk_summary": ["RULE-03 cost float precision (SCN-004) — exact-match 채점 보류, 합의로 검증", "gen1 상수 고정 가정(assumptions)"]
+  }
+}

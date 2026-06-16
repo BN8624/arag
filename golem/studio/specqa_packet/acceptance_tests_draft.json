@@ -1,0 +1,314 @@
+[
+  {
+    "id": "SCN-001",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "multiplier": 2,
+          "power": 5
+        }
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        },
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        },
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-01",
+      "RULE-02",
+      "RULE-04"
+    ],
+    "expected": {
+      "turn": 2,
+      "energy": 6,
+      "levels": {
+        "gen1": 1
+      }
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-002",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 10,
+          "multiplier": 2,
+          "power": 5
+        }
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-02"
+    ],
+    "expected": {
+      "energy": 0,
+      "levels": {
+        "gen1": 0
+      },
+      "logs": [
+        "Insufficient energy"
+      ]
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-003",
+    "input": {
+      "initialState": {
+        "energy": 999
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-05",
+      "RULE-06"
+    ],
+    "expected": {
+      "turn": 1,
+      "energy": 1000,
+      "gameStatus": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-004",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "multiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 10
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        },
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-03"
+    ],
+    "expected": {
+      "energy": 7,
+      "levels": {
+        "gen1": 2
+      }
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-005",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "multiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 1
+      },
+      "actions": [
+        {
+          "action": "UPGRADE",
+          "id": "gen1"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-02"
+    ],
+    "expected": {
+      "energy": 0,
+      "levels": {
+        "gen1": 1
+      }
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-006",
+    "input": {
+      "initialState": {
+        "energy": 998
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-05"
+    ],
+    "expected": {
+      "energy": 999,
+      "gameStatus": "ACTIVE"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-007",
+    "input": {
+      "actions": [
+        {
+          "action": "WAIT"
+        },
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-01"
+    ],
+    "expected": {
+      "turn": 2,
+      "energy": 2
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-008",
+    "input": {
+      "constants": {
+        "gen1": {
+          "baseCost": 1,
+          "multiplier": 2,
+          "power": 5
+        }
+      },
+      "initialState": {
+        "energy": 0,
+        "levels": {
+          "gen1": 1
+        }
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-04"
+    ],
+    "expected": {
+      "energy": 6
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-009",
+    "input": {
+      "initialState": {
+        "energy": 1000
+      },
+      "actions": []
+    },
+    "covers_reqs": [
+      "RULE-05"
+    ],
+    "expected": {
+      "gameStatus": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-010",
+    "input": {
+      "initialState": {
+        "energy": 1000
+      },
+      "actions": [
+        {
+          "action": "WAIT"
+        }
+      ]
+    },
+    "covers_reqs": [
+      "RULE-06"
+    ],
+    "expected": {
+      "turn": 0,
+      "energy": 1000,
+      "gameStatus": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-011",
+    "input": {
+      "actions": []
+    },
+    "covers_reqs": [],
+    "expected": {
+      "turn": 0,
+      "energy": 0
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  }
+]

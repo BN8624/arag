@@ -15,10 +15,12 @@
 - **순서 복원(G31).** §13은 1→2→3 Design→4 Spec QA→5 Build→6 Adv QA. 1,2 후 5(Build)로 점프했던 것 바로잡음. Build v0는 스파이크로 남김.
 - **Step 3 Design 완료(G31, 키 씀).** `design.py` — 방치형 계약을 **4모듈 분해**(utils 순수계산←state_manager 상태전이←engine 조율←main I/O), RULE-01~06 전부 traceability 연결, §7·§8.2 validator PASS. 산출=`design_packet/`(system_design.md, module_manifest.json, traceability.json, traceability_report.md). Build v0 통짜 2파일을 교정.
 
+- **Step 4 Spec QA 완료(G32, 키 씀, 초안).** `specqa.py` — 11 시나리오 구체화(기계입력+정확 expected), RULE-01~06 커버, validator PASS. 산출=`specqa_packet/`. **결함 있음(초안)**: SCN-006 "ACTIVE"(계약엔 PLAYING) 오라클오류, RULE-03 float경로 미검, BLOCKING 5 해소 추적안됨. 사용자=초안으로 두고 진행(Step5 합의·Step6가 잡음).
+
 ## 다음 액션 — §13 순서대로
 
-1. **Step 4 Spec QA.** acceptance_tests를 기계 시나리오(scenarios.json, 정확입력)로 + oracle_risk_review. 모든 REQ에 ≥1 테스트, expected 모호한 시나리오 표시. (키X 골격→replay→★키 실행)
-2. **Step 5 Build 재실행.** 이번엔 design_packet의 4모듈 manifest로 빌드 + grade(정확일치). build.py가 design 매니페스트를 받게 + 합의/골든. ★키.
-3. **Step 6 Adversarial QA.** edge_cases.json.
+1. **Step 5 Build 재실행(다음).** design_packet의 **4모듈 manifest** + specqa 시나리오로 gemma 빌드 → static_gate + contract_validator(design manifest) + 시나리오 실행 → **합의 채점**(빌드들이 같은 답에 모이나, 특권 golden 아님 — 사용자 산출물축소 우려 반영). build.py를 design manifest+합의로 확장. ★키.
+2. **Step 6 Adversarial QA.** edge_cases.json + acceptance draft 다듬기(ACTIVE 등 오라클오류 교정).
+3. (backlog) specqa validator 강화(계약 외 상태값 거부+BLOCKING 해소 추적).
 
 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).

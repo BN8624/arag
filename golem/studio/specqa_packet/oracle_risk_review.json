@@ -1,0 +1,10 @@
+{
+  "risky_scenarios": [],
+  "notes": [
+    "Turn counting logic: Turn increments only on WAIT action.",
+    "Default state: Energy 0, Turn 0, Levels {}.",
+    "Income: 1 base + (level * power) per WAIT.",
+    "Win Condition: Energy >= 1000.",
+    "Termination: No actions execute if gameStatus is WON."
+  ]
+}
