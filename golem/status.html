@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- 폰에서 캠페인 진행(주제별 합의율 + 마지막 로그)을 10초마다 자동 갱신해 보는 라이브 상태 페이지 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>golem 캠페인 상태</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; padding:14px; font:15px/1.5 -apple-system,system-ui,sans-serif;
+         background:#111; color:#eee; }
+  h1 { font-size:17px; margin:0 0 2px; }
+  .sub { color:#888; font-size:12px; margin-bottom:12px; }
+  .bar { height:8px; background:#222; border-radius:4px; overflow:hidden; margin:10px 0 14px; }
+  .bar > i { display:block; height:100%; background:#46a758; transition:width .4s; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:7px 6px; border-bottom:1px solid #222; }
+  th { color:#888; font-weight:600; font-size:11px; }
+  td.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .done { color:#eee; } .pend { color:#666; } .now { color:#46a758; }
+  .pass { color:#46a758; font-weight:600; } .low { color:#e5a23c; font-weight:600; }
+  .log { margin-top:16px; background:#0b0b0b; border:1px solid #222; border-radius:6px;
+         padding:10px; font:11px/1.45 ui-monospace,monospace; color:#bbb;
+         white-space:pre-wrap; word-break:break-all; max-height:38vh; overflow:auto; }
+  .err { color:#e5573c; }
+</style>
+</head>
+<body>
+<h1>golem 캠페인 상태</h1>
+<div class="sub" id="sub">불러오는 중...</div>
+<div class="bar"><i id="prog" style="width:0%"></i></div>
+<table>
+  <thead><tr><th>#</th><th>주제</th><th>설계</th><th class="n">합의</th><th class="n">cost</th><th class="n">초</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<div class="log" id="log">로그 불러오는 중...</div>
+
+<script>
+// 전체 주제 순서(campaign.py THEMES와 동일). 장부에 없는 주제는 대기로 표시.
+const THEMES = [
+  ["auto-snake","뱀"], ["auto-sims","심즈"], ["auto-simcity","심시티"],
+  ["auto-ck","왕조(CK)"], ["auto-sangokushi","삼국지"], ["auto-footmgr","풋볼매니저"],
+  ["auto-idle","방치형"], ["auto-autobattler","오토배틀러"],
+  ["auto-towerdef","타워디펜스"], ["auto-cardbattle","카드배틀"],
+];
+
+async function tick() {
+  let bySlug = {};
+  try {
+    const r = await fetch("campaign_ledger.jsonl?t=" + Date.now());
+    const txt = await r.text();
+    for (const line of txt.split("\n")) {
+      if (!line.trim()) continue;
+      try { const d = JSON.parse(line); bySlug[d.slug] = d; } catch(e) {}
+    }
+  } catch(e) {}
+
+  let done = 0;
+  const rows = THEMES.map(([slug, name], idx) => {
+    const d = bySlug[slug];
+    const n = idx + 1;
+    if (!d) return `<tr class="pend"><td>${n}</td><td>${name}</td><td>대기</td><td class="n">-</td><td class="n">-</td><td class="n">-</td></tr>`;
+    done++;
+    const design = d.design_ok ? "OK" : '<span class="err">실패</span>';
+    let cons = "-", cls = "";
+    if (d.design_ok && d.passed != null) {
+      cons = `${d.passed}/${d.attempts}`;
+      cls = (d.passed >= d.attempts * 0.8) ? "pass" : "low";
+    }
+    const cost = d.cost != null ? "$" + d.cost.toFixed(3) : "-";
+    const sec = d.sec != null ? d.sec : "-";
+    return `<tr class="done"><td>${n}</td><td>${name}</td><td>${design}</td>`
+         + `<td class="n ${cls}">${cons}</td><td class="n">${cost}</td><td class="n">${sec}</td></tr>`;
+  });
+  document.getElementById("rows").innerHTML = rows.join("");
+  document.getElementById("prog").style.width = (done / THEMES.length * 100) + "%";
+  document.getElementById("sub").textContent =
+    `${done}/${THEMES.length} 주제 완료 · ${new Date().toLocaleTimeString("ko-KR")} 갱신`;
+
+  try {
+    const r = await fetch("_campaign.log?t=" + Date.now());
+    const txt = await r.text();
+    const lines = txt.split("\n").filter(s => s.trim());
+    const el = document.getElementById("log");
+    el.textContent = lines.slice(-40).join("\n");
+    el.scrollTop = el.scrollHeight;
+  } catch(e) {
+    document.getElementById("log").textContent = "로그 없음(아직 시작 전이거나 파일 없음).";
+  }
+}
+tick();
+setInterval(tick, 10000);
+</script>
+</body>
+</html>

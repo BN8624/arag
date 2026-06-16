@@ -80,16 +80,22 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--tries", type=int, default=3, help="오라클 설계 최대 시도/주제")
     ap.add_argument("--limit", type=int, default=None, help="처음 N개 주제만(점검용)")
+    ap.add_argument("--start", type=int, default=1,
+                    help="N번 주제부터 이어서(1-based, resume용. 앞 N-1개 건너뜀)")
     args = ap.parse_args(argv)
     force_utf8_stdout()
 
     themes = THEMES[:args.limit] if args.limit else THEMES
+    start = max(1, args.start)
+    themes = themes[start - 1:]          # --start로 앞 주제 건너뛰기(resume)
     camp_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-    print(f"[CAMPAIGN {camp_id}] 주제 {len(themes)}개 — 자율 오라클 설계 + 독립 합의 게이트\n")
+    print(f"[CAMPAIGN {camp_id}] 주제 {len(themes)}개"
+          f"{f' (전체 {len(THEMES)}개 중 {start}번부터)' if start > 1 else ''}"
+          f" — 자율 오라클 설계 + 독립 합의 게이트\n")
 
     results = []
-    for i, (slug, theme) in enumerate(themes, 1):
-        print(f"\n===== [{i}/{len(themes)}] {slug} =====")
+    for i, (slug, theme) in enumerate(themes, start):
+        print(f"\n===== [{i}/{len(THEMES)}] {slug} =====")
         t0 = time.time()
         # 1) 31B 자율 오라클 설계
         rc = oracle_design.main(["--theme", theme, "--slug", slug, "--tries", str(args.tries)])
