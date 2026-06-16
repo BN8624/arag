@@ -47,9 +47,18 @@ MODULE DESIGN (responsibilities — split the logic this way, do NOT collapse in
 FILES YOU MUST CREATE (exact paths/exports/imports):
 {files}
 
-A file `scenarios.json` is provided in the working directory: a JSON array; scenario N (1-based) is its
-input object (may contain `constants`, `initialState`, `actions`). `node main.js --scenario N` MUST read
-scenarios.json, apply scenario N's constants/initialState/actions deterministically.
+INPUT CONTRACT (FIXED — `scenarios.json` is a JSON array; scenario N is element N-1, 1-based):
+Each scenario is an object with optional `constants`, optional `initialState`, and required `actions`.
+- constants: {{ "<genId>": {{ "baseCost": int, "costMultiplier": int, "power": int }} }} (e.g. "gen1").
+- initialState: any of {{ "turn": int, "energy": int, "levels": {{ "<genId>": int }}, "gameStatus": str }}.
+  ANY absent field uses the canonical default: turn=0, energy=0, levels={{}} (every generator level 0),
+  gameStatus="PLAYING". productionRate is NEVER taken from input — always derive it via RULE-04.
+- actions: an ARRAY of action objects, applied in order. Each action object is EXACTLY one of:
+    {{ "action": "WAIT" }}                         -> apply RULE-01
+    {{ "action": "UPGRADE", "id": "<genId>" }}     -> apply RULE-02 on generator `id`
+  The verb field is named `action` (NOT `type`); the generator field is named `id` (NOT `generatorId`).
+`node main.js --scenario N` MUST read scenarios.json, start from the canonical defaults merged with the
+scenario's constants/initialState, apply every action in `actions` in order, then print the final state.
 
 OUTPUT CONTRACT (FIXED — print EXACTLY these four lines, this order, nothing else):
 turn: <integer>

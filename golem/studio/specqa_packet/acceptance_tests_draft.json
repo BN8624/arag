@@ -5,7 +5,7 @@
       "constants": {
         "gen1": {
           "baseCost": 1,
-          "multiplier": 2,
+          "costMultiplier": 2,
           "power": 5
         }
       },
@@ -45,7 +45,7 @@
       "constants": {
         "gen1": {
           "baseCost": 10,
-          "multiplier": 2,
+          "costMultiplier": 2,
           "power": 5
         }
       },
@@ -105,7 +105,7 @@
       "constants": {
         "gen1": {
           "baseCost": 1,
-          "multiplier": 2,
+          "costMultiplier": 2,
           "power": 5
         }
       },
@@ -143,7 +143,7 @@
       "constants": {
         "gen1": {
           "baseCost": 1,
-          "multiplier": 2,
+          "costMultiplier": 2,
           "power": 5
         }
       },
@@ -225,7 +225,7 @@
       "constants": {
         "gen1": {
           "baseCost": 1,
-          "multiplier": 2,
+          "costMultiplier": 2,
           "power": 5
         }
       },
