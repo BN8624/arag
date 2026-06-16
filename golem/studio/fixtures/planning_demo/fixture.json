@@ -1,0 +1,66 @@
+{
+  "idea": "작은 텍스트 로그라이크: 타일 이동 + 적 전투 + 아이템 획득",
+  "lead_draft": "=== CONCEPT ===\nPlayer moves on a grid, fights enemies, picks up items, reaches the exit.\n\n=== GDD ===\n- MOVE_{N,S,E,W}: moves player one tile, +1 turn, log the move.\n- enemies (slime): hp, x, y; attack when adjacent.\n- items: potion heals 2 hp.\n- win: reach exit tile. lose: hp <= 0.\n- NON-GOALS: no graphics, no random map, no crafting.\n\n=== STATE ===\n{ \"turn\": 0, \"player\": {\"x\":1,\"y\":1,\"hp\":5,\"inventory\":[]}, \"enemies\": [], \"tiles\": [], \"log\": [] }\n\n=== REQUIREMENTS ===\n[{\"id\":\"REQ-001\",\"text\":\"player moves N/S/E/W one tile\"},{\"id\":\"REQ-002\",\"text\":\"moving into a wall keeps position\"},{\"id\":\"REQ-003\",\"text\":\"adjacent enemy attacks player\"}]",
+  "self_review": {
+    "ambiguous_terms": ["'fast' tile speed undefined"],
+    "missing_rules": ["what happens if two enemies occupy the same tile"],
+    "conflicting_rules": [],
+    "underspecified_outputs": [],
+    "risky_assumptions": [],
+    "questions_for_lead": []
+  },
+  "reviews": [
+    {
+      "ambiguous_terms": ["'fast' tile speed undefined", "'adjacent' includes diagonals?", "'turn' vs 'tick' used interchangeably"],
+      "missing_rules": [], "conflicting_rules": [], "underspecified_outputs": [], "risky_assumptions": [],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": ["what happens if two enemies occupy the same tile", "move into wall on turn 0"],
+      "conflicting_rules": [], "underspecified_outputs": [], "risky_assumptions": [],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [], "missing_rules": [], "conflicting_rules": [], "underspecified_outputs": [],
+      "risky_assumptions": ["inventory size limit not represented in state"],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [], "missing_rules": [], "conflicting_rules": [],
+      "underspecified_outputs": ["log line format for BLOCKED not specified"],
+      "risky_assumptions": [], "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [], "missing_rules": [], "conflicting_rules": [], "underspecified_outputs": [],
+      "risky_assumptions": ["potion behaviour at full hp is undefined"],
+      "questions_for_lead": [{"q": "is item crafting in scope?", "class": "BLOCKING"}]
+    },
+    {
+      "ambiguous_terms": [], "missing_rules": [],
+      "conflicting_rules": ["attack damage stated in two different places"],
+      "underspecified_outputs": [], "risky_assumptions": [], "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": ["'turn' vs 'tick' used interchangeably"],
+      "missing_rules": [], "conflicting_rules": [], "underspecified_outputs": [], "risky_assumptions": [],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [], "missing_rules": [], "conflicting_rules": [], "underspecified_outputs": [],
+      "risky_assumptions": ["enemy pathfinding toward player is underspecified"],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": ["exit tile coordinates never defined"],
+      "conflicting_rules": [], "underspecified_outputs": [], "risky_assumptions": [],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [], "missing_rules": [], "conflicting_rules": [],
+      "underspecified_outputs": ["REQ ids not linked to state fields for handoff"],
+      "risky_assumptions": [], "questions_for_lead": []
+    }
+  ]
+}

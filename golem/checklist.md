@@ -15,10 +15,13 @@
 - [x] Gemini/Gemma API 호출 0회 확인
 - [x] 검증: replay 5/5 통과, static_gate 무회귀(기존 평면 게임 ok:true 유지)
 
-## 다음 — Golem Studio Step 2 (키 필요, 사용자 go 대기)
-- [ ] A/B/C 비교(single / 1+3 / 1+10)를 Planning 한 단계에서 먼저 측정 — 전체 파이프라인 짓기 전
-- [ ] Planning 팀만 실제 worker slot 투입 (planning_lead + reviewer)
-- [ ] 성공 기준: BLOCKING=0, concept/gdd/ambiguity_review.json, contract_packet 검증 통과
+## Step 2 — Planning A/B/C 측정 (하니스 빌드+replay 완료, 실키 발사만 go 대기)
+- [x] `planning.py` — A(self-review)/B(1+3)/C(1+10) arm, 리뷰어 키 병렬, dedup 메트릭(unique/dup_rate/blocking)
+- [x] A안 정의 = lead 자기검토(self-review, 편향) → A/B/C가 "독립리뷰가 self-review 이기나" 측정
+- [x] 리뷰 스키마(§6)·10축(§2.2)·PENDING-004 판정(§19) 반영
+- [x] fake 픽스처 replay 검증 — 의도적 중복으로 dedup 작동 확인(A2<B6<C12 unique, dup 0.077), API 0회
+- [ ] (★키, go 대기) `python golem/studio/planning.py --idea "..."` 실제 31B 호출 — 진짜 A/B/C 측정
+- [ ] 실측 후: 독립리뷰가 self-review 이기나 / C가 B 이기나(PENDING-004 임계) 판정 → reviewer 기본값 결정
 
 ## 과거 히스토리
 

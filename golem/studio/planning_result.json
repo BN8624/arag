@@ -1,0 +1,60 @@
+{
+  "idea": "작은 텍스트 로그라이크: 타일 이동 + 적 전투 + 아이템 획득",
+  "api_calls": 0,
+  "arms": {
+    "A": {
+      "reviewer_count": 1,
+      "total_issues": 2,
+      "unique_issue_count": 2,
+      "duplicate_issue_rate": 0.0,
+      "blocking_count": 0,
+      "unique_issues": [
+        "'fast' tile speed undefined",
+        "what happens if two enemies occupy the same tile"
+      ],
+      "mode": "self-review"
+    },
+    "B": {
+      "reviewer_count": 3,
+      "total_issues": 6,
+      "unique_issue_count": 6,
+      "duplicate_issue_rate": 0.0,
+      "blocking_count": 0,
+      "unique_issues": [
+        "'fast' tile speed undefined",
+        "'adjacent' includes diagonals?",
+        "'turn' vs 'tick' used interchangeably",
+        "what happens if two enemies occupy the same tile",
+        "move into wall on turn 0",
+        "inventory size limit not represented in state"
+      ],
+      "mode": "3 independent reviewers"
+    },
+    "C": {
+      "reviewer_count": 10,
+      "total_issues": 13,
+      "unique_issue_count": 12,
+      "duplicate_issue_rate": 0.077,
+      "blocking_count": 1,
+      "unique_issues": [
+        "'fast' tile speed undefined",
+        "'adjacent' includes diagonals?",
+        "'turn' vs 'tick' used interchangeably",
+        "what happens if two enemies occupy the same tile",
+        "move into wall on turn 0",
+        "inventory size limit not represented in state",
+        "log line format for BLOCKED not specified",
+        "potion behaviour at full hp is undefined",
+        "attack damage stated in two different places",
+        "enemy pathfinding toward player is underspecified",
+        "exit tile coordinates never defined",
+        "REQ ids not linked to state fields for handoff"
+      ],
+      "mode": "10 independent reviewers"
+    }
+  },
+  "verdict": [
+    "B vs A: unique 2->6 (gain=2.0) → 독립리뷰 채택 근거 있음",
+    "C vs B: unique 6->12 (gain=1.0) → 10리뷰어 채택 근거 있음"
+  ]
+}
