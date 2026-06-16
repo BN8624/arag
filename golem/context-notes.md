@@ -406,3 +406,24 @@ integration.py(§13 Stage6) 작성. 기존 수렴 빌드 재사용(키0): 유효
 무료 31B 오케스트레이션으로 채점된 멀티파일 산출물 도달. 이 카드는 계약이 빡빡+robust+E2E검증 완료.
 다음: 장르/형태 확장(같은 파이프라인이 더 어려운 카드에서도 도나, PLAN frontier) 또는 levels 등 출력표면
 확장 검토(backlog).
+
+## G41 — 발열(결합) 카드: 하네스 일반화 + 합의 1.0이나 oracle 갈림 2개 (2026-06-17, 키 씀, 다리실험)
+방치형 v1 → "발열/과열 억제" 카드로 장르 확장(다리실험: 두 시스템 맞물려도 사다리 버티나). v2는 *_packet_heat.
+**하네스 일반화(사용자 결정)**: build_graded가 idle 계약 하드코딩이라 발열에 안 돌아감(OUTPUT=turn/energy/
+productionRate/gameStatus, INPUT=constants/initialState/actions[{action,id}]). → 계약구동으로 일반화:
+OUTPUT은 contract.state_shape에서 도출(스칼라+logs, config 등 dict 제외), INPUT은 실제 시나리오 예시 주입,
+scenarios.json엔 채점메타(id/expected/oracle_risk/covers_reqs) 뺀 전체. 한 하네스로 두 장르.
+발열 시나리오 형식: {setup:{energy,heat,generatorLevel,config(8개 명시)}, input:[액션문자열], expected}.
+config가 시나리오마다 명시돼 디폴트 고민 불필요(idle와 다른 점).
+**측정(graded-085044)**: 게이트 6~8/11(나머지=고아모듈), **합의 1.0**(유효 8빌드, 13시나리오 전부 8/8).
+첫 런에서, 사다리 없이. 단 expected 대조 시 **2개 갈림**(성격 다름):
+- SCN-008: 빌드 STALLED가 **정확**(COOL실패→throttle생산0→R-07 STALL조건 충족). SpecQA expected RUNNING은
+  R-07을 빠뜨린 **oracle 버그**. 빌드>oracle.
+- SCN-011(heat==임계 경계): **진짜 틱 순서 모호성**. 빌드 8/8 = "R-04 발열(+2→102) 먼저 → R-05 throttle이
+  102>100로 걸림 → energy 안 늚". expected = "턴시작 heat 100, 안 걸림 → +5". 계약이 throttle이 *어느 시점
+  heat*를 읽는지 안 박음(R-04를 R-05 앞에 나열만).
+**방법론 결론**: ① 맞물림이 빌드 합의를 안 떨어뜨림 — "결합=어렵다" 단순가설 기각. 31B는 결합로직도 1.0 수렴.
+② 난이도가 이동 — 합의가 못 보는 스펙 모호성(SCN-011: 전원 한 읽기로 합의하나 oracle와 불일치) + oracle 버그
+(SCN-008). **합의 1.0은 필요조건이지 충분조건 아님 — 결합 카드는 독립 oracle 대조 필수, oracle도 틀릴 수 있음**
+(하네스-우선 명제 재확인). 병목이 "모델이 만드나"→"스펙·oracle을 모호함 없이 맞게 쓰나"로 이동.
+다음: SCN-008 oracle 교정(STALLED) + SCN-011 throttle 시점을 계약에 명문화(사용자 결정 대기) → 재측정.

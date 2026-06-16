@@ -1,0 +1,6 @@
+{
+  "risky_scenarios": [],
+  "notes": [
+    "Assumed logic: Loop is [Action -> Tick]. Energy and Heat generation occur every turn regardless of action. Throttle applies if heat > heatThreshold. Costs are subtracted before Tick. Actions fail (do not subtract cost) if energy is insufficient."
+  ]
+}

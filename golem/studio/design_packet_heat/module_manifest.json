@@ -1,0 +1,40 @@
+{
+  "schema_version": "0.1",
+  "module_format": "commonjs",
+  "entry": "main.js",
+  "files": [
+    {
+      "path": "main.js",
+      "exports": [],
+      "imports": [
+        "src/engine.js"
+      ]
+    },
+    {
+      "path": "src/engine.js",
+      "exports": [
+        "processTurn"
+      ],
+      "imports": [
+        "src/game_logic.js",
+        "src/config.js"
+      ]
+    },
+    {
+      "path": "src/game_logic.js",
+      "exports": [
+        "handleAction",
+        "applyEndTurnEffects",
+        "checkStatus"
+      ],
+      "imports": []
+    },
+    {
+      "path": "src/config.js",
+      "exports": [
+        "CONFIG"
+      ],
+      "imports": []
+    }
+  ]
+}

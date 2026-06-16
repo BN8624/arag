@@ -1,0 +1,15 @@
+- Player actions:
+    - `UPGRADE`: Input: None. State change: Subtracts cost from energy, increments generator level. Failure: Insufficient energy. Log: "Upgraded to Level X. Cost: Y."
+    - `COOL`: Input: None. State change: Subtracts fixed cost from energy, reduces heat by fixed amount. Failure: Insufficient energy. Log: "System cooled. Heat reduced."
+    - `WAIT`: Input: None. State change: Increments turn counter. Failure: None. Log: "Waiting..."
+- Entities:
+    - Generator: Produces `level * 2` energy per tick. Generates `level * 1` heat per tick.
+    - Heat System: Threshold is 100. If `heat > 100`, production is throttled to 10% (rounded down).
+- Win/lose conditions:
+    - Win: `energy >= 1000`.
+    - Lose: No lose condition (infinite turns), but "stalling" occurs if energy cannot be spent to cool or upgrade.
+- NON-GOALS:
+    - Random number generation (RNG).
+    - Multiple types of generators.
+    - Persistent save files.
+    - Real-time timers or async input.

@@ -1,0 +1,262 @@
+{
+  "reviews": [
+    {
+      "ambiguous_terms": [
+        "end of every turn"
+      ],
+      "missing_rules": [
+        "The sequence of operations at the end of a turn (whether heat is added before or after energy production is calculated)."
+      ],
+      "conflicting_rules": [
+        "GDD states only the WAIT action increments the turn counter, but Requirements REQ-001 and REQ-002 apply effects to 'every turn', creating a conflict on whether UPGRADE and COOL actions also trigger production and heat."
+      ],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Assuming the UPGRADE cost (level * 10) uses the level value prior to the increment."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "Do UPGRADE and COOL actions count as turns that trigger end-of-turn energy production and heat accumulation, or only the WAIT action?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "At the end of a turn, is heat added to the system before or after the energy production for that turn is calculated and throttled?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Is the UPGRADE cost calculated using the generator's current level or the level it will become after the upgrade?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "end of every turn"
+      ],
+      "missing_rules": [
+        "Handling of invalid or unrecognized action inputs",
+        "Recovery or failure state for 'soft-lock' (when production floors to 0, heat > 100, and energy < 5)"
+      ],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Assumption that every action (including UPGRADE and COOL) triggers a 'turn end', otherwise players can cool/upgrade without heat accumulating"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "Does every action trigger the 'end of turn' production and heat logic, or only the WAIT action?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Is the soft-lock state (where production floors to 0 and the player lacks energy to COOL) intended as a loss condition, or should there be a minimum production of 1?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [
+        "Energy production multiplier (2) not reflected in state/config",
+        "Heat generation multiplier (1) not reflected in state/config",
+        "Production throttle percentage (10%) not reflected in state/config"
+      ],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [],
+      "questions_for_lead": [
+        {
+          "q": "Should the energy production multiplier, heat accumulation multiplier, and throttle rate be added to the config object to avoid hardcoding?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "stalling"
+      ],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [
+        "stalling"
+      ],
+      "risky_assumptions": [],
+      "questions_for_lead": [
+        {
+          "q": "The GDD mentions that 'stalling occurs' under certain conditions, but there is no corresponding requirement or state change defined. What is the observable output (e.g., a log message, a state flag, or a game-over trigger) when the system stalls?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [],
+      "questions_for_lead": []
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "The game logic (energy production, heat accumulation, throttling, and action effects) is duplicated across the GDD and Requirements sections, assuming these will remain synchronized."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "The GDD, State config, and Requirements sections all define the same mechanical constants and logic; which section is the authoritative source of truth?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "system",
+        "state"
+      ],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [],
+      "questions_for_lead": [
+        {
+          "q": "The term 'system' is used to describe in-game mechanics ('cooling systems'), a specific logic entity ('Heat System'), and the software implementation as a whole ('The system must be entirely deterministic'). Should these be renamed to avoid confusion?",
+          "class": "DEFERRED"
+        },
+        {
+          "q": "The term 'state' is used to refer to the data snapshot (=== STATE ===), the act of mutation ('state change'), and the game outcome ('win state'). Should these be disambiguated?",
+          "class": "DEFERRED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "turn"
+      ],
+      "missing_rules": [
+        "The precise sequence of events at the end of a turn (i.e., does heat increase before or after energy production is calculated and throttled?)",
+        "Whether the UPGRADE and COOL actions increment the turn counter and trigger end-of-turn effects, or if only the WAIT action does."
+      ],
+      "conflicting_rules": [
+        "GDD states the WAIT action increments the turn counter, whereas REQ-001 and REQ-002 apply effects at the end of 'every turn', implying a contradiction regarding whether actions like UPGRADE or COOL constitute a turn."
+      ],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Assuming that 10% energy production floored to the nearest integer (which results in 0 energy for levels 1-4) will not lead to an inescapable soft-lock state."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "Do UPGRADE and COOL actions count as turns that trigger the end-of-turn production and heat increase?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "At the end of a turn, is the heat threshold checked using the heat value from the start of the turn, or the value after the turn's heat increase has been applied?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Is the 0-energy production result (from flooring 10% of low-level production) an intended failure state or a bug in the math?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Assuming the state must track 'turn' and 'logs', as neither is used in the core logic or win conditions defined in REQ-001 through REQ-007."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "The GDD and State include a logging system and a turn counter, but these are not mentioned in the Requirements or stated goals. Should these be removed as out-of-scope features?",
+          "class": "DEFERRED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "tick (used in Entities, but Requirements use 'turn')"
+      ],
+      "missing_rules": [
+        "Order of operations for end-of-turn processing (does heat increase before or after energy is produced?)",
+        "Timing of the heat throttle check (does it check heat at the start of the turn or after the end-of-turn heat increase?)",
+        "Interaction between UPGRADE and current turn production (does the new level apply to the production at the end of the same turn?)"
+      ],
+      "conflicting_rules": [],
+      "underspecified_outputs": [
+        "Structure of the 'logs' array entries (plain strings or objects with timestamps/turn numbers?)"
+      ],
+      "risky_assumptions": [
+        "The starting state (0 energy, Level 1) implies the player must use the 'WAIT' action for 5 consecutive turns before being able to afford the first UPGRADE or COOL action."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "What is the exact sequence of a single turn? (e.g., Player Action -> Heat Increase -> Production Calculation -> Win Check)",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "If a player upgrades their generator on turn 5, does the energy produced at the end of turn 5 use the new level?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Does the heat threshold check use the heat value from the previous turn, or the value after the current turn's heat has been added?",
+          "class": "BLOCKING"
+        }
+      ]
+    }
+  ],
+  "aggregated": {
+    "ambiguous_terms": [
+      "end of every turn",
+      "end of every turn",
+      "stalling",
+      "system",
+      "state",
+      "turn",
+      "tick (used in Entities, but Requirements use 'turn')"
+    ],
+    "missing_rules": [
+      "The sequence of operations at the end of a turn (whether heat is added before or after energy production is calculated).",
+      "Handling of invalid or unrecognized action inputs",
+      "Recovery or failure state for 'soft-lock' (when production floors to 0, heat > 100, and energy < 5)",
+      "Energy production multiplier (2) not reflected in state/config",
+      "Heat generation multiplier (1) not reflected in state/config",
+      "Production throttle percentage (10%) not reflected in state/config",
+      "The precise sequence of events at the end of a turn (i.e., does heat increase before or after energy production is calculated and throttled?)",
+      "Whether the UPGRADE and COOL actions increment the turn counter and trigger end-of-turn effects, or if only the WAIT action does.",
+      "Order of operations for end-of-turn processing (does heat increase before or after energy is produced?)",
+      "Timing of the heat throttle check (does it check heat at the start of the turn or after the end-of-turn heat increase?)",
+      "Interaction between UPGRADE and current turn production (does the new level apply to the production at the end of the same turn?)"
+    ],
+    "conflicting_rules": [
+      "GDD states only the WAIT action increments the turn counter, but Requirements REQ-001 and REQ-002 apply effects to 'every turn', creating a conflict on whether UPGRADE and COOL actions also trigger production and heat.",
+      "GDD states the WAIT action increments the turn counter, whereas REQ-001 and REQ-002 apply effects at the end of 'every turn', implying a contradiction regarding whether actions like UPGRADE or COOL constitute a turn."
+    ],
+    "underspecified_outputs": [
+      "stalling",
+      "Structure of the 'logs' array entries (plain strings or objects with timestamps/turn numbers?)"
+    ],
+    "risky_assumptions": [
+      "Assuming the UPGRADE cost (level * 10) uses the level value prior to the increment.",
+      "Assumption that every action (including UPGRADE and COOL) triggers a 'turn end', otherwise players can cool/upgrade without heat accumulating",
+      "The game logic (energy production, heat accumulation, throttling, and action effects) is duplicated across the GDD and Requirements sections, assuming these will remain synchronized.",
+      "Assuming that 10% energy production floored to the nearest integer (which results in 0 energy for levels 1-4) will not lead to an inescapable soft-lock state.",
+      "Assuming the state must track 'turn' and 'logs', as neither is used in the core logic or win conditions defined in REQ-001 through REQ-007.",
+      "The starting state (0 energy, Level 1) implies the player must use the 'WAIT' action for 5 consecutive turns before being able to afford the first UPGRADE or COOL action."
+    ],
+    "BLOCKING_questions": [
+      "Do UPGRADE and COOL actions count as turns that trigger end-of-turn energy production and heat accumulation, or only the WAIT action?",
+      "At the end of a turn, is heat added to the system before or after the energy production for that turn is calculated and throttled?",
+      "Does every action trigger the 'end of turn' production and heat logic, or only the WAIT action?",
+      "Is the soft-lock state (where production floors to 0 and the player lacks energy to COOL) intended as a loss condition, or should there be a minimum production of 1?",
+      "The GDD mentions that 'stalling occurs' under certain conditions, but there is no corresponding requirement or state change defined. What is the observable output (e.g., a log message, a state flag, or a game-over trigger) when the system stalls?",
+      "Do UPGRADE and COOL actions count as turns that trigger the end-of-turn production and heat increase?",
+      "At the end of a turn, is the heat threshold checked using the heat value from the start of the turn, or the value after the turn's heat increase has been applied?",
+      "What is the exact sequence of a single turn? (e.g., Player Action -> Heat Increase -> Production Calculation -> Win Check)",
+      "If a player upgrades their generator on turn 5, does the energy produced at the end of turn 5 use the new level?",
+      "Does the heat threshold check use the heat value from the previous turn, or the value after the current turn's heat has been added?"
+    ]
+  }
+}

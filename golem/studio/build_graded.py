@@ -47,32 +47,19 @@ MODULE DESIGN (responsibilities — split the logic this way, do NOT collapse in
 FILES YOU MUST CREATE (exact paths/exports/imports):
 {files}
 
-INPUT CONTRACT (FIXED — `scenarios.json` is a JSON array; scenario N is element N-1, 1-based):
-Each scenario is an object with optional `constants`, optional `initialState`, and optional `actions`.
-If `actions` is absent (even for an empty input object `{{}}`), default it to [] — apply no actions and
-print the canonical initial state. NEVER crash on a missing field.
-- constants: {{ "<genId>": {{ "baseCost": int, "costMultiplier": int, "power": int }} }} (e.g. "gen1").
-- initialState: any of {{ "turn": int, "energy": int, "levels": {{ "<genId>": int }}, "gameStatus": str }}.
-  ANY absent field uses the canonical default: turn=0, energy=0, levels={{}} (every generator level 0),
-  gameStatus="PLAYING". productionRate is NEVER taken from input — always derive it via RULE-04.
-- actions: an ARRAY of action objects, applied in order. Each action object is EXACTLY one of:
-    {{ "action": "WAIT" }}                         -> apply RULE-01
-    {{ "action": "UPGRADE", "id": "<genId>" }}     -> apply RULE-02 on generator `id`
-  The verb field is named `action` (NOT `type`); the generator field is named `id` (NOT `generatorId`).
-`node main.js --scenario N` MUST read scenarios.json, start from the canonical defaults merged with the
-scenario's constants/initialState, apply every action in `actions` in order, then print the final state.
+INPUT (FIXED — `scenarios.json` is a JSON array; `node main.js --scenario N` reads element N-1, 1-based,
+and runs it deterministically). Match this EXACT input format (these are the real scenario elements you must
+support — infer the shape precisely from them):
+{input_examples}
+Read the scenario element's setup / initial fields AND its config from the element itself, apply its actions
+in order, then print the final state. Use the config values PROVIDED in the element — never invent your own.
+NEVER crash on a missing optional field.
 
-OUTPUT CONTRACT (FIXED — print EXACTLY these five lines, this order, nothing else):
-turn: <integer>
-energy: <integer>
-productionRate: <integer>
-gameStatus: <PLAYING or WON>
-logs: <a JSON array of log strings in the order they occurred, e.g. [] or ["Insufficient energy"]>
-Emit a log ONLY for these events, with this EXACT wording: "Insufficient energy" (an UPGRADE rejected by
-RULE-02) and "Invalid generator ID" (an UPGRADE on an id absent from constants, RULE-07). No other logs,
-no other lines (do NOT print logs as separate bare lines — only the `logs:` JSON array line).
-Use the constants/initialState from the scenario input. If a generator config is absent, default
-gen1 = {{ baseCost: 10, costMultiplier: 2, power: 1 }}. All values must be integers (cost uses floor).
+OUTPUT CONTRACT (FIXED — print EXACTLY these lines, this order, nothing else):
+{output_lines}
+All numeric state values are integers (use floor where a rule specifies). The `logs` line is a JSON array of
+log strings in order (e.g. [] if none); emit a log ONLY where a rule explicitly says to, with that exact
+wording, and never as a separate bare line.
 
 Output every file with EXACT markers, one per file:
 === FILE: <path> ===
@@ -90,14 +77,28 @@ def load_all(pdir, ddir, sdir):
     return contract, concept, manifest, sysd, scen, risk
 
 
-def build_prompt(concept, contract, manifest, sysd):
+def _output_lines(state_shape):
+    """출력계약 줄을 state_shape에서 도출 — 최상위 스칼라 필드 + logs (중첩 dict=config 등은 미출력)."""
+    lines = []
+    for k, v in state_shape.items():
+        if k == "logs" or isinstance(v, dict):
+            continue
+        lines.append(f"{k}: <{v}>")
+    lines.append('logs: <a JSON array of strings in order, e.g. [] if none>')
+    return "\n".join(lines)
+
+
+def build_prompt(concept, contract, manifest, sysd, scen_inputs):
     rules = contract.get("data_contract", {}).get("rules", [])
+    state_shape = contract.get("data_contract", {}).get("state_shape", {})
+    examples = json.dumps(scen_inputs[:3], ensure_ascii=False, indent=2)
     files_desc = "\n".join(
         f"- {f['path']}: exports {f.get('exports', [])}, imports {f.get('imports', [])}"
         for f in manifest.get("files", []))
     return _PROMPT.format(concept=concept.strip() or "(none)",
                           rules="\n".join(f"- {r}" for r in rules) or "(none)",
-                          system_design=sysd.strip() or "(none)", files=files_desc)
+                          system_design=sysd.strip() or "(none)", files=files_desc,
+                          input_examples=examples, output_lines=_output_lines(state_shape))
 
 
 def _norm_output(stdout):
@@ -173,11 +174,12 @@ def main(argv=None):
         Path(args.packet), Path(args.design), Path(args.specqa))
     risky = set(risk.get("risky_scenarios", []))
     gradeable = [s["id"] for s in scenarios if s["id"] not in risky and s.get("expected") is not None]
-    scen_inputs = [s.get("input", {}) for s in scenarios]
+    grading_keys = {"id", "expected", "oracle_risk", "covers_reqs"}
+    scen_inputs = [{k: v for k, v in s.items() if k not in grading_keys} for s in scenarios]
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = Path(args.out) if args.out else (HERE / "build_runs" / f"graded-{run_id}")
-    prompt = build_prompt(concept, contract, manifest, sysd)
+    prompt = build_prompt(concept, contract, manifest, sysd, scen_inputs)
     pool = KeyPool(get_api_keys(), models=[MODEL_31])
     print(f"[BUILD v1] design 4모듈 manifest, 시나리오 {len(scenarios)}(채점가능 {len(gradeable)}), "
           f"cap={args.cap} keys={pool.size}, run={run_id}")

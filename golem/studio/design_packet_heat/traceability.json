@@ -1,0 +1,93 @@
+{
+  "REQ-01": {
+    "text": "UPGRADE action costs (generatorLevel * config.upgradeBaseCost). If energy >= cost, energy -= cost and generatorLevel += 1.",
+    "design_modules": [
+      "src/game_logic.js"
+    ],
+    "exports": [
+      "handleAction"
+    ],
+    "tests": [
+      "SCN-001"
+    ],
+    "status": "covered"
+  },
+  "REQ-02": {
+    "text": "COOL action costs config.coolCost. If energy >= cost, energy -= cost and heat = max(0, heat - config.coolAmount).",
+    "design_modules": [
+      "src/game_logic.js"
+    ],
+    "exports": [
+      "handleAction"
+    ],
+    "tests": [
+      "SCN-001"
+    ],
+    "status": "covered"
+  },
+  "REQ-03": {
+    "text": "WAIT action has no immediate state change other than triggering the turn end.",
+    "design_modules": [
+      "src/game_logic.js"
+    ],
+    "exports": [
+      "handleAction"
+    ],
+    "tests": [
+      "SCN-001"
+    ],
+    "status": "covered"
+  },
+  "REQ-04": {
+    "text": "End-of-Turn Heat: heat += (generatorLevel * config.heatMultiplier).",
+    "design_modules": [
+      "src/game_logic.js"
+    ],
+    "exports": [
+      "applyEndTurnEffects"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "REQ-05": {
+    "text": "End-of-Turn Energy: baseProd = (generatorLevel * config.energyMultiplier). If heat > config.heatThreshold, actualProd = floor(baseProd * config.throttleMultiplier), else actualProd = baseProd. energy += actualProd.",
+    "design_modules": [
+      "src/game_logic.js"
+    ],
+    "exports": [
+      "applyEndTurnEffects"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "REQ-06": {
+    "text": "Win Condition: If energy >= config.winCondition, status = 'WON'.",
+    "design_modules": [
+      "src/game_logic.js"
+    ],
+    "exports": [
+      "checkStatus"
+    ],
+    "tests": [
+      "SCN-003"
+    ],
+    "status": "covered"
+  },
+  "REQ-07": {
+    "text": "Stall Condition: If status != 'WON' AND actualProd == 0 AND energy < min(config.coolCost, generatorLevel * config.upgradeBaseCost), status = 'STALLED'.",
+    "design_modules": [
+      "src/game_logic.js"
+    ],
+    "exports": [
+      "checkStatus"
+    ],
+    "tests": [
+      "SCN-003"
+    ],
+    "status": "covered"
+  }
+}

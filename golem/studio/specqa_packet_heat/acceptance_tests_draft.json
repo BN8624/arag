@@ -1,0 +1,435 @@
+[
+  {
+    "id": "SCN-001",
+    "setup": {
+      "energy": 0,
+      "heat": 0,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "WAIT",
+      "WAIT",
+      "WAIT",
+      "WAIT",
+      "WAIT"
+    ],
+    "covers_reqs": [
+      "REQ-03",
+      "REQ-04"
+    ],
+    "expected": {
+      "energy": 25,
+      "heat": 10,
+      "turn": 5,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-002",
+    "setup": {
+      "energy": 10,
+      "heat": 0,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "UPGRADE"
+    ],
+    "covers_reqs": [
+      "REQ-01"
+    ],
+    "expected": {
+      "energy": 10,
+      "heat": 4,
+      "generatorLevel": 2,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Energy calc: (10 - 10) + (2 * 5) = 10. Heat calc: 0 + (2 * 2) = 4."
+    }
+  },
+  {
+    "id": "SCN-003",
+    "setup": {
+      "energy": 100,
+      "heat": 110,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "COOL"
+    ],
+    "covers_reqs": [
+      "REQ-02"
+    ],
+    "expected": {
+      "energy": 100,
+      "heat": 82,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Energy calc: (100 - 5) + 5 = 100. Heat calc: (110 - 30) + 2 = 82."
+    }
+  },
+  {
+    "id": "SCN-004",
+    "setup": {
+      "energy": 100,
+      "heat": 110,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "WAIT"
+    ],
+    "covers_reqs": [
+      "REQ-05"
+    ],
+    "expected": {
+      "energy": 100,
+      "heat": 112,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Energy gain is floor(1 * 5 * 0.1) = 0."
+    }
+  },
+  {
+    "id": "SCN-005",
+    "setup": {
+      "energy": 998,
+      "heat": 0,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "WAIT"
+    ],
+    "covers_reqs": [
+      "REQ-06"
+    ],
+    "expected": {
+      "status": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": ""
+    }
+  },
+  {
+    "id": "SCN-006",
+    "setup": {
+      "energy": 2,
+      "heat": 110,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "WAIT"
+    ],
+    "covers_reqs": [
+      "REQ-07"
+    ],
+    "expected": {
+      "status": "STALLED"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Energy is below all costs and production is throttled to 0."
+    }
+  },
+  {
+    "id": "SCN-007",
+    "setup": {
+      "energy": 5,
+      "heat": 0,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "UPGRADE"
+    ],
+    "covers_reqs": [
+      "REQ-01"
+    ],
+    "expected": {
+      "energy": 10,
+      "heat": 2,
+      "generatorLevel": 1,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Action fails due to insufficient energy; only tick occurs."
+    }
+  },
+  {
+    "id": "SCN-008",
+    "setup": {
+      "energy": 2,
+      "heat": 110,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "COOL"
+    ],
+    "covers_reqs": [
+      "REQ-02"
+    ],
+    "expected": {
+      "energy": 2,
+      "heat": 112,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Action fails due to insufficient energy; only tick occurs."
+    }
+  },
+  {
+    "id": "SCN-009",
+    "setup": {
+      "energy": 10,
+      "heat": 0,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "UPGRADE",
+      "WAIT"
+    ],
+    "covers_reqs": [
+      "REQ-03"
+    ],
+    "expected": {
+      "energy": 20,
+      "heat": 8,
+      "generatorLevel": 2,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "T1: (10-10)+(2*5)=10, H(0+4)=4. T2: 10+(2*5)=20, H(4+4)=8."
+    }
+  },
+  {
+    "id": "SCN-010",
+    "setup": {
+      "energy": 995,
+      "heat": 0,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "WAIT"
+    ],
+    "covers_reqs": [
+      "REQ-06"
+    ],
+    "expected": {
+      "status": "WON"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Exact win condition energy hit."
+    }
+  },
+  {
+    "id": "SCN-011",
+    "setup": {
+      "energy": 100,
+      "heat": 100,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "WAIT"
+    ],
+    "covers_reqs": [
+      "REQ-05"
+    ],
+    "expected": {
+      "energy": 105,
+      "heat": 102,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Throttle applies when heat > heatThreshold, not when heat == heatThreshold."
+    }
+  },
+  {
+    "id": "SCN-012",
+    "setup": {
+      "energy": 10,
+      "heat": 20,
+      "generatorLevel": 1,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "COOL"
+    ],
+    "covers_reqs": [
+      "REQ-02"
+    ],
+    "expected": {
+      "energy": 10,
+      "heat": 2,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Heat floored at 0: (20-30)->0 + 2 = 2."
+    }
+  },
+  {
+    "id": "SCN-013",
+    "setup": {
+      "energy": 100,
+      "heat": 110,
+      "generatorLevel": 2,
+      "config": {
+        "upgradeBaseCost": 10,
+        "coolCost": 5,
+        "coolAmount": 30,
+        "heatMultiplier": 2,
+        "energyMultiplier": 5,
+        "heatThreshold": 100,
+        "throttleMultiplier": 0.1,
+        "winCondition": 1000
+      }
+    },
+    "input": [
+      "WAIT"
+    ],
+    "covers_reqs": [
+      "REQ-05"
+    ],
+    "expected": {
+      "energy": 101,
+      "heat": 114,
+      "status": "RUNNING"
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Energy gain: floor(2 * 5 * 0.1) = 1."
+    }
+  }
+]
