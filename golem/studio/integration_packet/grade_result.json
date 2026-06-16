@@ -1,0 +1,202 @@
+{
+  "run": "graded-20260617-045740",
+  "final_attempt": "attempt01",
+  "valid_builds": 6,
+  "grade_pass": 24,
+  "gradeable": 24,
+  "total_cases": 24,
+  "cases": [
+    {
+      "id": "SCN-001",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "SCN-002",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "SCN-003",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-004",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "SCN-005",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "SCN-006",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-007",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-008",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-009",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-010",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-011",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "EDGE-001",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "EDGE-002",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "EDGE-003",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "EDGE-004",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "EDGE-005",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "EDGE-006",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "EDGE-007",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "EDGE-008",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "EDGE-009",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "EDGE-010",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "EDGE-011",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "EDGE-012",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    },
+    {
+      "id": "EDGE-013",
+      "kind": "edge",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": [
+        "levels"
+      ]
+    }
+  ]
+}

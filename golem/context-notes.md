@@ -393,3 +393,16 @@ json 라운드트립으로 정규화(공백·따옴표 차 무시, 순서 보존
 **결론**: 출력계약에 로그면을 박으니 싼 모델이 로그 문구·순서까지 정확히 수렴. RULE-07이 상태+로그 모두
 채점·수렴. 채점 표면(output contract)이 곧 측정 가능 범위 — 재고 싶은 건 출력에 넣어야 잰다(교훈).
 다음: §13 Step7 Integration 또는 장르확장.
+
+## G40 — Step7 Integration: 파이프라인 E2E 완주, 최종 산출물 채점 (2026-06-17, 키0)
+integration.py(§13 Stage6) 작성. 기존 수렴 빌드 재사용(키0): 유효 빌드 중 '케이스별 다수합의 일치 최다'
+빌드를 최종으로 선정 → static_gate + golden 채점 + final_workspace 복사 + final_report.md.
+채점 표면 = 출력계약 키(turn/energy/productionRate/gameStatus/logs)뿐 — golden의 levels는 미출력이라
+'출력표면밖(OUTPUT_SURFACE_SKIP)'으로 정직 표기(G39 교훈 재적용).
+**결과(graded-045740 재사용)**: 최종=attempt01(4모듈 main+engine+state_manager+utils), static_gate PASS,
+**채점 24/24 PASS**(acceptance 11 + edge 13 전부 golden 일치), CRASH/FAIL 0, NO_GRADEABLE 0.
+→ `studio/integration_packet/`(final_workspace + static_gate_result + grade_result + final_report).
+**의미**: 아이디어 한 줄("방치형")로 Step1~7 전 파이프라인이 실제 완주 — 설계→구현→QA→adversarial→통합까지
+무료 31B 오케스트레이션으로 채점된 멀티파일 산출물 도달. 이 카드는 계약이 빡빡+robust+E2E검증 완료.
+다음: 장르/형태 확장(같은 파이프라인이 더 어려운 카드에서도 도나, PLAN frontier) 또는 levels 등 출력표면
+확장 검토(backlog).

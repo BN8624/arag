@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "reason": null,
+  "checks": {
+    "multifile": 4,
+    "syntax": "ok",
+    "no_npm": "ok",
+    "deterministic": "ok",
+    "reachable": "ok"
+  }
+}
