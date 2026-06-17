@@ -28,8 +28,6 @@ sys.path.insert(0, str(HERE.parent.parent))
 import static_gate                       # noqa: E402
 from build_graded import _norm_output    # noqa: E402
 
-OUTPUT_KEYS = {"turn", "energy", "productionRate", "gameStatus", "logs"}
-
 
 def _latest_run():
     runs = sorted((HERE / "build_runs").glob("graded-*"), reverse=True)
@@ -46,22 +44,22 @@ def _run_case(ws, inputs, idx):
     return dict(_norm_output(r.stdout)) if r.returncode == 0 else None
 
 
-def _golden_norm(expected):
+def _golden_norm(expected, output_keys):
     """golden expected를 출력표면 키로 투영. (gradeable_dict, skipped_keys)."""
     g, skipped = {}, []
     for k, v in (expected or {}).items():
-        if k not in OUTPUT_KEYS:
+        if k not in output_keys:
             skipped.append(k)
             continue
         g[k] = json.dumps(v) if k == "logs" else str(v)
     return g, skipped
 
 
-def grade_case(out, expected):
+def grade_case(out, expected, output_keys):
     """최종 빌드 출력 dict를 golden에 대조. (status, detail)."""
     if out is None:
         return "CRASH", {}
-    g, skipped = _golden_norm(expected)
+    g, skipped = _golden_norm(expected, output_keys)
     if not g:
         return "NO_GRADEABLE_KEYS", {"skipped": skipped}
     mism = {k: {"got": out.get(k), "want": v} for k, v in g.items() if out.get(k) != v}
@@ -71,6 +69,7 @@ def grade_case(out, expected):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", default=None)
+    ap.add_argument("--packet", default=str(HERE / "planning_packet"))
     ap.add_argument("--specqa", default=str(HERE / "specqa_packet"))
     ap.add_argument("--adversarial", default=str(HERE / "adversarial_packet"))
     ap.add_argument("--out", default=str(HERE / "integration_packet"))
@@ -87,11 +86,21 @@ def main(argv=None):
         print("[INTEG] graded 런이 없음 — 먼저 build_graded 실행 필요")
         return 1
 
+    # 출력키는 계약 state_shape에서 도출(스칼라+logs, config 등 dict 제외) — 카드 무관
+    contract = json.loads((Path(args.packet) / "contract.json").read_text(encoding="utf-8"))
+    state_shape = contract.get("data_contract", {}).get("state_shape", {})
+    output_keys = {k for k, v in state_shape.items() if not isinstance(v, dict)}
+
+    grading_keys = {"id", "expected", "oracle_risk", "covers_reqs"}
+    def _case_input(c):  # 실행입력 = 채점메타 뺀 전체(build_graded와 동일 규약)
+        return {k: v for k, v in c.items() if k not in grading_keys}
+
     acc = json.loads((Path(args.specqa) / "acceptance_tests_draft.json").read_text(encoding="utf-8"))
-    edges = json.loads((Path(args.adversarial) / "edge_cases.json").read_text(encoding="utf-8"))
-    cases = [{"id": c["id"], "kind": "acceptance", "input": c.get("input", {}), "expected": c.get("expected")}
+    adv = Path(args.adversarial) / "edge_cases.json"
+    edges = json.loads(adv.read_text(encoding="utf-8")) if adv.exists() else []
+    cases = [{"id": c["id"], "kind": "acceptance", "input": _case_input(c), "expected": c.get("expected")}
              for c in acc] + \
-            [{"id": c["id"], "kind": "edge", "input": c.get("input", {}), "expected": c.get("expected")}
+            [{"id": c["id"], "kind": "edge", "input": _case_input(c), "expected": c.get("expected")}
              for c in edges]
     inputs = [c["input"] for c in cases]
 
@@ -120,7 +129,7 @@ def main(argv=None):
     # grade: 최종 빌드 vs golden
     grades = []
     for j, c in enumerate(cases):
-        status, detail = grade_case(outs[final][j], c["expected"])
+        status, detail = grade_case(outs[final][j], c["expected"], output_keys)
         grades.append({"id": c["id"], "kind": c["kind"], "status": status, **detail})
     n_pass = sum(1 for g in grades if g["status"] == "PASS")
     n_gradeable = sum(1 for g in grades if g["status"] in ("PASS", "FAIL", "CRASH"))
