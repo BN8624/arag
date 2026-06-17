@@ -2,8 +2,9 @@
 
 ## ▶ 새 세션 여기부터
 - 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G44) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
-- **지금 할 일 한 줄**: T1 첫 장르 카드를 `build_graded --reconcile --apply`로 돌린다 — 새 결합 카드(아이디어 한 줄→Planning~Build)가 실제 불일치를 내며 T0 전체 체인(diff→resolve→AUTO적용→ESCALATE/BUILD_BUG)을 라이브 검증 + T1 측정(카드당 ESCALATE·oracle버그·BUILD_BUG 자동해소율·cascade)을 동시에. ★키.
-- T0(reconcile 자동연결) 코드 완료(G47, 키0). 회귀 하드닝 #2~7 완료(G45). 남은 키 작업=위 T1 런(=T0 라이브 검증 겸).
+- **지금 할 일 한 줄**: T1 일반화 실험(설계=G48). 결합밀도 저/중/고 카드를 `build_graded --reconcile --apply`로 — **고결합 1장 필수**, 첫 N=3은 정성 스모크(수렴되나만), **1순위 지표=AUTO 정확률**(낮은 ESCALATE만으론 Green 아님), 실패는 하네스/oracle 탓부터 분리. ★키.
+- T0(reconcile 자동연결) 코드 완료(G47). 회귀 하드닝 완료(G45). 다음 frontier=자율oracle×고결합(UI 아님, 별도 트랙). 측정설계·판정기준은 **G48** 필독.
+- (T1 전 권장, 키0) AUTO 정확률 검증 로그 + 실패 사전분류(HARNESS/INFRA vs 카드)를 reconcile/build_graded에 추가.
 - 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
 - 운영 가드레일은 context-notes **G46** 참조: v0.1 동결 아님(확장 유지) / 우선순위 T0→T1→T2(T2가 T0/T1 안 막음) / live build=build_graded.py / reconcile=Build↔oracle 슬라이스 / unique_issue_count는 lexical(방향성만) / --apply는 AUTO만.
 

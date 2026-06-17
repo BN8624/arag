@@ -17,8 +17,10 @@
       module.exports.prop 미인식 버그 수정 / unique_issue_count lexical 라벨 / validator 정본+schema drift 경고 /
       path escape guard / assumptions·backlog 영속화 / FAILURE_TAXONOMY 통합 인벤토리(난립 방지, 매핑표 아님)
 - [x] T0 reconcile 자동연결(G47, 코드 키0) — build_graded --reconcile/--apply: diff→resolve→AUTO적용→ESCALATE/BUILD_BUG 리포트. ESCALATE 자동적용 금지, BUILD_BUG는 재빌드 권장만
-- [ ] **다음: T1 첫 장르 카드를 --reconcile로 라이브 검증** — 새 결합 카드가 불일치를 내며 T0 체인 검증 + T1 측정 동시(★키)
-- [ ] 장르 N≥3 — 지표=카드당 ESCALATE 수·oracle 버그 수·BUILD_BUG 자동해소율·cascade 여부(★키)
+- [ ] (T1 전, 키0) AUTO 정확률 검증 로그 + 실패 사전분류(HARNESS/INFRA vs 카드/계약)를 reconcile/build_graded에 추가
+- [ ] **T1 일반화 실험(설계=G48)** — 결합밀도 저/중/고 카드(고결합 1장 필수)를 --reconcile로. 첫 N=3은 정성 스모크. 1순위 지표=AUTO 정확률. Green=ESCALATE 낮음 AND AUTO 정확률 높음 AND oracle 일치(★키)
+- [ ] 정량 판정 — multi-seed/동결합 다수 카드로 임계 기반(★키)
+- [ ] 코어 다음 frontier = 자율 oracle × 고결합 카드 × reconcile calibration (UI/Asset는 별도 트랙, 결정적 렌더 채점법 선결)
 - [ ] (backlog) levels 등 출력표면 확장 / adversarial BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주
 
 ## (완료 기록) Golem Studio v0.1 Contract Microkernel Replay (2026-06-17)
