@@ -1,0 +1,1 @@
+{ "ok": false, "failing_check": "import_export", "note": "../ 상위탈출 require 금지(path escape)" }

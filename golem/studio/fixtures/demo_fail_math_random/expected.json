@@ -1,0 +1,1 @@
+{ "ok": false, "failing_check": "static_gate", "note": "Math.random 비결정성" }

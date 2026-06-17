@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Golem Studio module_manifest v0.1",
+  "$comment": "참고문서(reference)다. 정본은 contract_validator.py — validate()가 이 required를 읽어 정본과 어긋나면 warning을 낸다.",
   "description": "v0.1 최소 필드. description/owner/req_ids/test_ids/side_effects는 v0.2 이후.",
   "type": "object",
   "required": ["schema_version", "module_format", "entry", "files"],

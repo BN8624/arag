@@ -268,6 +268,13 @@ def _write_packet(idea, draft, reviews, issues, packet, outdir):
          f"## ASSUMED(가정 고정) {len(assumed)}", *[f"- {a}" for a in assumed], "",
          f"## DEFERRED(후속 미룸) {len(deferred)}", *[f"- {d}" for d in deferred]]
     (outdir / "questions.md").write_text("\n".join(q) + "\n", encoding="utf-8")
+    # 기계가독 분리 영속화 + 소비처 명시(죽은 문서 방지): assumptions=Build가 따름, backlog=다음 카드 planning이 읽음.
+    (outdir / "assumptions.json").write_text(json.dumps(
+        {"consumer": "Build/Spec QA가 명시 가정으로 따른다", "assumed": assumed},
+        ensure_ascii=False, indent=2), encoding="utf-8")
+    (outdir / "backlog.json").write_text(json.dumps(
+        {"consumer": "다음 버전/카드 planning이 입력으로 읽는다", "deferred": deferred},
+        ensure_ascii=False, indent=2), encoding="utf-8")
 
     # BLOCKING은 synthesis가 decisions/assumed/deferred로 흡수해야 0이 된다.
     resolved = bool(decisions or assumed or deferred)
@@ -401,6 +408,9 @@ def _write_outputs(idea, draft, results, api_calls):
                          f"{r['unique_issue_count']} | {r['duplicate_issue_rate']} | {r['blocking_count']} |")
     lines += ["", "## 판정(§19 PENDING-004)"]
     lines += [f"- {v}" for v in summary["verdict"]]
+    lines += ["", "> 주의: `unique_issue_count`는 토큰 Jaccard 기반 **lexical heuristic**이지 의미(semantic) 중복제거가 "
+              "아니다. near-dup 표현이 unique로 셈해져 특히 reviewer 많은 arm의 수치가 부풀 수 있다. "
+              "arm 간 **방향성**(리뷰어↑→이슈↑)만 신뢰하고 **격차 크기**는 과신하지 말 것."]
     (HERE / "planning_compare.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return summary
 

@@ -1,0 +1,4 @@
+{ "schema_version":"0.1","module_format":"commonjs","entry":"main.js","files":[
+  {"path":"main.js","exports":[],"imports":["src/engine.js"]},
+  {"path":"src/engine.js","exports":["run"],"imports":[]},
+  {"path":"src/orphan.js","exports":["x"],"imports":[]} ] }

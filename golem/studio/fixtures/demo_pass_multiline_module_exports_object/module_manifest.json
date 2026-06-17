@@ -1,0 +1,3 @@
+{ "schema_version":"0.1","module_format":"commonjs","entry":"main.js","files":[
+  {"path":"main.js","exports":[],"imports":["src/engine.js"]},
+  {"path":"src/engine.js","exports":["runScenario","createState"],"imports":[]} ] }

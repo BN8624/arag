@@ -4,6 +4,9 @@
 출력: {"ok": bool, "checks": [{"name","ok"}...], "errors": [...], "warnings": [...]}
 checks 이름 4종 고정: manifest_schema, file_exists, import_export, static_gate.
 실제 API 호출 없음(네트워크/genai import 없음). static_gate는 콜0 정적 검사만 재사용한다.
+
+정본 결정: **이 validator가 manifest 계약의 정본**이다. `schemas/module_manifest.schema.json`은 사람용 참고
+문서이며, validate()가 그 required를 읽어 정본과 어긋나면 warning을 낸다(참고문서가 거짓이 되는 것 방지).
 """
 
 import json
@@ -18,6 +21,7 @@ import static_gate  # noqa: E402
 
 _REQUIRE = re.compile(r"""require\(\s*['"]([^'"]+)['"]\s*\)""")
 _EXPORTS_PROP = re.compile(r"""(?:^|[^.\w])exports\.([A-Za-z_$][\w$]*)\s*=""")
+_MODULE_PROP = re.compile(r"""module\.exports\.([A-Za-z_$][\w$]*)\s*=""")
 _MODULE_OBJ = re.compile(r"""module\.exports\s*=\s*\{([^}]*)\}""")
 _MODULE_BARE = re.compile(r"""module\.exports\s*=\s*(?!\{)""")
 _IDENT = re.compile(r"""([A-Za-z_$][\w$]*)""")
@@ -30,7 +34,7 @@ def _read(ws, rel):
 
 def _extract_exports(text):
     """반환: (named_exports:set, bare_default:bool). bare = module.exports = <object아닌것>."""
-    named = set(_EXPORTS_PROP.findall(text))
+    named = set(_EXPORTS_PROP.findall(text)) | set(_MODULE_PROP.findall(text))
     m = _MODULE_OBJ.search(text)
     if m:
         for part in m.group(1).split(","):
@@ -49,9 +53,32 @@ def _resolve(target, from_path):
     return r if r.endswith(".js") else r + ".js"
 
 
+def _escapes(p):
+    """워크스페이스 밖으로 나가는 경로인가(상위탈출/절대경로). normpath 후 '..' 시작 또는 절대경로."""
+    if not p:
+        return False
+    n = posixpath.normpath(p.replace("\\", "/"))
+    return n.startswith("..") or n.startswith("/") or posixpath.isabs(n)
+
+
+_REQUIRED_FIELDS = ("schema_version", "module_format", "entry", "files")
+_SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "module_manifest.schema.json"
+
+
+def _schema_drift():
+    """참고문서 schema.json의 required가 정본(validator)과 어긋나면 경고. 없으면 조용히 통과."""
+    try:
+        sreq = set(json.loads(_SCHEMA_PATH.read_text(encoding="utf-8")).get("required", []))
+    except Exception:  # noqa: BLE001
+        return []
+    if sreq != set(_REQUIRED_FIELDS):
+        return [f"schema.json required {sorted(sreq)} != validator(정본) {sorted(_REQUIRED_FIELDS)} — 동기화 필요"]
+    return []
+
+
 def _check_manifest_schema(manifest):
     errors = []
-    for k in ("schema_version", "module_format", "entry", "files"):
+    for k in _REQUIRED_FIELDS:
         if k not in manifest:
             errors.append(f"필수 필드 없음: {k}")
     if manifest.get("schema_version") not in (None, "0.1"):
@@ -70,6 +97,8 @@ def _check_manifest_schema(manifest):
         p = f.get("path")
         if p in paths:
             errors.append(f"path 중복: {p}")
+        if _escapes(p):
+            errors.append(f"워크스페이스 밖 경로(path escape) 금지: {p}")
         paths.add(p)
     if manifest.get("entry") not in paths:
         errors.append(f"entry가 files에 없음: {manifest.get('entry')}")
@@ -118,6 +147,9 @@ def _check_import_export(manifest, ws, strict=True):
                 if extra:
                     errors.append(f"{path}: 코드 export가 매니페스트에 없음 {sorted(extra)}")
         actual_imp = {_resolve(t, path) for t in _REQUIRE.findall(text) if t.startswith(".")}
+        for r in sorted(actual_imp):
+            if _escapes(r):
+                errors.append(f"{path}: require가 워크스페이스 밖 참조(path escape) 금지: {r}")
         if strict:
             miss_i = declared_imp - actual_imp
             extra_i = actual_imp - declared_imp
@@ -194,7 +226,7 @@ def validate(workspace_path, manifest_path, strict=True):
     checks = [{"name": n, "ok": o} for n, o, _ in results]
     errors = [f"[{n}] {msg}" for n, _, es in results for msg in es]
     ok = all(o for _, o, _ in results)
-    return {"ok": ok, "checks": checks, "errors": errors, "warnings": []}
+    return {"ok": ok, "checks": checks, "errors": errors, "warnings": _schema_drift()}
 
 
 if __name__ == "__main__":

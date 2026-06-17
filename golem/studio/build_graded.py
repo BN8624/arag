@@ -154,6 +154,26 @@ def consensus(passed_outputs, gradeable_ids):
     return overall, report
 
 
+def _golden_diff(passed_outputs, scenarios, gradeable, contract):
+    """합의(다수) vs golden(expected) 자동 대조 — 출력표면 키만. 수작업 diff 제거(키0)."""
+    ss = contract.get("data_contract", {}).get("state_shape", {})
+    output_keys = {k for k, v in ss.items() if not isinstance(v, dict)}
+    exp_by_id = {s["id"]: (s.get("expected") or {}) for s in scenarios}
+    diffs = []
+    for sid in gradeable:
+        votes = [outs[sid] for outs in passed_outputs.values() if outs.get(sid) is not None]
+        if not votes:
+            continue
+        cons = dict(Counter(votes).most_common(1)[0][0])
+        exp = exp_by_id.get(sid, {})
+        gnorm = {k: (json.dumps(exp[k]) if k == "logs" else str(exp[k]))
+                 for k in (set(exp) & output_keys)}
+        d = {k: {"consensus": cons.get(k), "oracle": v} for k, v in gnorm.items() if cons.get(k) != v}
+        if d:
+            diffs.append({"id": sid, "differing": d})
+    return diffs
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--packet", default=str(HERE / "planning_packet"))
@@ -217,15 +237,24 @@ def main(argv=None):
                         cracked = a
 
     overall, report = consensus(passed_outputs, gradeable)
+    golden_diffs = _golden_diff(passed_outputs, scenarios, gradeable, contract)
     base.mkdir(parents=True, exist_ok=True)
     (base / "consensus.json").write_text(json.dumps(
         {"gate_passed": len(passed_outputs), "cap": args.cap,
-         "gradeable": gradeable, "overall_agreement": overall, "per_scenario": report},
+         "gradeable": gradeable, "overall_agreement": overall, "per_scenario": report,
+         "golden_diffs": golden_diffs},
         ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[BUILD v1] 게이트 통과 {len(passed_outputs)}/{args.cap}, "
           f"합의 채점(채점가능 {len(gradeable)}): 전체 일치율 {overall}")
     for sid, r in report.items():
         print(f"    {sid}: 합의 {r['agree']}/{r['total']} (일치율 {r['rate']})")
+    if golden_diffs:  # 합의-vs-oracle 자동 diff(키0) — 수작업 제거
+        print(f"  [합의 vs oracle] 불일치 {len(golden_diffs)}건 — reconcile --resolve로 진단(★키):")
+        for d in golden_diffs:
+            print("    - " + d["id"] + ": " + ", ".join(
+                f"{k}(합의={v['consensus']} vs oracle={v['oracle']})" for k, v in d["differing"].items()))
+    else:
+        print("  [합의 vs oracle] 전부 일치.")
     print(f"[BUILD v1] → {base}")
     return 0 if passed_outputs else 1
 
