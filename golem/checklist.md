@@ -13,8 +13,12 @@
 - [x] 장르확장 다리실험 — 발열/과열(결합) 카드: 합의 1.0, 골든 13/13. "결합=어렵다" 기각, 난이도는 틱 모호성·oracle 버그로 이동
 - [x] 하네스 일반화 — build_graded·integration 계약구동(출력키=state_shape, 입력=시나리오 예시). 새 카드 코드변경 0
 - [x] 자동 해소 루프 (`reconcile.py`) — 합의-vs-oracle 자동 diff + 31B 진단(AMBIGUOUS/ORACLE_BUG/BUILD_BUG)·AUTO/ESCALATE. diff/resolve/apply 검증 + 실측 1건
-- [ ] **다음: reconcile를 파이프라인에 연결** — Build 직후 자동 diff→resolve→AUTO 적용, ESCALATE만 사람에게, BUILD_BUG는 재빌드 트리거
-- [ ] (backlog) levels 등 출력표면 확장 / adversarial BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주 / 장르 N≥3
+- [x] 외부 지적 수용분 하드닝(G45, 키0) — 합의-vs-oracle 자동diff wired / fixture 6종(replay 11/11) /
+      module.exports.prop 미인식 버그 수정 / unique_issue_count lexical 라벨 / validator 정본+schema drift 경고 /
+      path escape guard / assumptions·backlog 영속화 / FAILURE_TAXONOMY 매핑표
+- [ ] **다음: reconcile 자동연결 마무리** — diff는 wired. resolve→AUTO 자동적용·ESCALATE만 사람·BUILD_BUG 재빌드 트리거를 build_graded 흐름에 잇기(★키)
+- [ ] 장르 N≥3 결합카드 추가 측정 — 지표=카드당 ESCALATE 수·oracle 버그 수(★키)
+- [ ] (backlog) levels 등 출력표면 확장 / adversarial BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주
 
 ## (완료 기록) Golem Studio v0.1 Contract Microkernel Replay (2026-06-17)
 - [x] `GolemStudioMode.md` 13장 구현 우선순위와 19장 Pending Decisions 재확인

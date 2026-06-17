@@ -2,7 +2,8 @@
 
 ## ▶ 새 세션 여기부터
 - 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G44) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
-- **지금 할 일 한 줄**: reconcile를 파이프라인에 연결 — Build 직후 diff를 자동 호출하고(키0), 불일치 있으면 resolve→AUTO 자동적용·ESCALATE만 사람에게. 그 뒤 BUILD_BUG 건은 재빌드 자동 트리거 검토.
+- **지금 할 일 한 줄**: reconcile 자동연결 마무리 — diff는 build_graded에 자동 wired(G45). 남은 건 resolve→AUTO 자동적용(`--apply`)·ESCALATE만 사람에게·BUILD_BUG 재빌드 트리거를 build_graded 흐름에 잇기. ★키(resolve 시).
+- 회귀 하드닝(외부 지적 수용분 #2~7)은 G45에서 전부 반영 완료(키0). 남은 키 작업=resolve 자동연결 + 장르 N≥3.
 - 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
 
 ## 지금 어디 (2026-06-17)
