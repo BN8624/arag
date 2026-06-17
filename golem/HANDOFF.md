@@ -2,8 +2,8 @@
 
 ## ▶ 새 세션 여기부터
 - 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G44) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
-- **지금 할 일 한 줄**: reconcile 자동연결 마무리 — diff는 build_graded에 자동 wired(G45). 남은 건 resolve→AUTO 자동적용(`--apply`)·ESCALATE만 사람에게·BUILD_BUG 재빌드 트리거를 build_graded 흐름에 잇기. ★키(resolve 시).
-- 회귀 하드닝(외부 지적 수용분 #2~7)은 G45에서 전부 반영 완료(키0). 남은 키 작업=resolve 자동연결 + 장르 N≥3.
+- **지금 할 일 한 줄**: T1 첫 장르 카드를 `build_graded --reconcile --apply`로 돌린다 — 새 결합 카드(아이디어 한 줄→Planning~Build)가 실제 불일치를 내며 T0 전체 체인(diff→resolve→AUTO적용→ESCALATE/BUILD_BUG)을 라이브 검증 + T1 측정(카드당 ESCALATE·oracle버그·BUILD_BUG 자동해소율·cascade)을 동시에. ★키.
+- T0(reconcile 자동연결) 코드 완료(G47, 키0). 회귀 하드닝 #2~7 완료(G45). 남은 키 작업=위 T1 런(=T0 라이브 검증 겸).
 - 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
 - 운영 가드레일은 context-notes **G46** 참조: v0.1 동결 아님(확장 유지) / 우선순위 T0→T1→T2(T2가 T0/T1 안 막음) / live build=build_graded.py / reconcile=Build↔oracle 슬라이스 / unique_issue_count는 lexical(방향성만) / --apply는 AUTO만.
 
