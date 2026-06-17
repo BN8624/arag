@@ -155,22 +155,26 @@ def consensus(passed_outputs, gradeable_ids):
 
 
 def _golden_diff(passed_outputs, scenarios, gradeable, contract):
-    """합의(다수) vs golden(expected) 자동 대조 — 출력표면 키만. 수작업 diff 제거(키0)."""
+    """합의(다수) vs golden(expected) 자동 대조 — 출력표면 키만. 수작업 diff 제거(키0).
+    각 항목에 reconcile.resolve가 쓰는 `input`(채점메타 제외 시나리오)도 담는다."""
     ss = contract.get("data_contract", {}).get("state_shape", {})
     output_keys = {k for k, v in ss.items() if not isinstance(v, dict)}
-    exp_by_id = {s["id"]: (s.get("expected") or {}) for s in scenarios}
+    grading = {"id", "expected", "oracle_risk", "covers_reqs"}
+    by_id = {s["id"]: s for s in scenarios}
     diffs = []
     for sid in gradeable:
         votes = [outs[sid] for outs in passed_outputs.values() if outs.get(sid) is not None]
         if not votes:
             continue
         cons = dict(Counter(votes).most_common(1)[0][0])
-        exp = exp_by_id.get(sid, {})
+        sc = by_id.get(sid, {})
+        exp = sc.get("expected") or {}
         gnorm = {k: (json.dumps(exp[k]) if k == "logs" else str(exp[k]))
                  for k in (set(exp) & output_keys)}
         d = {k: {"consensus": cons.get(k), "oracle": v} for k, v in gnorm.items() if cons.get(k) != v}
         if d:
-            diffs.append({"id": sid, "differing": d})
+            diffs.append({"id": sid, "input": {k: v for k, v in sc.items() if k not in grading},
+                          "differing": d})
     return diffs
 
 
@@ -181,6 +185,10 @@ def main(argv=None):
     ap.add_argument("--specqa", default=str(HERE / "specqa_packet"))
     ap.add_argument("--cap", type=int, default=11)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--reconcile", action="store_true",
+                    help="빌드 후 합의-vs-oracle 불일치를 모델로 진단/라우팅(★키)")
+    ap.add_argument("--apply", action="store_true",
+                    help="--reconcile 진단 중 AUTO만 자동 적용(ESCALATE는 사람 대기)")
     args = ap.parse_args(argv)
 
     import os
@@ -255,6 +263,33 @@ def main(argv=None):
                 f"{k}(합의={v['consensus']} vs oracle={v['oracle']})" for k, v in d["differing"].items()))
     else:
         print("  [합의 vs oracle] 전부 일치.")
+
+    if args.reconcile and golden_diffs:  # T0: diff → resolve(★키) → AUTO apply → ESCALATE/BUILD_BUG 리포트
+        import reconcile  # 늦은 import(순환 방지)
+        rules = contract["data_contract"]["rules"]
+        rc = reconcile.RealCaller()
+        verdicts = []
+        for d in golden_diffs:
+            v = rc.resolve(rules, d)
+            v["id"] = d["id"]
+            verdicts.append(v)
+            print(f"    [{v.get('diagnosis')}/{v.get('class')}] {d['id']}: {v.get('reason', '')}")
+        applied = reconcile.apply_fixes(
+            verdicts, Path(args.packet) / "contract.json",
+            Path(args.specqa) / "acceptance_tests_draft.json", scenarios) if args.apply else []
+        escalate = [v["id"] for v in verdicts if v.get("class") == "ESCALATE"]
+        build_bugs = [v["id"] for v in verdicts if v.get("diagnosis") == "BUILD_BUG"]
+        (base / "reconcile_report.json").write_text(json.dumps(
+            {"verdicts": verdicts, "applied": applied, "escalate": escalate, "build_bugs": build_bugs},
+            ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"  [reconcile] 자동적용 {len(applied)}, ESCALATE(사람) {len(escalate)}, BUILD_BUG {len(build_bugs)}")
+        for a in applied:
+            print(f"    적용: {a}")
+        if build_bugs:
+            print(f"    ★재빌드 권장(BUILD_BUG {build_bugs}) — 계약 정본 그대로, 빌드만 다시.")
+        for sid in escalate:
+            print(f"    ★ESCALATE {sid} — 사람 결정 필요.")
+
     print(f"[BUILD v1] → {base}")
     return 0 if passed_outputs else 1
 
