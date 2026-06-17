@@ -1,0 +1,38 @@
+{
+  "rules": [
+    "R-04: End-of-Turn Heat: heat += level*heatMultiplier. Affects NEXT turn only.",
+    "R-05: End-of-Turn Energy: throttle decided by heat after actions, before R-04. energy += actualProd.",
+    "R-07: Stall: if status!=WON and actualProd==0 and energy<min(coolCost, level*upgradeBaseCost) -> STALLED."
+  ],
+  "n_valid": 8,
+  "disagreements": [
+    {
+      "id": "SCN-008",
+      "input": { "setup": { "energy": 2, "heat": 110, "generatorLevel": 1, "config": {} }, "input": ["COOL"] },
+      "differing": { "status": { "consensus": "STALLED", "oracle": "RUNNING" } }
+    },
+    {
+      "id": "SCN-011",
+      "input": { "setup": { "energy": 100, "heat": 100, "generatorLevel": 1, "config": {} }, "input": ["WAIT"] },
+      "differing": { "energy": { "consensus": "100", "oracle": "105" } }
+    }
+  ],
+  "verdicts": [
+    {
+      "id": "SCN-008",
+      "diagnosis": "ORACLE_BUG",
+      "correct_value": { "status": "STALLED" },
+      "contract_fix": null,
+      "class": "AUTO",
+      "reason": "COOL fails (energy<coolCost); throttled prod=0, energy<min costs -> R-07 STALLED. Build is right."
+    },
+    {
+      "id": "SCN-011",
+      "diagnosis": "CONTRACT_AMBIGUOUS",
+      "correct_value": {},
+      "contract_fix": "R-05: End-of-Turn Energy: throttle decided by the heat at START of turn (before R-04). energy += actualProd.",
+      "class": "ESCALATE",
+      "reason": "Whether this turn's heat throttles this turn (immediate) or next (inertia) materially changes play."
+    }
+  ]
+}
