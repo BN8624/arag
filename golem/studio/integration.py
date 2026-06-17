@@ -90,6 +90,9 @@ def main(argv=None):
     contract = json.loads((Path(args.packet) / "contract.json").read_text(encoding="utf-8"))
     state_shape = contract.get("data_contract", {}).get("state_shape", {})
     output_keys = {k for k, v in state_shape.items() if not isinstance(v, dict)}
+    cpath = Path(args.packet) / "concept.md"
+    card_label = (cpath.read_text(encoding="utf-8").strip().split(".")[0][:80]
+                  if cpath.exists() else Path(args.packet).name)
 
     grading_keys = {"id", "expected", "oracle_risk", "covers_reqs"}
     def _case_input(c):  # 실행입력 = 채점메타 뺀 전체(build_graded와 동일 규약)
@@ -121,9 +124,10 @@ def main(argv=None):
     def agree_count(b):
         return sum(1 for j in range(len(cases))
                    if outs[b][j] is not None and json.dumps(outs[b][j], sort_keys=True) == majority[j])
-    final = max(valid, key=lambda b: (agree_count(b), -valid.index(b)))
+    # 선정: static_gate 통과 우선 → 다수합의 일치 최다 → 낮은 attempt
+    gate_ok = {b: static_gate.check(str(b))["ok"] for b in valid}
+    final = max(valid, key=lambda b: (gate_ok[b], agree_count(b), -valid.index(b)))
 
-    # static_gate
     sg = static_gate.check(str(final))
 
     # grade: 최종 빌드 vs golden
@@ -152,7 +156,8 @@ def main(argv=None):
     crashes = [g["id"] for g in grades if g["status"] == "CRASH"]
     fails = [g["id"] for g in grades if g["status"] == "FAIL"]
     report = [
-        "# Final Report — Golem Studio (방치형 카드)", "",
+        "# Final Report — Golem Studio", "",
+        f"- 카드: {card_label}",
         f"- 소스 런: {run.name} (유효 빌드 {len(valid)})",
         f"- 최종 산출물: {final.parent.name} → `final_workspace/` (파일 {n_files}개)",
         f"- static_gate: {'PASS' if sg['ok'] else 'FAIL — ' + sg.get('reason', '')}",

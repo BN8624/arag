@@ -220,6 +220,7 @@ __marimo__/
 # arag: generated prototype runs
 runs/
 golem/studio/build_runs/
+golem/studio/reconcile_report.json
 # 종료 예약 런타임 플래그 (대시보드가 만들고 지움)
 STOP_AFTER_RUN
 

@@ -1,0 +1,101 @@
+{
+  "run": "graded-20260617-092758",
+  "final_attempt": "attempt02",
+  "valid_builds": 8,
+  "grade_pass": 13,
+  "gradeable": 13,
+  "total_cases": 13,
+  "cases": [
+    {
+      "id": "SCN-001",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-002",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-003",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-004",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-005",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-006",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-007",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-008",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-009",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-010",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-011",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-012",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    },
+    {
+      "id": "SCN-013",
+      "kind": "acceptance",
+      "status": "PASS",
+      "mismatch": {},
+      "skipped": []
+    }
+  ]
+}

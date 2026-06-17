@@ -1,6 +1,22 @@
 # golem 체크리스트
 
-## 현재 활성 체크리스트 — Golem Studio v0.1 Contract Microkernel Replay (완료, 2026-06-17)
+## Golem Studio 파이프라인 §13 (Step 1~7 완주, 2026-06-17)
+세부 측정·결정은 context-notes G25~G44, 현재상태·다음할일은 HANDOFF.md.
+- [x] Step1 Contract Microkernel Replay (`contract_validator.py`·`replay.py`, replay 5/5, 키0)
+- [x] Step2 Planning (`planning.py`, A/B/C + synthesis, FROZEN 계약)
+- [x] Step3 Design (`design.py`, 4모듈 분해 + traceability)
+- [x] Step4 Spec QA (`specqa.py`, 시나리오 구체화. SCN-006 오라클오류 G36 교정. BLOCKING 추적은 backlog)
+- [x] Step5 Build v1 (`build_graded.py`, 합의 채점. 사다리 0.36→0.66→0.98→1.0)
+- [x] Step6 Adversarial QA (`adversarial.py`, edge_cases 능동탐색 → EDGE-011/012 발견 → 계약 명문화로 소거)
+- [x] logs 채점 갭 해소 (출력계약에 logs 줄 추가, RULE-07 로그 6/6 수렴)
+- [x] Step7 Integration (`integration.py`, 최종 workspace 선정+static_gate+golden 채점+final_report. 방치형 24/24)
+- [x] 장르확장 다리실험 — 발열/과열(결합) 카드: 합의 1.0, 골든 13/13. "결합=어렵다" 기각, 난이도는 틱 모호성·oracle 버그로 이동
+- [x] 하네스 일반화 — build_graded·integration 계약구동(출력키=state_shape, 입력=시나리오 예시). 새 카드 코드변경 0
+- [x] 자동 해소 루프 (`reconcile.py`) — 합의-vs-oracle 자동 diff + 31B 진단(AMBIGUOUS/ORACLE_BUG/BUILD_BUG)·AUTO/ESCALATE. diff/resolve/apply 검증 + 실측 1건
+- [ ] **다음: reconcile를 파이프라인에 연결** — Build 직후 자동 diff→resolve→AUTO 적용, ESCALATE만 사람에게, BUILD_BUG는 재빌드 트리거
+- [ ] (backlog) levels 등 출력표면 확장 / adversarial BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주 / 장르 N≥3
+
+## (완료 기록) Golem Studio v0.1 Contract Microkernel Replay (2026-06-17)
 - [x] `GolemStudioMode.md` 13장 구현 우선순위와 19장 Pending Decisions 재확인
 - [x] `static_gate.py` 현재 CLI/함수 구조 확인 (평면 glob → src/ 못 봄 확인)
 - [x] `golem/studio/schemas/module_manifest.schema.json` 작성 (v0.1 최소 필드, stdlib 손검증)
