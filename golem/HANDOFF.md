@@ -1,8 +1,8 @@
 # HANDOFF.md — golem 현재 위치와 다음 액션
 
 ## ▶ 새 세션 여기부터
-- 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G38) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
-- **지금 할 일 한 줄**: 장르/형태 확장 — 같은 Step1~7 파이프라인이 더 어려운/다른 카드(조립카드 T-000012 등)에서도 수렴·완주하나 측정(PLAN frontier). 아이디어 한 줄부터 새로 돌린다. ★키.
+- 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G44) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
+- **지금 할 일 한 줄**: reconcile를 파이프라인에 연결 — Build 직후 diff를 자동 호출하고(키0), 불일치 있으면 resolve→AUTO 자동적용·ESCALATE만 사람에게. 그 뒤 BUILD_BUG 건은 재빌드 자동 트리거 검토.
 - 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
 
 ## 지금 어디 (2026-06-17)
@@ -17,7 +17,10 @@ Golem Studio = `GolemStudioMode.md` §13의 6단계 파이프라인을 실모델
 | Step4 Spec QA | `specqa.py` | 11 시나리오 구체화 → `specqa_packet/`. **초안**(결함: SCN-006 "ACTIVE" 오라클오류, BLOCKING 추적안됨). |
 | Step5 Build v1 | `build_graded.py` | design 4모듈+시나리오+**합의 채점**(특권 golden 아님). `build.py`는 v0 스파이크로 잔존. |
 | Step6 Adversarial QA | `adversarial.py` | 팀(lead+리뷰어8+synth)이 edge_cases 13+acceptance 5 → `adversarial_packet/`. 실측으로 EDGE-011(빈입력)·EDGE-012(미지id) 크래시 발견 → 계약 명문화(RULE-07+actions []디폴트, rung5)로 **둘 다 소거**, 유효빌드 edge 7/7 수렴. |
-| Step7 Integration | `integration.py` | 수렴 빌드 재사용(키0) → 최종 workspace 선정+static_gate+golden 채점+final_report → `integration_packet/`. **24/24 PASS**(acceptance11+edge13), static_gate PASS. **Step1~7 E2E 완주.** |
+| Step7 Integration | `integration.py` | 수렴 빌드 재사용(키0) → 최종 workspace 선정+static_gate+golden 채점+final_report. **계약구동 일반화**(출력키=state_shape, adversarial 옵셔널). 방치형 24/24·발열 13/13. |
+| 자동해소 | `reconcile.py` | Build 합의 vs golden **자동 diff(키0)** + 31B 진단(CONTRACT_AMBIGUOUS/ORACLE_BUG/BUILD_BUG)·AUTO/ESCALATE 분류 + `--apply`(AUTO만). 내 수작업 자동화. diff/resolve/apply 키0 검증 + 실측 1건(SCN-011→BUILD_BUG 정확). |
+
+**장르확장(다리실험, G41~44)**: 방치형 v1 → **발열/과열(결합 시스템)** 카드(`*_packet_heat`). 결과: ① 맞물림이 빌드 합의를 안 떨어뜨림(첫 런 1.0) — "결합=어렵다" 기각. ② 난이도가 *틱 순서 모호성*(관성·즉시)+*oracle 버그*로 이동 — 합의 1.0은 필요조건이지 충분조건 아님(독립 oracle 대조 필수). ③ 계약 한 줄 명문화로 완전수렴 합의를 의도값으로 이동시킴(B1→B2). 최종 발열 골든 13/13. ④ 하네스(build_graded·integration) 계약구동 일반화 → 새 카드 코드변경 0. ⑤ 수작업 diff/진단을 `reconcile.py`로 자동화.
 
 **핵심 측정(G33·G34·G35)** — Build 합의(특권 golden 아닌 다수합의)로 "계약이 얼마나 빡빡한가"를 잰다. 한 번에 한 변수.
 - 출력계약 미고정 → 합의 **0.36**.
@@ -29,9 +32,10 @@ Golem Studio = `GolemStudioMode.md` §13의 6단계 파이프라인을 실모델
 - logs 채점(G39): 출력계약에 `logs:` 줄 추가 → acceptance 1.0 유지, EDGE-012 미지id 로그 2/11→**6/6 골든 수렴**. RULE-07 상태+로그 모두 채점·수렴. 교훈: 채점 표면(output contract)이 곧 측정 가능 범위.
 - Step7 Integration(G40): 수렴 빌드 재사용(키0) E2E 완주 — 최종 attempt01(4모듈), static_gate PASS, **golden 24/24 PASS**(levels는 출력표면밖 표기). **아이디어 한 줄→Step1~7 전 파이프라인 실제 완주 도달.**
 
-주의: Step4는 초안(결함 있음). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G40.
+주의: Step4는 초안(결함 있음). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G44.
 
 ## 다음 액션
 
-1. **장르/형태 확장**(위 "지금 할 일 한 줄"). 방치형 카드는 계약 빡빡+adversarial-robust+E2E검증 완료. 같은 Step1~7 파이프라인이 더 어려운 카드(예: 조립카드 T-000012, 창발적 통합)에서도 수렴·완주하나 측정. 아이디어 한 줄부터 새로. ★키.
-2. (backlog) levels 등 출력표면 확장(더 깊은 상태 채점) / adversarial validator BLOCKING 해소 추적 / 측정 N≥10.
+1. **reconcile를 파이프라인에 연결**(위 "지금 할 일 한 줄"). build_graded 끝나면 reconcile.diff 자동 호출 → 불일치 있으면 resolve → AUTO 자동적용(--apply), ESCALATE만 사람에게 모아 보고. BUILD_BUG는 재빌드 자동 트리거 검토. 이게 "사람은 fork만" 자동 루프를 완성. ★키(resolve 시).
+2. (대안) 장르확장 계속 — 조립카드 T-000012(창발적 통합) 등 더 어려운 카드로 N≥3. 발열로 결합 카드 1장 검증됨.
+3. (backlog) levels 등 출력표면 확장 / adversarial validator BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주.
