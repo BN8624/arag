@@ -22,8 +22,8 @@
       "R-01: UPGRADE action costs (generatorLevel * config.upgradeBaseCost). If energy >= cost, energy -= cost and generatorLevel += 1.",
       "R-02: COOL action costs config.coolCost. If energy >= cost, energy -= cost and heat = max(0, heat - config.coolAmount).",
       "R-03: WAIT action has no immediate state change other than triggering the turn end.",
-      "R-04: End-of-Turn Heat: heat += (generatorLevel * config.heatMultiplier).",
-      "R-05: End-of-Turn Energy: baseProd = (generatorLevel * config.energyMultiplier). If heat > config.heatThreshold, actualProd = floor(baseProd * config.throttleMultiplier), else actualProd = baseProd. energy += actualProd.",
+      "R-04: End-of-Turn Heat: heat += (generatorLevel * config.heatMultiplier). This increase affects throttling on the NEXT turn only — never the current turn (thermal inertia).",
+      "R-05: End-of-Turn Energy — the throttle is decided by the heat at the START of the turn, BEFORE R-04's increase this turn (compute energy before applying R-04, or snapshot the start-of-turn heat): baseProd = (generatorLevel * config.energyMultiplier). If (start-of-turn heat) > config.heatThreshold, actualProd = floor(baseProd * config.throttleMultiplier), else actualProd = baseProd. energy += actualProd.",
       "R-06: Win Condition: If energy >= config.winCondition, status = 'WON'.",
       "R-07: Stall Condition: If status != 'WON' AND actualProd == 0 AND energy < min(config.coolCost, generatorLevel * config.upgradeBaseCost), status = 'STALLED'."
     ]

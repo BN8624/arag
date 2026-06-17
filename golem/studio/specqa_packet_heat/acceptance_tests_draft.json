@@ -260,11 +260,11 @@
     "expected": {
       "energy": 2,
       "heat": 112,
-      "status": "RUNNING"
+      "status": "STALLED"
     },
     "oracle_risk": {
       "risk": false,
-      "reason": "Action fails due to insufficient energy; only tick occurs."
+      "reason": "COOL fails (energy<coolCost); throttled prod=0 and energy<min(coolCost,upgradeCost) -> R-07 STALLED."
     }
   },
   {

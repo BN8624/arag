@@ -427,3 +427,17 @@ config가 시나리오마다 명시돼 디폴트 고민 불필요(idle와 다른
 (SCN-008). **합의 1.0은 필요조건이지 충분조건 아님 — 결합 카드는 독립 oracle 대조 필수, oracle도 틀릴 수 있음**
 (하네스-우선 명제 재확인). 병목이 "모델이 만드나"→"스펙·oracle을 모호함 없이 맞게 쓰나"로 이동.
 다음: SCN-008 oracle 교정(STALLED) + SCN-011 throttle 시점을 계약에 명문화(사용자 결정 대기) → 재측정.
+
+## G42 — 발열 사다리: 합의 A→B로 끌려옴(핵심) + cascade 모호성 (2026-06-17, 키 씀)
+G41의 두 갈림 처리. R-05에 "throttle은 턴 시작 heat로 판정(R-04 발열은 다음 턴부터)=열 관성"(사용자 결정)
+명문화 + SCN-008 oracle 교정(RUNNING→STALLED).
+**재측정(graded-090733)**: 합의 0.99. **SCN-011 빌드 10/10이 A(energy100)→B(energy105)로 이동, expected 일치.**
+완전 수렴한 결합 카드 합의를 *계약 한 줄*로 의도한 읽기로 옮김 = **사다리가 맞물린 시스템에서도 작동(핵심 증명).**
+SCN-008도 10/10 STALLED 일치(빌드가 옳았던 oracle 버그 해소).
+**그러나 SCN-003 새 갈림(9 vs 1)**: COOL(heat110→80) 후 throttle이 *턴시작 heat110*(9빌드,energy95)냐
+*COOL후 heat80*(1빌드+버그oracle,energy100)냐. 내 R-05가 "START of turn"과 "before R-04"를 같이 써 COOL이
+끼면 갈림. SpecQA expected(100)도 throttle 누락한 **또 다른 oracle 버그**(다수 9빌드가 정답).
+**결론(frontier 실체)**: 결합 시스템은 한 모호성을 박을 때마다 *기능 교차점*(COOL×throttle 시점)에서 더 미세한
+모호성이 cascade. "맞물림=빌드 어려움"이 아니라 "맞물림=스펙·oracle을 모호함 없이 쓰기가 어려움". oracle이
+반복적으로 틀림(SCN-008·003) → 합의-vs-oracle 대조 필수, 틀리는 쪽은 주로 oracle. 다음 결정: COOL 타이밍
+(즉시 완화 vs 관성) 명문화 → SCN-003 oracle 교정 → 재측정 → 발열 E2E 마무리.
