@@ -1,7 +1,7 @@
 # HANDOFF.md — golem 현재 위치와 다음 액션
 
 ## ▶ 새 세션 여기부터
-- 읽는 순서: 이 파일 → 필요할 때만 `context-notes.md`(결정 이유 G25~G44) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
+- 읽는 순서: 이 파일 → **context-notes G46(가드레일)·G48(T1 측정설계)** → 필요할 때만 `context-notes.md` 나머지(G25~G48) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
 - **지금 할 일 한 줄**: T1 일반화 실험(설계=G48). 결합밀도 저/중/고 카드를 `build_graded --reconcile --apply`로 — **고결합 1장 필수**, 첫 N=3은 정성 스모크(수렴되나만), **1순위 지표=AUTO 정확률**(낮은 ESCALATE만으론 Green 아님), 실패는 하네스/oracle 탓부터 분리. ★키.
 - T0(reconcile 자동연결) 코드 완료(G47). 회귀 하드닝 완료(G45). 다음 frontier=자율oracle×고결합(UI 아님, 별도 트랙). 측정설계·판정기준은 **G48** 필독.
 - (T1 전 권장, 키0) AUTO 정확률 검증 로그 + 실패 사전분류(HARNESS/INFRA vs 카드)를 reconcile/build_graded에 추가.
@@ -35,10 +35,12 @@ Golem Studio = `GolemStudioMode.md` §13 파이프라인을 실모델로 구축.
 - logs 채점(G39): 출력계약에 `logs:` 줄 추가 → acceptance 1.0 유지, EDGE-012 미지id 로그 2/11→**6/6 골든 수렴**. RULE-07 상태+로그 모두 채점·수렴. 교훈: 채점 표면(output contract)이 곧 측정 가능 범위.
 - Step7 Integration(G40): 수렴 빌드 재사용(키0) E2E 완주 — 최종 attempt01(4모듈), static_gate PASS, **golden 24/24 PASS**(levels는 출력표면밖 표기). **아이디어 한 줄→Step1~7 전 파이프라인 실제 완주 도달.**
 
-주의: Step4는 초안(결함 있음). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G44.
+주의: Step4는 초안(결함 있음). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G48.
 
-## 다음 액션
+## 다음 액션 (G48 측정설계 기준)
 
-1. **reconcile를 파이프라인에 연결**(위 "지금 할 일 한 줄"). build_graded 끝나면 reconcile.diff 자동 호출 → 불일치 있으면 resolve → AUTO 자동적용(--apply), ESCALATE만 사람에게 모아 보고. BUILD_BUG는 재빌드 자동 트리거 검토. 이게 "사람은 fork만" 자동 루프를 완성. ★키(resolve 시).
-2. (대안) 장르확장 계속 — 조립카드 T-000012(창발적 통합) 등 더 어려운 카드로 N≥3. 발열로 결합 카드 1장 검증됨.
-3. (backlog) levels 등 출력표면 확장 / adversarial validator BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주.
+1. **(키0, T1 직전) AUTO 정확률 검증 로그 + 실패 사전분류**를 reconcile/build_graded에 추가 — AUTO fix 후 다운스트림 통과·이전 시나리오 안 깸·되돌림 없음 기록 / 실패를 HARNESS·INFRA vs 카드·계약으로 사전분류. 첫 카드부터 제대로 측정되게.
+2. **T1 일반화 실험**(★키). 결합밀도 저/중/고 카드(**고결합 1장 필수**, 예: 조립카드 T-000012류)를 `build_graded --reconcile --apply`로. 첫 N=3은 정성 스모크(수렴되나만). 1순위 지표=AUTO 정확률. Green=ESCALATE 낮음 AND AUTO 정확률 높음 AND oracle 일치. Red는 하네스 탓부터 분리.
+3. **정량 판정**(★키) — multi-seed/동결합 다수 카드로 임계 기반.
+4. **코어 다음 frontier**(★키) — 자율 oracle(31B가 골든까지) × 고결합 카드 × reconcile calibration. UI/Asset/Renderer는 채점기반을 바꾸므로 **별도 트랙**(결정적 렌더 채점법 선결).
+5. (backlog) levels 등 출력표면 확장 / adversarial validator BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주.
