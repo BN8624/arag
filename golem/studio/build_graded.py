@@ -179,7 +179,8 @@ def _golden_diff(passed_outputs, scenarios, gradeable, contract):
         votes = [outs[sid] for outs in passed_outputs.values() if outs.get(sid) is not None]
         if not votes:
             continue
-        cons = dict(Counter(votes).most_common(1)[0][0])
+        top = Counter(votes).most_common(1)[0]
+        cons = dict(top[0])
         sc = by_id.get(sid, {})
         exp = sc.get("expected") or {}
         gnorm = {k: (json.dumps(exp[k]) if k == "logs" else str(exp[k]))
@@ -187,7 +188,7 @@ def _golden_diff(passed_outputs, scenarios, gradeable, contract):
         d = {k: {"consensus": cons.get(k), "oracle": v} for k, v in gnorm.items() if cons.get(k) != v}
         if d:
             diffs.append({"id": sid, "input": {k: v for k, v in sc.items() if k not in grading},
-                          "differing": d})
+                          "differing": d, "agreement": {"agree": top[1], "total": len(votes)}})
     return diffs
 
 
@@ -304,6 +305,9 @@ def main(argv=None):
             v["id"] = d["id"]
             verdicts.append(v)
             print(f"    [{v.get('diagnosis')}/{v.get('class')}] {d['id']}: {v.get('reason', '')}")
+        guarded = reconcile.apply_low_consensus_guard(verdicts, golden_diffs)
+        if guarded:
+            print(f"  [저합의 가드] AUTO→ESCALATE 강등 {len(guarded)}: {guarded}")
         applied = reconcile.apply_fixes(
             verdicts, Path(args.packet) / "contract.json",
             Path(args.specqa) / "acceptance_tests_draft.json", scenarios) if args.apply else []
@@ -314,14 +318,14 @@ def main(argv=None):
         build_bugs = [v["id"] for v in verdicts if v.get("diagnosis") == "BUILD_BUG"]
         (base / "reconcile_report.json").write_text(json.dumps(
             {"verdicts": verdicts, "applied": applied, "auto_verification": auto_verification,
-             "escalate": escalate, "build_bugs": build_bugs},
+             "low_consensus_guarded": guarded, "escalate": escalate, "build_bugs": build_bugs},
             ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"  [reconcile] 자동적용 {len(applied)}, ESCALATE(사람) {len(escalate)}, BUILD_BUG {len(build_bugs)}")
         for a in applied:
             print(f"    적용: {a}")
         for c in auto_verification:
             flag = " ★되돌림" if c["reverted_prior"] else ""
-            print(f"    [AUTO검증] {c['id']}: {c['status']}{flag}")
+            print(f"    [AUTO검증] {c['id']}: {c['status']} (합의율 {c['consensus_rate']}){flag}")
         if build_bugs:
             print(f"    ★재빌드 권장(BUILD_BUG {build_bugs}) — 계약 정본 그대로, 빌드만 다시.")
         for sid in escalate:

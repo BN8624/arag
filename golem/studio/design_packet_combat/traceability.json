@@ -1,0 +1,121 @@
+{
+  "RULE-01": {
+    "text": "Poison deals 5 damage at the start of every tick for both units.",
+    "design_modules": [
+      "src/unit_logic.js"
+    ],
+    "exports": [
+      "calculateStatusEffects"
+    ],
+    "tests": [
+      "SCN-001"
+    ],
+    "status": "covered"
+  },
+  "RULE-02": {
+    "text": "If not stunned, gauge increases by 'speed' every tick.",
+    "design_modules": [
+      "src/game_engine.js"
+    ],
+    "exports": [
+      "tick"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "RULE-03": {
+    "text": "Action triggers when gauge >= 100. Priority: Player then Enemy.",
+    "design_modules": [
+      "src/game_engine.js"
+    ],
+    "exports": [
+      "tick"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "RULE-04": {
+    "text": "ATTACK: If distance <= 1 and energy >= 20, target HP -= 20, energy -= 20. Else: Fail.",
+    "design_modules": [
+      "src/unit_logic.js"
+    ],
+    "exports": [
+      "calculateAction"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "RULE-05": {
+    "text": "MOVE: If 0 <= newPos <= 10 and energy >= 10, pos += direction, energy -= 10. Else: Fail.",
+    "design_modules": [
+      "src/unit_logic.js"
+    ],
+    "exports": [
+      "calculateAction"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "RULE-06": {
+    "text": "WAIT: energy += 20 (capped at 100).",
+    "design_modules": [
+      "src/unit_logic.js"
+    ],
+    "exports": [
+      "calculateAction"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "RULE-07": {
+    "text": "Every action (Success or Fail) reduces gauge by 100.",
+    "design_modules": [
+      "src/unit_logic.js"
+    ],
+    "exports": [
+      "calculateAction"
+    ],
+    "tests": [
+      "SCN-002"
+    ],
+    "status": "covered"
+  },
+  "RULE-08": {
+    "text": "Stun prevents gauge gain and action execution. Duration decrements at tick end.",
+    "design_modules": [
+      "src/unit_logic.js",
+      "src/game_engine.js"
+    ],
+    "exports": [
+      "calculateStatusEffects",
+      "tick"
+    ],
+    "tests": [
+      "SCN-001"
+    ],
+    "status": "covered"
+  },
+  "RULE-09": {
+    "text": "Game ends immediately when any unit's HP <= 0.",
+    "design_modules": [
+      "src/game_engine.js"
+    ],
+    "exports": [
+      "tick"
+    ],
+    "tests": [
+      "SCN-003"
+    ],
+    "status": "covered"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "risky_scenarios": [],
+  "notes": [
+    {
+      "risk": false,
+      "reason": "Assumptions formalized: Player acts first on speed tie; HP clamps at 0; Attack energy cost=20; Move energy cost=10; Move distance=1; Gauge increment=10; Poison damage=5."
+    }
+  ]
+}

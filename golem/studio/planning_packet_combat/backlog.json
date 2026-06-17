@@ -1,0 +1,8 @@
+{
+  "consumer": "다음 버전/카드 planning이 입력으로 읽는다",
+  "deferred": [
+    "Implementation of a more complex AI (currently simple deterministic distance-based AI).",
+    "Multiple status effect types beyond Poison and Stun.",
+    "Variable damage values or critical hits (requires RNG, out of scope)."
+  ]
+}

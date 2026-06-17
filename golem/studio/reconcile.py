@@ -91,14 +91,16 @@ def diff(run_dir, scenarios, output_keys):
     for j, sc in enumerate(scenarios, 1):
         outs = [_run_one(b, inputs, j) for b in valid]
         votes = [json.dumps(o, sort_keys=True) for o in outs if o is not None]
-        consensus = json.loads(Counter(votes).most_common(1)[0][0]) if votes else None
+        top = Counter(votes).most_common(1)[0] if votes else (None, 0)
+        consensus = json.loads(top[0]) if top[0] else None
         exp = sc.get("expected") or {}
         gnorm = {k: (json.dumps(exp[k]) if k == "logs" else str(exp[k]))
                  for k in (set(exp) & output_keys)}
         differing = {k: {"consensus": (consensus or {}).get(k), "oracle": v}
                      for k, v in gnorm.items() if not consensus or consensus.get(k) != v}
         if differing:
-            disagreements.append({"id": sc["id"], "input": _case_input(sc), "differing": differing})
+            disagreements.append({"id": sc["id"], "input": _case_input(sc), "differing": differing,
+                                  "agreement": {"agree": top[1], "total": len(votes)}})
     return disagreements, len(valid)
 
 
@@ -168,6 +170,24 @@ def _stringify(k, val):
     return json.dumps(val) if k == "logs" else str(val)
 
 
+def apply_low_consensus_guard(verdicts, diffs):
+    """저합의(다수파가 유효빌드 과반 미달) 시나리오의 AUTO를 ESCALATE로 강등(G50).
+    저합의 위에선 '빌드 다수결이 oracle보다 옳다'를 신뢰할 수 없다 — 1표짜리 합의를
+    근거로 expected를 자동교정하면 confidently-wrong(T1 고결합서 실측). 사람 결정으로 돌린다.
+    방치형·발열(합의 1.0)은 과반 충족이라 영향 없음. 반환: 강등된 id 목록."""
+    agr = {d["id"]: d.get("agreement") or {} for d in diffs}
+    guarded = []
+    for v in verdicts:
+        a = agr.get(v["id"], {})
+        total, agree = a.get("total", 0), a.get("agree", 0)
+        if v.get("class") == "AUTO" and total and agree <= total / 2:
+            v["class"] = "ESCALATE"
+            v["low_consensus_guard"] = True
+            v["reason"] = f"[저합의 {agree}/{total}] " + v.get("reason", "")
+            guarded.append(v["id"])
+    return guarded
+
+
 def verify_auto_fixes(verdicts, diffs, ledger_path, run_id):
     """AUTO 적용 후 키0 검증 기록(게이트 아님, 측정용). G48 1순위 지표=AUTO 정확률.
     diffs: diff()/_golden_diff 항목 [{id, input, differing:{k:{consensus,oracle}}}].
@@ -183,11 +203,14 @@ def verify_auto_fixes(verdicts, diffs, ledger_path, run_id):
             if line.strip():
                 ledger.append(json.loads(line))
     diff_by_id = {d["id"]: d.get("differing", {}) for d in diffs}
+    agr_by_id = {d["id"]: d.get("agreement") or {} for d in diffs}
     checks, new_entries = [], []
     for v in verdicts:
         if v.get("class") != "AUTO":
             continue
         sid, diag = v["id"], v.get("diagnosis")
+        a = agr_by_id.get(sid, {})
+        consensus_rate = round(a["agree"] / a["total"], 3) if a.get("total") else None
         if diag == "ORACLE_BUG" and v.get("correct_value"):
             differing = diff_by_id.get(sid, {})
             consistent = all(
@@ -202,7 +225,8 @@ def verify_auto_fixes(verdicts, diffs, ledger_path, run_id):
             continue
         reverted = any(e["id"] == sid and e["key"] == ne["key"] and e["value"] != ne["value"]
                        for e in ledger for ne in entries)
-        checks.append({"id": sid, "diagnosis": diag, "status": status, "reverted_prior": reverted})
+        checks.append({"id": sid, "diagnosis": diag, "status": status,
+                       "consensus_rate": consensus_rate, "reverted_prior": reverted})
         for ne in entries:
             new_entries.append({"run": run_id, "id": sid, "diagnosis": diag, **ne})
     if new_entries:
@@ -263,6 +287,9 @@ def main(argv=None):
         verdicts.append(v)
         print(f"  [{v.get('diagnosis')}/{v.get('class')}] {d['id']}: {v.get('reason', '')}")
 
+    guarded = apply_low_consensus_guard(verdicts, disagreements)
+    if guarded:
+        print(f"  [저합의 가드] AUTO→ESCALATE 강등 {len(guarded)}: {guarded}")
     applied = []
     auto_verification = []
     if args.apply and not args.replay:
@@ -278,6 +305,7 @@ def main(argv=None):
         out.write_text(json.dumps({"run": Path(args.run).name if args.run else None,
                                    "verdicts": verdicts, "applied": applied,
                                    "auto_verification": auto_verification,
+                                   "low_consensus_guarded": guarded,
                                    "escalate": [v["id"] for v in escalate]},
                                   ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[RECONCILE] 자동적용 {len(applied)}건, 사람결정(ESCALATE) {len(escalate)}건")
@@ -285,7 +313,7 @@ def main(argv=None):
         print(f"  적용: {a}")
     for c in auto_verification:
         flag = " ★되돌림" if c["reverted_prior"] else ""
-        print(f"  [AUTO검증] {c['id']}: {c['status']}{flag}")
+        print(f"  [AUTO검증] {c['id']}: {c['status']} (합의율 {c['consensus_rate']}){flag}")
     for v in escalate:
         print(f"  ★ESCALATE {v['id']}: {v.get('reason', '')}")
     return 0

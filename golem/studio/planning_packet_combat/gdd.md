@@ -1,0 +1,16 @@
+- Player actions:
+    - `ATTACK`: (Input: Target) State: Reduce target HP, consume Energy. Failure: Out of energy or target out of range. Log: "[Player] attacks [Enemy] for X damage."
+    - `MOVE`: (Input: Direction) State: Change Position, consume Energy. Failure: Boundary limit. Log: "[Player] moves to position X."
+    - `WAIT`: (Input: None) State: Restore Energy, increase Gauge. Failure: None. Log: "[Player] rests to recover energy."
+- Entities:
+    - `Unit (Player/Enemy)`: Rules: Gauge increases by `Speed` every tick. At Gauge >= 100, the unit executes its action and resets gauge to 0.
+    - `Status Effects`: `Poison` (Reduce HP every tick), `Stun` (Prevent action/gauge gain for X ticks).
+    - `Enemy AI`: Simple deterministic logic (If Player in range -> Attack, else -> Move toward Player).
+- Win/lose conditions:
+    - Win: Enemy HP <= 0.
+    - Lose: Player HP <= 0.
+- NON-GOALS:
+    - No random number generation (RNG).
+    - No graphical interface or animations.
+    - No real-time input (input is processed per action-turn).
+    - No multiple enemies or complex maps.

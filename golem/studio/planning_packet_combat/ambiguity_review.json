@@ -1,0 +1,378 @@
+{
+  "reviews": [
+    {
+      "ambiguous_terms": [
+        "immediately",
+        "increase Gauge"
+      ],
+      "missing_rules": [
+        "Tie-breaking logic for simultaneous gauge triggers (multiple units >= 100 in one tick)",
+        "Stun duration decrement timing (start/end of tick)",
+        "Coordinate boundaries for the MOVE action failure condition"
+      ],
+      "conflicting_rules": [
+        "WAIT action 'increase Gauge' vs REQ-003 stating all units increase gauge every tick"
+      ],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Distance is calculated as the absolute difference between pos values"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "If both units hit gauge >= 100 during the same tick, what is the deterministic order of execution?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Does the WAIT command provide additional gauge increase on top of the standard speed-per-tick increase?",
+          "class": "ASSUMED"
+        },
+        {
+          "q": "What are the specific boundaries (min/max pos) that trigger a MOVE failure?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "Boundary limit"
+      ],
+      "missing_rules": [
+        "Priority/order of execution when both units reach gauge >= 100 in the same tick",
+        "Handling of gauge overflow (reset to 0 vs. retaining remainder)",
+        "Whether gauge resets to 0 when an action fails (out of energy/out of range/boundary)",
+        "Resolution of simultaneous death (e.g., both units die to poison in the same tick)",
+        "Timing and logic for decrementing status effect durations (Poison/Stun)",
+        "Handling of invalid command inputs from the player"
+      ],
+      "conflicting_rules": [],
+      "underspecified_outputs": [
+        "Logs for failure cases of ATTACK and MOVE"
+      ],
+      "risky_assumptions": [
+        "Assumption that map boundaries are static and known",
+        "Assumption that units cannot be stunned while their gauge is already >= 100"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "If both units hit gauge 100 on the same tick, who acts first to maintain determinism?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "What are the exact coordinate boundaries for the MOVE action?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Does a failed action (due to range or energy) still consume the gauge?",
+          "class": "ASSUMED"
+        },
+        {
+          "q": "When gauge >= 100, is the gauge reset to 0 or (current_gauge - 100)?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "predefined distance",
+        "Boundary limit"
+      ],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Attack range is hardcoded",
+        "Move distance is hardcoded",
+        "Energy costs and recovery values are hardcoded",
+        "Poison damage value is hardcoded",
+        "Map boundaries are hardcoded"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "The state object lacks parameters for attack range, move distance, energy costs, poison damage, and map boundaries; should these be added to the state for configuration or are they intended to be hardcoded constants?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "immediately",
+        "Move toward Player"
+      ],
+      "missing_rules": [
+        "Energy consumption value for ATTACK",
+        "Energy consumption value for MOVE",
+        "Energy restoration value for WAIT",
+        "Decrement logic for stun duration (timing and amount)",
+        "Tie-breaking priority when multiple units hit Gauge >= 100 in the same tick"
+      ],
+      "conflicting_rules": [
+        "GDD states WAIT increases Gauge, while REQ-003 states Gauge increases by Speed every tick (unclear if WAIT is additive or redundant)"
+      ],
+      "underspecified_outputs": [
+        "Expected energy state after ATTACK/MOVE/WAIT",
+        "Expected position state after MOVE"
+      ],
+      "risky_assumptions": [],
+      "questions_for_lead": [
+        {
+          "q": "What are the exact numerical values for energy costs (ATTACK/MOVE) and recovery (WAIT)?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "How many units of distance does a unit move during a MOVE action?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "In the event of a simultaneous gauge trigger (both units >= 100), which unit executes first?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "When exactly does stun duration decrement occur relative to the tick's start and the action phase?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Including both a Speed Gauge (timing) and an Energy pool (capacity) introduces redundant resource-management complexity for a minimal prototype.",
+        "The Status Effect system (Poison/Stun) introduces a tick-based state-processing layer that is distinct from and more complex than the core gauge-based action loop.",
+        "Providing a 'Target' input for the ATTACK action in a 1v1 duel implies a targeting validation system that is unnecessary for this scope."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "Can the energy system and status effects be removed to focus the prototype exclusively on the deterministic speed-gauge mechanic?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [
+        "GDD 'Unit' rules regarding gauge increment and action trigger overlap with REQ-003 and REQ-004",
+        "GDD 'Status Effects' (Poison/Stun) overlap with REQ-005 and REQ-006",
+        "GDD 'Win/lose conditions' overlap with REQ-008"
+      ],
+      "underspecified_outputs": [],
+      "risky_assumptions": [],
+      "questions_for_lead": [
+        {
+          "q": "Since game logic is duplicated between the GDD and the Requirements section, which section serves as the single source of truth for implementation?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "State",
+        "Turn"
+      ],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [],
+      "questions_for_lead": [
+        {
+          "q": "The term 'State' is used to describe both the global data model (the JSON object) and the resulting effect of an action (e.g., 'State: Reduce target HP'). Should these be distinguished as 'Global State' and 'Action Effect'?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "The term 'Turn' is used as a genre descriptor ('turn-based'), a processing window ('action-turn'), and a data structure ('turnOrder'). Does 'turnOrder' refer to the sequence of gauge-triggered actions, or a separate phase?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "Change Position (amount not specified)",
+        "distance <= 1 (listed as example, not a requirement)"
+      ],
+      "missing_rules": [
+        "Priority resolution when multiple units reach gauge >= 100 in the same tick",
+        "Specific energy cost for ATTACK and MOVE actions",
+        "Movement distance per MOVE action (e.g., +/- 1 position)",
+        "Input delivery mechanism: does the tick loop pause for player input when gauge >= 100?"
+      ],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "Gauge reset: resetting to 0 instead of subtracting 100 creates a speed penalty for units with speeds that aren't factors of 100",
+        "Execution order: sequence of 'Poison' -> 'Gauge increment' -> 'Action trigger' is implied but not explicitly ordered"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "When two units hit 100 gauge in the same tick, who acts first?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Should the gauge be reset to 0 or reduced by 100 upon action execution?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "What are the specific energy costs for ATTACK and MOVE?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "Does the game tick loop wait for player input, or is input provided asynchronously/queued?",
+          "class": "ASSUMED"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [],
+      "missing_rules": [],
+      "conflicting_rules": [],
+      "underspecified_outputs": [],
+      "risky_assumptions": [
+        "The Energy resource system is assumed to be a required mechanic despite being omitted from the Concept and Requirements."
+      ],
+      "questions_for_lead": [
+        {
+          "q": "The Concept states units compete via a speed gauge, and the Requirements omit any mention of energy. However, the GDD and State introduce an Energy system (costs for Attack/Move, recovery via Wait). Is this Energy system an intended feature or out-of-scope?",
+          "class": "BLOCKING"
+        }
+      ]
+    },
+    {
+      "ambiguous_terms": [
+        "Direction",
+        "predefined distance"
+      ],
+      "missing_rules": [
+        "Tie-breaking logic for simultaneous gauge completion (both >= 100)",
+        "Gauge overflow handling (reset to 0 vs subtract 100)",
+        "Energy cost for ATTACK",
+        "Energy cost for MOVE",
+        "Energy recovery amount for WAIT",
+        "Damage value for Poison",
+        "Definition of boundary limits for movement"
+      ],
+      "conflicting_rules": [],
+      "underspecified_outputs": [
+        "Attack damage value (X) for gameLog",
+        "HP reduction value (X) for poison logs"
+      ],
+      "risky_assumptions": [
+        "Position is treated as a 1D integer coordinate",
+        "Stun duration decrement timing (start vs end of tick)"
+      ],
+      "questions_for_lead": [
+        {
+          "q": "How should simultaneous turns be resolved if both units reach 100 gauge in the same tick?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "What are the specific energy costs for actions and the recovery amount for WAIT?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "What are the exact damage values for attacks and poison?",
+          "class": "BLOCKING"
+        },
+        {
+          "q": "What are the coordinate boundaries for the map?",
+          "class": "ASSUMED"
+        }
+      ]
+    }
+  ],
+  "aggregated": {
+    "ambiguous_terms": [
+      "immediately",
+      "increase Gauge",
+      "Boundary limit",
+      "predefined distance",
+      "Boundary limit",
+      "immediately",
+      "Move toward Player",
+      "State",
+      "Turn",
+      "Change Position (amount not specified)",
+      "distance <= 1 (listed as example, not a requirement)",
+      "Direction",
+      "predefined distance"
+    ],
+    "missing_rules": [
+      "Tie-breaking logic for simultaneous gauge triggers (multiple units >= 100 in one tick)",
+      "Stun duration decrement timing (start/end of tick)",
+      "Coordinate boundaries for the MOVE action failure condition",
+      "Priority/order of execution when both units reach gauge >= 100 in the same tick",
+      "Handling of gauge overflow (reset to 0 vs. retaining remainder)",
+      "Whether gauge resets to 0 when an action fails (out of energy/out of range/boundary)",
+      "Resolution of simultaneous death (e.g., both units die to poison in the same tick)",
+      "Timing and logic for decrementing status effect durations (Poison/Stun)",
+      "Handling of invalid command inputs from the player",
+      "Energy consumption value for ATTACK",
+      "Energy consumption value for MOVE",
+      "Energy restoration value for WAIT",
+      "Decrement logic for stun duration (timing and amount)",
+      "Tie-breaking priority when multiple units hit Gauge >= 100 in the same tick",
+      "Priority resolution when multiple units reach gauge >= 100 in the same tick",
+      "Specific energy cost for ATTACK and MOVE actions",
+      "Movement distance per MOVE action (e.g., +/- 1 position)",
+      "Input delivery mechanism: does the tick loop pause for player input when gauge >= 100?",
+      "Tie-breaking logic for simultaneous gauge completion (both >= 100)",
+      "Gauge overflow handling (reset to 0 vs subtract 100)",
+      "Energy cost for ATTACK",
+      "Energy cost for MOVE",
+      "Energy recovery amount for WAIT",
+      "Damage value for Poison",
+      "Definition of boundary limits for movement"
+    ],
+    "conflicting_rules": [
+      "WAIT action 'increase Gauge' vs REQ-003 stating all units increase gauge every tick",
+      "GDD states WAIT increases Gauge, while REQ-003 states Gauge increases by Speed every tick (unclear if WAIT is additive or redundant)",
+      "GDD 'Unit' rules regarding gauge increment and action trigger overlap with REQ-003 and REQ-004",
+      "GDD 'Status Effects' (Poison/Stun) overlap with REQ-005 and REQ-006",
+      "GDD 'Win/lose conditions' overlap with REQ-008"
+    ],
+    "underspecified_outputs": [
+      "Logs for failure cases of ATTACK and MOVE",
+      "Expected energy state after ATTACK/MOVE/WAIT",
+      "Expected position state after MOVE",
+      "Attack damage value (X) for gameLog",
+      "HP reduction value (X) for poison logs"
+    ],
+    "risky_assumptions": [
+      "Distance is calculated as the absolute difference between pos values",
+      "Assumption that map boundaries are static and known",
+      "Assumption that units cannot be stunned while their gauge is already >= 100",
+      "Attack range is hardcoded",
+      "Move distance is hardcoded",
+      "Energy costs and recovery values are hardcoded",
+      "Poison damage value is hardcoded",
+      "Map boundaries are hardcoded",
+      "Including both a Speed Gauge (timing) and an Energy pool (capacity) introduces redundant resource-management complexity for a minimal prototype.",
+      "The Status Effect system (Poison/Stun) introduces a tick-based state-processing layer that is distinct from and more complex than the core gauge-based action loop.",
+      "Providing a 'Target' input for the ATTACK action in a 1v1 duel implies a targeting validation system that is unnecessary for this scope.",
+      "Gauge reset: resetting to 0 instead of subtracting 100 creates a speed penalty for units with speeds that aren't factors of 100",
+      "Execution order: sequence of 'Poison' -> 'Gauge increment' -> 'Action trigger' is implied but not explicitly ordered",
+      "The Energy resource system is assumed to be a required mechanic despite being omitted from the Concept and Requirements.",
+      "Position is treated as a 1D integer coordinate",
+      "Stun duration decrement timing (start vs end of tick)"
+    ],
+    "BLOCKING_questions": [
+      "If both units hit gauge >= 100 during the same tick, what is the deterministic order of execution?",
+      "If both units hit gauge 100 on the same tick, who acts first to maintain determinism?",
+      "What are the exact coordinate boundaries for the MOVE action?",
+      "The state object lacks parameters for attack range, move distance, energy costs, poison damage, and map boundaries; should these be added to the state for configuration or are they intended to be hardcoded constants?",
+      "What are the exact numerical values for energy costs (ATTACK/MOVE) and recovery (WAIT)?",
+      "How many units of distance does a unit move during a MOVE action?",
+      "In the event of a simultaneous gauge trigger (both units >= 100), which unit executes first?",
+      "When exactly does stun duration decrement occur relative to the tick's start and the action phase?",
+      "Since game logic is duplicated between the GDD and the Requirements section, which section serves as the single source of truth for implementation?",
+      "The term 'State' is used to describe both the global data model (the JSON object) and the resulting effect of an action (e.g., 'State: Reduce target HP'). Should these be distinguished as 'Global State' and 'Action Effect'?",
+      "When two units hit 100 gauge in the same tick, who acts first?",
+      "Should the gauge be reset to 0 or reduced by 100 upon action execution?",
+      "What are the specific energy costs for ATTACK and MOVE?",
+      "The Concept states units compete via a speed gauge, and the Requirements omit any mention of energy. However, the GDD and State introduce an Energy system (costs for Attack/Move, recovery via Wait). Is this Energy system an intended feature or out-of-scope?",
+      "How should simultaneous turns be resolved if both units reach 100 gauge in the same tick?",
+      "What are the specific energy costs for actions and the recovery amount for WAIT?",
+      "What are the exact damage values for attacks and poison?"
+    ]
+  }
+}

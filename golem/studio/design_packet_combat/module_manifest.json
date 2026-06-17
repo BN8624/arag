@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1",
+  "module_format": "commonjs",
+  "entry": "main.js",
+  "files": [
+    {
+      "path": "main.js",
+      "exports": [],
+      "imports": [
+        "src/game_engine.js"
+      ]
+    },
+    {
+      "path": "src/game_engine.js",
+      "exports": [
+        "tick"
+      ],
+      "imports": [
+        "src/unit_logic.js"
+      ]
+    },
+    {
+      "path": "src/unit_logic.js",
+      "exports": [
+        "calculateStatusEffects",
+        "calculateAction"
+      ],
+      "imports": []
+    }
+  ]
+}

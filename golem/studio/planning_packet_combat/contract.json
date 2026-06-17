@@ -1,0 +1,75 @@
+{
+  "data_contract": {
+    "state_shape": {
+      "tick": "integer",
+      "player": {
+        "hp": "integer",
+        "energy": "integer",
+        "speed": "integer",
+        "gauge": "integer",
+        "pos": "integer",
+        "status": {
+          "poison": "integer (duration in ticks)",
+          "stun": "integer (duration in ticks)"
+        }
+      },
+      "enemy": {
+        "hp": "integer",
+        "energy": "integer",
+        "speed": "integer",
+        "gauge": "integer",
+        "pos": "integer",
+        "status": {
+          "poison": "integer (duration in ticks)",
+          "stun": "integer (duration in ticks)"
+        }
+      },
+      "gameLog": "string[]",
+      "isGameOver": "boolean",
+      "winner": "string | null"
+    },
+    "rules": [
+      "RULE-01: Poison deals 5 damage at the start of every tick for both units.",
+      "RULE-02: If not stunned, gauge increases by 'speed' every tick.",
+      "RULE-03: Action triggers when gauge >= 100. Priority: Player then Enemy.",
+      "RULE-04: ATTACK: If distance <= 1 and energy >= 20, target HP -= 20, energy -= 20. Else: Fail.",
+      "RULE-05: MOVE: If 0 <= newPos <= 10 and energy >= 10, pos += direction, energy -= 10. Else: Fail.",
+      "RULE-06: WAIT: energy += 20 (capped at 100).",
+      "RULE-07: Every action (Success or Fail) reduces gauge by 100.",
+      "RULE-08: Stun prevents gauge gain and action execution. Duration decrements at tick end.",
+      "RULE-09: Game ends immediately when any unit's HP <= 0."
+    ]
+  },
+  "interface_contract": {
+    "entry": "main.js",
+    "files": [
+      {
+        "path": "main.js",
+        "exports": [],
+        "imports": [
+          "src/game.js"
+        ],
+        "description": "CLI Entry point. Parses --scenario N, loads setup, and runs the game loop."
+      },
+      {
+        "path": "src/game.js",
+        "exports": [
+          "GameSession"
+        ],
+        "imports": [
+          "src/engine.js"
+        ],
+        "description": "Manages game session, input queue, and scenario state orchestration."
+      },
+      {
+        "path": "src/engine.js",
+        "exports": [
+          "tick",
+          "processAction"
+        ],
+        "imports": [],
+        "description": "Pure deterministic logic for state transitions based on rules."
+      }
+    ]
+  }
+}

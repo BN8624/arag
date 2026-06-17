@@ -1,0 +1,8 @@
+{
+  "consumer": "Build/Spec QA가 명시 가정으로 따른다",
+  "assumed": [
+    "Maximum energy capacity is hard-capped at 100.",
+    "Input queue for scenarios is an array of commands mapped to Player action triggers.",
+    "Unit speed is a constant integer and does not change during the game."
+  ]
+}

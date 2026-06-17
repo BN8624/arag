@@ -1,0 +1,1 @@
+A deterministic turn-based duel where units compete via a speed gauge. Players issue commands that are executed when their gauge hits 100, triggering a tightly coupled sequence of movement, combat, and status updates. The game progresses in discrete ticks until one entity's HP reaches zero.

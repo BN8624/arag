@@ -1,0 +1,20 @@
+[
+  {
+    "id": "SCN-001",
+    "setup": "Player (pos: 0, speed: 100), Enemy (pos: 1, speed: 10), both HP: 100",
+    "input": "ATTACK",
+    "expect": "Tick 1: Player attacks Enemy for 20 damage. Enemy gauge becomes 10. Enemy HP: 80."
+  },
+  {
+    "id": "SCN-002",
+    "setup": "Player (pos: 0, speed: 100, stun: 1), Enemy (pos: 1, speed: 100)",
+    "input": "ATTACK",
+    "expect": "Tick 1: Player cannot act (stunned). Enemy gauge hits 100 and attacks Player. Player stun decrements to 0."
+  },
+  {
+    "id": "SCN-003",
+    "setup": "Player (pos: 0, speed: 100), Enemy (pos: 10, speed: 100)",
+    "input": "ATTACK",
+    "expect": "Tick 1: Player gauge 100, attacks Enemy, fails (range > 1). Enemy gauge 100, attacks Player, fails (range > 1). Both gauges reset to 0."
+  }
+]
