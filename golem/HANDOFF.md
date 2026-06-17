@@ -1,16 +1,19 @@
 # HANDOFF.md — golem 현재 위치와 다음 액션
 
 ## ▶ 새 세션 여기부터
-- 읽는 순서: 이 파일 → **context-notes G46(가드레일)·G48(T1 측정설계)** → 필요할 때만 `context-notes.md` 나머지(G25~G48) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
-- **지금 할 일 한 줄**: T1 일반화 실험(설계=G48). 결합밀도 저/중/고 카드를 `build_graded --reconcile --apply`로 — **고결합 1장 필수**, 첫 N=3은 정성 스모크(수렴되나만), **1순위 지표=AUTO 정확률**(낮은 ESCALATE만으론 Green 아님), 실패는 하네스/oracle 탓부터 분리. ★키.
-- T0(reconcile 자동연결) 코드 완료(G47). T1 전 계측(AUTO 검증 로그 + 실패 사전분류) 완료(G49, 키0). 회귀 하드닝 완료(G45). 다음 frontier=자율oracle×고결합(UI 아님, 별도 트랙). 측정설계·판정기준은 **G48** 필독.
-- T1 계측은 빌드 후 자동 기록됨: 실패 사전분류 → `consensus.json`(failure_classes), AUTO 검증·되돌림 → `reconcile_report.json`(auto_verification) + 카드별 `auto_fix_ledger.jsonl`. SUSPECT=confidently-wrong AUTO 후보, needs_rebuild=계약수정은 재빌드로만 검증.
+- 읽는 순서: 이 파일 → **context-notes G51(T1 첫측정 결과)·G50(저합의 가드)·G48(T1 측정설계)** → 필요할 때만 `context-notes.md` 나머지(G25~G51) / `GolemStudioMode.md`(설계 정본) / `checklist.md`(진행).
+- **지금 할 일 한 줄(★키, B)**: 고결합 턴제전투 카드(`*_packet_combat`)의 합의 0.567을 끌어올린다. ① specqa 재생성으로 oracle 원복(현 expected는 AUTO로 오염) ② 계약에 종료조건 한 줄(어느 유닛 HP>0이고 tick 상한 1000 도달 시 무승부 종료) 박고 ③ oracle 비종료 시나리오 expected를 tick=1000으로 교정 ④ `build_graded --packet/--design/--specqa *_packet_combat --reconcile --apply --cap 11` 재빌드 → 합의 0.567→상승하나(사다리 수렴 검증). background는 cwd 불안정하니 절대경로 쓸 것.
+- T1 첫 N=3 정성 스모크 완료(G51): 저(방치형 합의1.0)·중(발열 1.0) baseline diff 0 / 고(턴제전투 신규 **0.567**) 붕괴. confidently-wrong AUTO 실측 → 저합의 가드(G50) 추가·라이브 검증. 근본=계약 종료조건 부재(reconcile ESCALATE가 지목). 다음 frontier=자율oracle×고결합은 B 뒤(UI 아님, 별도 트랙).
+- 동시 보조작업(키0): 저합의 가드 임계 과반(>0.5)→절대다수(2/3↑) 강화 — SCN-009(0.6) 무한루프값 통과 빈틈(G50 알려진 빈틈).
+- T1 계측은 빌드 후 자동 기록: 실패 사전분류→`consensus.json`(failure_classes), AUTO 검증·되돌림→`reconcile_report.json`(auto_verification/low_consensus_guarded) + 카드별 `auto_fix_ledger.jsonl`. SUSPECT=confidently-wrong 후보, needs_rebuild=계약수정은 재빌드로만 검증.
 - 키 사용은 사용자 명시 go 뒤에만(메모리 no-autostart-runs).
 - 운영 가드레일은 context-notes **G46** 참조: v0.1 동결 아님(확장 유지) / 우선순위 T0→T1→T2(T2가 T0/T1 안 막음) / live build=build_graded.py / reconcile=Build↔oracle 슬라이스 / unique_issue_count는 lexical(방향성만) / --apply는 AUTO만.
 
 ## 지금 어디 (2026-06-17)
 
-Golem Studio = `GolemStudioMode.md` §13 파이프라인을 실모델로 구축. 아이디어 한 줄로 **Step 1~7 전부 실제 완주**(방치형·발열 두 카드). 하네스는 계약구동으로 일반화돼 새 카드는 코드변경 0. 합의-vs-oracle 자동 해소(`reconcile.py`)까지 갖춤. 산출물은 `golem/studio/`(패킷: 방치형=`*_packet`, 발열=`*_packet_heat`).
+Golem Studio = `GolemStudioMode.md` §13 파이프라인을 실모델로 구축. 아이디어 한 줄로 **Step 1~7 전부 실제 완주**(방치형·발열 두 카드). 하네스는 계약구동으로 일반화돼 새 카드는 코드변경 0. 합의-vs-oracle 자동 해소(`reconcile.py`)+저합의 가드(G50)까지 갖춤. 산출물은 `golem/studio/`(패킷: 방치형=`*_packet`, 발열=`*_packet_heat`, **턴제전투(고결합)=`*_packet_combat`** 신규).
+
+**T1 첫 측정(G51) 도달점**: 결합밀도 저/중/고 3카드를 `build_graded --reconcile`로 측정. 저·중 합의 1.0(수렴, diff 0), **고결합(턴제전투) 합의 0.567로 붕괴** — 빌드들이 게임 종료조건 없이 무한루프 타임아웃(tick=1000/1001) 제각각. confidently-wrong AUTO(저합의 1표를 정답으로 자동채택)를 실측 → **저합의 가드 추가**(과반미달 AUTO→ESCALATE)로 차단 확인. 근본=계약 종료조건 부재(reconcile ESCALATE가 정확히 지목). **다음=B(계약 종료조건 박고 oracle 교정 후 재빌드 → 합의 상승하나)는 새 세션.**
 
 | §13 단계 | 코드 | 산출/상태 |
 |---|---|---|
@@ -21,7 +24,7 @@ Golem Studio = `GolemStudioMode.md` §13 파이프라인을 실모델로 구축.
 | Step5 Build v1 | `build_graded.py` | design 4모듈+시나리오+**합의 채점**(특권 golden 아님). `build.py`는 v0 스파이크로 잔존. |
 | Step6 Adversarial QA | `adversarial.py` | 팀(lead+리뷰어8+synth)이 edge_cases 13+acceptance 5 → `adversarial_packet/`. 실측으로 EDGE-011(빈입력)·EDGE-012(미지id) 크래시 발견 → 계약 명문화(RULE-07+actions []디폴트, rung5)로 **둘 다 소거**, 유효빌드 edge 7/7 수렴. |
 | Step7 Integration | `integration.py` | 수렴 빌드 재사용(키0) → 최종 workspace 선정+static_gate+golden 채점+final_report. **계약구동 일반화**(출력키=state_shape, adversarial 옵셔널). 방치형 24/24·발열 13/13. |
-| 자동해소 | `reconcile.py` | Build 합의 vs golden **자동 diff(키0)** + 31B 진단(CONTRACT_AMBIGUOUS/ORACLE_BUG/BUILD_BUG)·AUTO/ESCALATE 분류 + `--apply`(AUTO만). 내 수작업 자동화. diff/resolve/apply 키0 검증 + 실측 1건(SCN-011→BUILD_BUG 정확). |
+| 자동해소 | `reconcile.py` | Build 합의 vs golden **자동 diff(키0)** + 31B 진단(CONTRACT_AMBIGUOUS/ORACLE_BUG/BUILD_BUG)·AUTO/ESCALATE 분류 + `--apply`(AUTO만) + **저합의 가드(G50, 과반미달 AUTO→ESCALATE)** + AUTO검증/실패 사전분류(G49). T1 고결합서 confidently-wrong 차단 라이브 검증. |
 
 **장르확장(다리실험, G41~44)**: 방치형 v1 → **발열/과열(결합 시스템)** 카드(`*_packet_heat`). 결과: ① 맞물림이 빌드 합의를 안 떨어뜨림(첫 런 1.0) — "결합=어렵다" 기각. ② 난이도가 *틱 순서 모호성*(관성·즉시)+*oracle 버그*로 이동 — 합의 1.0은 필요조건이지 충분조건 아님(독립 oracle 대조 필수). ③ 계약 한 줄 명문화로 완전수렴 합의를 의도값으로 이동시킴(B1→B2). 최종 발열 골든 13/13. ④ 하네스(build_graded·integration) 계약구동 일반화 → 새 카드 코드변경 0. ⑤ 수작업 diff/진단을 `reconcile.py`로 자동화.
 
@@ -35,12 +38,13 @@ Golem Studio = `GolemStudioMode.md` §13 파이프라인을 실모델로 구축.
 - logs 채점(G39): 출력계약에 `logs:` 줄 추가 → acceptance 1.0 유지, EDGE-012 미지id 로그 2/11→**6/6 골든 수렴**. RULE-07 상태+로그 모두 채점·수렴. 교훈: 채점 표면(output contract)이 곧 측정 가능 범위.
 - Step7 Integration(G40): 수렴 빌드 재사용(키0) E2E 완주 — 최종 attempt01(4모듈), static_gate PASS, **golden 24/24 PASS**(levels는 출력표면밖 표기). **아이디어 한 줄→Step1~7 전 파이프라인 실제 완주 도달.**
 
-주의: Step4는 초안(결함 있음). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G48.
+주의: Step4는 초안(결함 있음). `build_runs/`는 .gitignore(생성물). 결정·반박 로그는 context-notes G25~G51.
 
-## 다음 액션 (G48 측정설계 기준)
+## 다음 액션
 
-1. ~~(키0, T1 직전) AUTO 정확률 검증 로그 + 실패 사전분류~~ **완료(G49)** — `verify_auto_fixes`(다운스트림 일관성·needs_rebuild·되돌림) + `classify_attempt_failure`(INFRA/HARNESS/CARD) + worker 하드닝. 빌드 시 자동 기록.
-2. **(다음, ★키) T1 일반화 실험**. 결합밀도 저/중/고 카드(**고결합 1장 필수**, 예: 조립카드 T-000012류)를 `build_graded --reconcile --apply`로. 첫 N=3은 정성 스모크(수렴되나만). 1순위 지표=AUTO 정확률. Green=ESCALATE 낮음 AND AUTO 정확률 높음 AND oracle 일치. Red는 하네스 탓부터 분리. **G49 계측이 첫 카드부터 측정·기록 — 라이브 e2e가 계측 자체도 검증.**
-3. **정량 판정**(★키) — multi-seed/동결합 다수 카드로 임계 기반.
-4. **코어 다음 frontier**(★키) — 자율 oracle(31B가 골든까지) × 고결합 카드 × reconcile calibration. UI/Asset/Renderer는 채점기반을 바꾸므로 **별도 트랙**(결정적 렌더 채점법 선결).
-5. (backlog) levels 등 출력표면 확장 / adversarial validator BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주.
+1. ~~(키0) AUTO 검증 로그 + 실패 사전분류~~ **완료(G49)**. ~~T1 첫 N=3 정성 스모크~~ **완료(G51)**: 저/중 1.0 baseline, 고결합 0.567 + confidently-wrong 실측 → ~~저합의 가드~~ **완료(G50)**.
+2. **(★키, 다음 세션 1순위) B — 고결합 카드 합의 끌어올리기**. `*_packet_combat`에 ① specqa 재생성(oracle 원복) ② 계약에 종료조건 한 줄(HP>0 & tick 1000 도달 시 무승부) ③ oracle 비종료 expected→tick=1000 ④ `build_graded --packet/--design/--specqa *_packet_combat --reconcile --apply` 재빌드 → **합의 0.567→상승하나(사다리 수렴 검증 = frontier 핵심 질문: 고결합도 계약 박으면 수렴하나)**.
+3. (키0, 겸사) 저합의 가드 임계 과반(>0.5)→절대다수(2/3↑) — SCN-009(0.6) 무한루프값 통과 빈틈(G50).
+4. **정량 판정**(★키) — multi-seed/동결합 다수 카드로 임계 기반.
+5. **코어 다음 frontier**(★키) — 자율 oracle(31B가 골든까지) × 고결합 카드 × reconcile calibration. UI/Asset/Renderer는 채점기반을 바꾸므로 **별도 트랙**(결정적 렌더 채점법 선결).
+6. (backlog) levels 등 출력표면 확장 / adversarial validator BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주.

@@ -18,7 +18,9 @@
       path escape guard / assumptions·backlog 영속화 / FAILURE_TAXONOMY 통합 인벤토리(난립 방지, 매핑표 아님)
 - [x] T0 reconcile 자동연결(G47, 코드 키0) — build_graded --reconcile/--apply: diff→resolve→AUTO적용→ESCALATE/BUILD_BUG 리포트. ESCALATE 자동적용 금지, BUILD_BUG는 재빌드 권장만
 - [x] (T1 전, 키0) AUTO 정확률 검증 로그 + 실패 사전분류(HARNESS/INFRA vs 카드/계약)를 reconcile/build_graded에 추가(G49) — `verify_auto_fixes`(다운스트림 일관성·needs_rebuild·카드별 ledger 되돌림감지) + `classify_attempt_failure`(INFRA/HARNESS/CARD, 기존 라벨 재사용·난립 없음). worker가 하네스 크래시 잡아 HARNESS로 기록(런 안 깨짐). 단위검증 PASS, replay 무회귀
-- [ ] **T1 일반화 실험(설계=G48)** — 결합밀도 저/중/고 카드(고결합 1장 필수)를 --reconcile로. 첫 N=3은 정성 스모크. 1순위 지표=AUTO 정확률. Green=ESCALATE 낮음 AND AUTO 정확률 높음 AND oracle 일치(★키)
+- [~] **T1 일반화 실험(설계=G48)** — 첫 N=3 정성 스모크 완료(G51, ★키). 저(방치형 9/11·합의1.0)·중(발열 8/11·합의1.0) baseline diff 0. 고(턴제전투 신규 `*_packet_combat` 6/11·**합의 0.567**) 붕괴 → confidently-wrong AUTO 실측 → **저합의 가드(G50)** 추가·라이브 검증(저합의 AUTO 3건 ESCALATE 강등). 근본=계약 종료조건 부재(reconcile ESCALATE가 지목). 남은 것 ↓
+- [ ] (새 세션, ★키) **B: 고결합 카드에 계약 종료조건 박고 + oracle 교정 후 재빌드** — 합의 0.567 오르나(사다리 수렴 검증). specqa 재생성으로 `*_packet_combat` oracle 원복부터. **측정 본질로 우선.**
+- [ ] (새 세션, 키0) 저합의 가드 임계 강화 — 과반(>0.5)→절대다수(2/3↑). SCN-009(0.6) 같은 무한루프값 통과 빈틈 차단(G50)
 - [ ] 정량 판정 — multi-seed/동결합 다수 카드로 임계 기반(★키)
 - [ ] 코어 다음 frontier = 자율 oracle × 고결합 카드 × reconcile calibration (UI/Asset는 별도 트랙, 결정적 렌더 채점법 선결)
 - [ ] (backlog) levels 등 출력표면 확장 / adversarial BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주

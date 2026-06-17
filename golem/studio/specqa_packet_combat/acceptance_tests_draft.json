@@ -2,22 +2,28 @@
   {
     "id": "SCN-001",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 1,
+          "speed": 10,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 1,
-        "speed": 10,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "ATTACK",
-      "enemy_action": "ATTACK"
+      "commands": {
+        "player": "ATTACK",
+        "enemy": "ATTACK"
+      }
     },
     "covers_reqs": [
       "RULE-02",
@@ -28,10 +34,10 @@
     "expected": {
       "tick": 5,
       "player_hp": 80,
-      "player_energy": 80,
-      "player_gauge": 10,
       "enemy_hp": 80,
+      "player_energy": 80,
       "enemy_energy": 80,
+      "player_gauge": 100,
       "enemy_gauge": 10
     },
     "oracle_risk": {
@@ -42,35 +48,40 @@
   {
     "id": "SCN-002",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0,
-        "stun": 1
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 1,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 1,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 1,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "ATTACK",
-      "enemy_action": "ATTACK"
+      "commands": {
+        "player": "ATTACK",
+        "enemy": "ATTACK"
+      }
     },
     "covers_reqs": [
       "RULE-08"
     ],
     "expected": {
-      "tick": "5",
+      "tick": 5,
       "player_hp": 80,
-      "player_gauge": 10,
       "player_stun": 0,
+      "player_energy": 100,
       "enemy_energy": 80,
-      "enemy_gauge": 0,
-      "player_energy": 100
+      "player_gauge": 100,
+      "enemy_gauge": 100
     },
     "oracle_risk": {
       "risk": false,
@@ -80,35 +91,40 @@
   {
     "id": "SCN-003",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 10,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 10,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "ATTACK",
-      "enemy_action": "ATTACK"
+      "commands": {
+        "player": "ATTACK",
+        "enemy": "ATTACK"
+      }
     },
     "covers_reqs": [
-      "RULE-04",
-      "RULE-07"
+      "RULE-04"
     ],
     "expected": {
-      "tick": 1000,
+      "tick": 1,
       "player_hp": 100,
       "enemy_hp": 100,
       "player_energy": 100,
       "enemy_energy": 100,
-      "player_gauge": 0,
-      "enemy_gauge": 0
+      "player_gauge": 100,
+      "enemy_gauge": 100
     },
     "oracle_risk": {
       "risk": false,
@@ -118,34 +134,41 @@
   {
     "id": "SCN-004",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 10,
-        "hp": 4,
-        "energy": 100,
-        "gauge": 0,
-        "poison": true
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 10,
+          "speed": 10,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 0,
-        "speed": 10,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0,
-        "poison": true
-      },
-      "player_action": "WAIT",
-      "enemy_action": "WAIT"
+      "commands": {
+        "player": {
+          "action": "MOVE",
+          "direction": 1
+        },
+        "enemy": "WAIT"
+      }
     },
     "covers_reqs": [
-      "RULE-01",
-      "RULE-09"
+      "RULE-05"
     ],
     "expected": {
       "tick": 1,
-      "player_hp": 0,
-      "enemy_hp": 95,
-      "game_over": true
+      "player_pos": 1,
+      "player_energy": 90,
+      "player_gauge": 100,
+      "enemy_gauge": 10
     },
     "oracle_risk": {
       "risk": false,
@@ -155,32 +178,38 @@
   {
     "id": "SCN-005",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 10,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 90,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 10,
+          "speed": 10,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 5,
-        "speed": 10,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "MOVE",
-      "player_direction": 1,
-      "enemy_action": "WAIT"
+      "commands": {
+        "player": "WAIT",
+        "enemy": "WAIT"
+      }
     },
     "covers_reqs": [
-      "RULE-05"
+      "RULE-06",
+      "RULE-07"
     ],
     "expected": {
       "tick": 1,
-      "player_pos": 1,
-      "player_energy": 0,
-      "player_gauge": 0
+      "player_energy": 100,
+      "player_gauge": 100,
+      "enemy_gauge": 10
     },
     "oracle_risk": {
       "risk": false,
@@ -190,30 +219,37 @@
   {
     "id": "SCN-006",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 90,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 10,
+          "energy": 100,
+          "hp": 4,
+          "stun": 0,
+          "poison": true
+        },
+        "enemy": {
+          "pos": 0,
+          "speed": 10,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 5,
-        "speed": 10,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "WAIT",
-      "enemy_action": "WAIT"
+      "commands": {
+        "player": "WAIT",
+        "enemy": "WAIT"
+      }
     },
     "covers_reqs": [
-      "RULE-06"
+      "RULE-01",
+      "RULE-09"
     ],
     "expected": {
-      "tick": 1000,
-      "player_energy": 100,
-      "player_gauge": 0
+      "tick": 1,
+      "player_hp": 0,
+      "game_over": true
     },
     "oracle_risk": {
       "risk": false,
@@ -223,65 +259,81 @@
   {
     "id": "SCN-007",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 5,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 1,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 1,
-        "speed": 10,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
+      "commands": {
+        "player": "ATTACK",
+        "enemy": "ATTACK"
+      }
+    },
+    "covers_reqs": [
+      "RULE-02"
+    ],
+    "expected": {
+      "tick": 5,
+      "player_hp": 80,
+      "enemy_hp": 80,
+      "player_energy": 80,
+      "enemy_energy": 80,
+      "player_gauge": 100,
+      "enemy_gauge": 100
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "Assuming Player wins tie-break priority"
+    }
+  },
+  {
+    "id": "SCN-008",
+    "input": {
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 10,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 1,
+          "speed": 10,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "player_action": "ATTACK",
-      "enemy_action": "WAIT"
+      "commands": {
+        "player": "ATTACK",
+        "enemy": "WAIT"
+      }
     },
     "covers_reqs": [
       "RULE-03"
     ],
     "expected": {
       "tick": 1,
-      "player_energy": 5,
+      "player_energy": 10,
       "enemy_hp": 100,
-      "enemy_gauge": 0
-    },
-    "oracle_risk": {
-      "risk": false,
-      "reason": ""
-    }
-  },
-  {
-    "id": "SCN-008",
-    "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
-      },
-      "enemy": {
-        "pos": 1,
-        "speed": 10,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "ATTACK",
-      "enemy_action": "WAIT"
-    },
-    "covers_reqs": [
-      "RULE-04"
-    ],
-    "expected": {
-      "tick": 5,
-      "enemy_hp": 80,
-      "enemy_gauge": 10,
-      "player_energy": 80
+      "player_gauge": 100,
+      "enemy_gauge": 10
     },
     "oracle_risk": {
       "risk": false,
@@ -291,31 +343,41 @@
   {
     "id": "SCN-009",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 5,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 10,
+          "speed": 10,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 1,
-        "speed": 10,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 95
-      },
-      "player_action": "ATTACK",
-      "enemy_action": "WAIT"
+      "commands": {
+        "player": {
+          "action": "MOVE",
+          "direction": 1
+        },
+        "enemy": "WAIT"
+      }
     },
     "covers_reqs": [
-      "RULE-07"
+      "RULE-05"
     ],
     "expected": {
-      "tick": 5,
-      "enemy_gauge": 100,
-      "enemy_hp": 80,
-      "player_energy": 80
+      "tick": 1001,
+      "player_pos": 0,
+      "player_energy": 5,
+      "player_gauge": 100,
+      "enemy_gauge": 10
     },
     "oracle_risk": {
       "risk": false,
@@ -325,32 +387,37 @@
   {
     "id": "SCN-010",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 10,
+          "speed": 10,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 1,
-        "speed": 10,
-        "hp": 10,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "ATTACK",
-      "enemy_action": "WAIT"
+      "commands": {
+        "player": "WAIT",
+        "enemy": "WAIT"
+      }
     },
     "covers_reqs": [
-      "RULE-02",
-      "RULE-09"
+      "RULE-06"
     ],
     "expected": {
       "tick": 1,
-      "enemy_hp": 0,
-      "game_over": true,
-      "player_energy": 80
+      "player_energy": 100,
+      "player_gauge": 100,
+      "enemy_gauge": 10
     },
     "oracle_risk": {
       "risk": false,
@@ -360,68 +427,119 @@
   {
     "id": "SCN-011",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 10,
-        "energy": 100,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": true
+        },
+        "enemy": {
+          "pos": 10,
+          "speed": 10,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 1,
-        "speed": 100,
-        "hp": 10,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "ATTACK",
-      "enemy_action": "ATTACK"
+      "commands": {
+        "player": "WAIT",
+        "enemy": "WAIT"
+      }
     },
     "covers_reqs": [
-      "RULE-02",
       "RULE-09"
     ],
     "expected": {
-      "tick": 1,
-      "player_hp": 0,
-      "enemy_hp": 0,
-      "game_over": true,
-      "player_energy": 80,
-      "enemy_energy": 80
+      "tick": 20,
+      "player_hp": 95,
+      "player_gauge": 100,
+      "enemy_gauge": 10
     },
     "oracle_risk": {
       "risk": false,
-      "reason": ""
+      "reason": "Assuming poison damage is a flat 5"
     }
   },
   {
     "id": "SCN-012",
     "input": {
-      "player": {
-        "pos": 0,
-        "speed": 100,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 1,
+          "poison": true
+        },
+        "enemy": {
+          "pos": 1,
+          "speed": 100,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
       },
-      "enemy": {
-        "pos": 1,
-        "speed": 10,
-        "hp": 100,
-        "energy": 100,
-        "gauge": 0
-      },
-      "player_action": "MOVE",
-      "player_direction": 1,
-      "enemy_action": "WAIT"
+      "commands": {
+        "player": "ATTACK",
+        "enemy": "ATTACK"
+      }
     },
     "covers_reqs": [
-      "RULE-05"
+      "RULE-08",
+      "RULE-09"
+    ],
+    "expected": {
+      "tick": 4,
+      "player_hp": 75,
+      "player_stun": 0,
+      "enemy_energy": 80,
+      "player_gauge": 100,
+      "enemy_gauge": 100
+    },
+    "oracle_risk": {
+      "risk": false,
+      "reason": "HP = 100 - 20 (attack) - 5 (poison)"
+    }
+  },
+  {
+    "id": "SCN-013",
+    "input": {
+      "setup": {
+        "player": {
+          "pos": 0,
+          "speed": 50,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        },
+        "enemy": {
+          "pos": 10,
+          "speed": 20,
+          "energy": 100,
+          "hp": 100,
+          "stun": 0,
+          "poison": false
+        }
+      },
+      "commands": {
+        "player": "WAIT",
+        "enemy": "WAIT"
+      }
+    },
+    "covers_reqs": [
+      "RULE-07"
     ],
     "expected": {
       "tick": 1,
-      "player_pos": 1,
-      "player_energy": 90
+      "player_gauge": 50,
+      "enemy_gauge": 20
     },
     "oracle_risk": {
       "risk": false,
