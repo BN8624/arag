@@ -15,7 +15,7 @@
 - [x] 자동 해소 루프 (`reconcile.py`) — 합의-vs-oracle 자동 diff + 31B 진단(AMBIGUOUS/ORACLE_BUG/BUILD_BUG)·AUTO/ESCALATE. diff/resolve/apply 검증 + 실측 1건
 - [x] 외부 지적 수용분 하드닝(G45, 키0) — 합의-vs-oracle 자동diff wired / fixture 6종(replay 11/11) /
       module.exports.prop 미인식 버그 수정 / unique_issue_count lexical 라벨 / validator 정본+schema drift 경고 /
-      path escape guard / assumptions·backlog 영속화 / FAILURE_TAXONOMY 매핑표
+      path escape guard / assumptions·backlog 영속화 / FAILURE_TAXONOMY 통합 인벤토리(난립 방지, 매핑표 아님)
 - [ ] **다음: reconcile 자동연결 마무리** — diff는 wired. resolve→AUTO 자동적용·ESCALATE만 사람·BUILD_BUG 재빌드 트리거를 build_graded 흐름에 잇기(★키)
 - [ ] 장르 N≥3 결합카드 추가 측정 — 지표=카드당 ESCALATE 수·oracle 버그 수(★키)
 - [ ] (backlog) levels 등 출력표면 확장 / adversarial BLOCKING 추적 / 발열 Adversarial QA·Integration 정식 완주
