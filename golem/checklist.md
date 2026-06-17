@@ -17,7 +17,7 @@
       module.exports.prop 미인식 버그 수정 / unique_issue_count lexical 라벨 / validator 정본+schema drift 경고 /
       path escape guard / assumptions·backlog 영속화 / FAILURE_TAXONOMY 통합 인벤토리(난립 방지, 매핑표 아님)
 - [x] T0 reconcile 자동연결(G47, 코드 키0) — build_graded --reconcile/--apply: diff→resolve→AUTO적용→ESCALATE/BUILD_BUG 리포트. ESCALATE 자동적용 금지, BUILD_BUG는 재빌드 권장만
-- [ ] (T1 전, 키0) AUTO 정확률 검증 로그 + 실패 사전분류(HARNESS/INFRA vs 카드/계약)를 reconcile/build_graded에 추가
+- [x] (T1 전, 키0) AUTO 정확률 검증 로그 + 실패 사전분류(HARNESS/INFRA vs 카드/계약)를 reconcile/build_graded에 추가(G49) — `verify_auto_fixes`(다운스트림 일관성·needs_rebuild·카드별 ledger 되돌림감지) + `classify_attempt_failure`(INFRA/HARNESS/CARD, 기존 라벨 재사용·난립 없음). worker가 하네스 크래시 잡아 HARNESS로 기록(런 안 깨짐). 단위검증 PASS, replay 무회귀
 - [ ] **T1 일반화 실험(설계=G48)** — 결합밀도 저/중/고 카드(고결합 1장 필수)를 --reconcile로. 첫 N=3은 정성 스모크. 1순위 지표=AUTO 정확률. Green=ESCALATE 낮음 AND AUTO 정확률 높음 AND oracle 일치(★키)
 - [ ] 정량 판정 — multi-seed/동결합 다수 카드로 임계 기반(★키)
 - [ ] 코어 다음 frontier = 자율 oracle × 고결합 카드 × reconcile calibration (UI/Asset는 별도 트랙, 결정적 렌더 채점법 선결)

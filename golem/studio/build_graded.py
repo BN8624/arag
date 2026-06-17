@@ -116,6 +116,19 @@ def _norm_output(stdout):
     return tuple(sorted(d.items()))
 
 
+def classify_attempt_failure(reason):
+    """게이트 실패 사유를 기존 라벨 어휘로 사전분류(키0, G48). 카드 탓 전에 INFRA/HARNESS 먼저 분리.
+    INFRA=plan2 INFRA_FAIL(api·network·쿼터) / HARNESS=plan2 HARNESS_FAIL(우리 도구 크래시) /
+    CARD=plan2 MODEL_FAIL(생성 코드·계약 난이도: static/contract/스모크 실패). 새 taxonomy 도입 아님."""
+    from observability import INFRA_MARKERS
+    t = str(reason).lower()
+    if t.startswith("infra:") or any(m in t for m in INFRA_MARKERS):
+        return "INFRA"
+    if t.startswith("harness:"):
+        return "HARNESS"
+    return "CARD"
+
+
 def gate_and_run(workspace, manifest, scenarios):
     """게이트 통과 시 채점가능 시나리오를 실행해 출력 dict 반환. (ok, reason, outputs) ."""
     sg = static_gate.check(str(workspace))
@@ -215,16 +228,25 @@ def main(argv=None):
     manifest_v = {"schema_version": "0.1", "module_format": "commonjs", **manifest}
     lock = threading.Lock()
     passed_outputs = {}
+    failures = []
     cracked = None
 
     def worker(attempt):
-        with pool.checkout() as key:
-            resp = LLMClient(api_key=key).generate("critic", prompt)
+        try:
+            with pool.checkout() as key:
+                resp = LLMClient(api_key=key).generate("critic", prompt)
+        except AllKeysExhausted:
+            raise
+        except Exception as e:  # noqa: BLE001 — 생성 단계 실패는 api/network(INFRA)
+            return attempt, False, f"infra: gen {type(e).__name__}: {e}", {}
         ws = base / f"attempt{attempt:02d}" / "workspace"
         ws.mkdir(parents=True, exist_ok=True)
-        write_candidate(ws, parse_files(resp))
-        (ws / "scenarios.json").write_text(json.dumps(scen_inputs, ensure_ascii=False), encoding="utf-8")
-        ok, reason, outputs = gate_and_run(ws, manifest_v, scenarios)
+        try:  # 파싱·쓰기·게이트는 우리 하네스 — 여기 크래시는 HARNESS(카드 탓 아님), 런 안 깨고 기록
+            write_candidate(ws, parse_files(resp))
+            (ws / "scenarios.json").write_text(json.dumps(scen_inputs, ensure_ascii=False), encoding="utf-8")
+            ok, reason, outputs = gate_and_run(ws, manifest_v, scenarios)
+        except Exception as e:  # noqa: BLE001
+            return attempt, False, f"harness: {type(e).__name__}: {e}", {}
         return attempt, ok, reason, outputs
 
     with ThreadPoolExecutor(max_workers=min(pool.size, args.cap)) as ex:
@@ -243,17 +265,25 @@ def main(argv=None):
                     passed_outputs[a] = outputs
                     if cracked is None:
                         cracked = a
+            else:
+                with lock:
+                    failures.append(reason)
 
     overall, report = consensus(passed_outputs, gradeable)
     golden_diffs = _golden_diff(passed_outputs, scenarios, gradeable, contract)
+    fail_classes = Counter(classify_attempt_failure(r) for r in failures)
     base.mkdir(parents=True, exist_ok=True)
     (base / "consensus.json").write_text(json.dumps(
         {"gate_passed": len(passed_outputs), "cap": args.cap,
          "gradeable": gradeable, "overall_agreement": overall, "per_scenario": report,
-         "golden_diffs": golden_diffs},
+         "golden_diffs": golden_diffs,
+         "failure_classes": dict(fail_classes), "gate_failed_reasons": failures},
         ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[BUILD v1] 게이트 통과 {len(passed_outputs)}/{args.cap}, "
           f"합의 채점(채점가능 {len(gradeable)}): 전체 일치율 {overall}")
+    if failures:  # 실패 사전분류(G48): 카드 탓 전에 INFRA/HARNESS 먼저 분리
+        print("  [실패 사전분류] " + ", ".join(f"{k}={v}" for k, v in fail_classes.items())
+              + "  (INFRA·HARNESS는 카드 실패로 안 셈 — 하네스 수정 후 재실행)")
     for sid, r in report.items():
         print(f"    {sid}: 합의 {r['agree']}/{r['total']} (일치율 {r['rate']})")
     if golden_diffs:  # 합의-vs-oracle 자동 diff(키0) — 수작업 제거
@@ -277,14 +307,21 @@ def main(argv=None):
         applied = reconcile.apply_fixes(
             verdicts, Path(args.packet) / "contract.json",
             Path(args.specqa) / "acceptance_tests_draft.json", scenarios) if args.apply else []
+        auto_verification = reconcile.verify_auto_fixes(
+            verdicts, golden_diffs, Path(args.specqa) / "auto_fix_ledger.jsonl", run_id) \
+            if args.apply else []
         escalate = [v["id"] for v in verdicts if v.get("class") == "ESCALATE"]
         build_bugs = [v["id"] for v in verdicts if v.get("diagnosis") == "BUILD_BUG"]
         (base / "reconcile_report.json").write_text(json.dumps(
-            {"verdicts": verdicts, "applied": applied, "escalate": escalate, "build_bugs": build_bugs},
+            {"verdicts": verdicts, "applied": applied, "auto_verification": auto_verification,
+             "escalate": escalate, "build_bugs": build_bugs},
             ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"  [reconcile] 자동적용 {len(applied)}, ESCALATE(사람) {len(escalate)}, BUILD_BUG {len(build_bugs)}")
         for a in applied:
             print(f"    적용: {a}")
+        for c in auto_verification:
+            flag = " ★되돌림" if c["reverted_prior"] else ""
+            print(f"    [AUTO검증] {c['id']}: {c['status']}{flag}")
         if build_bugs:
             print(f"    ★재빌드 권장(BUILD_BUG {build_bugs}) — 계약 정본 그대로, 빌드만 다시.")
         for sid in escalate:

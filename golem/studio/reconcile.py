@@ -163,6 +163,55 @@ def apply_fixes(verdicts, contract_path, scen_path, scenarios):
     return applied
 
 
+def _stringify(k, val):
+    """diff()의 gnorm과 같은 방식으로 값을 문자열화 — 빌드 합의값과 비교 가능하게."""
+    return json.dumps(val) if k == "logs" else str(val)
+
+
+def verify_auto_fixes(verdicts, diffs, ledger_path, run_id):
+    """AUTO 적용 후 키0 검증 기록(게이트 아님, 측정용). G48 1순위 지표=AUTO 정확률.
+    diffs: diff()/_golden_diff 항목 [{id, input, differing:{k:{consensus,oracle}}}].
+    - ORACLE_BUG: 적용한 expected가 빌드 합의와 일치하나(다운스트림 일관성, 키0).
+      불일치면 SUSPECT — confidently-wrong AUTO 후보(안 보이는 위험).
+    - CONTRACT_AMBIGUOUS: 규칙 교체 → 재빌드 전엔 빌드거동 검증 불가(needs_rebuild 표시).
+    - 되돌림: 같은 (id,key)를 과거 적용값과 다른 값으로 덮으면 flip(불안정) 기록.
+    ledger(jsonl)는 카드별로 누적된다."""
+    ledger_path = Path(ledger_path)
+    ledger = []
+    if ledger_path.exists():
+        for line in ledger_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                ledger.append(json.loads(line))
+    diff_by_id = {d["id"]: d.get("differing", {}) for d in diffs}
+    checks, new_entries = [], []
+    for v in verdicts:
+        if v.get("class") != "AUTO":
+            continue
+        sid, diag = v["id"], v.get("diagnosis")
+        if diag == "ORACLE_BUG" and v.get("correct_value"):
+            differing = diff_by_id.get(sid, {})
+            consistent = all(
+                str(differing.get(k, {}).get("consensus")) == _stringify(k, val)
+                for k, val in v["correct_value"].items() if k in differing)
+            status = "downstream_consistent" if consistent else "SUSPECT:applied!=consensus"
+            entries = [{"key": k, "value": _stringify(k, val)} for k, val in v["correct_value"].items()]
+        elif diag == "CONTRACT_AMBIGUOUS" and v.get("contract_fix"):
+            status = "needs_rebuild_to_verify"
+            entries = [{"key": v["contract_fix"].split(":")[0].strip(), "value": v["contract_fix"].strip()}]
+        else:
+            continue
+        reverted = any(e["id"] == sid and e["key"] == ne["key"] and e["value"] != ne["value"]
+                       for e in ledger for ne in entries)
+        checks.append({"id": sid, "diagnosis": diag, "status": status, "reverted_prior": reverted})
+        for ne in entries:
+            new_entries.append({"run": run_id, "id": sid, "diagnosis": diag, **ne})
+    if new_entries:
+        with ledger_path.open("a", encoding="utf-8") as f:
+            for e in new_entries:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+    return checks
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--replay", default=None)
@@ -215,20 +264,28 @@ def main(argv=None):
         print(f"  [{v.get('diagnosis')}/{v.get('class')}] {d['id']}: {v.get('reason', '')}")
 
     applied = []
+    auto_verification = []
     if args.apply and not args.replay:
         applied = apply_fixes(verdicts, Path(args.packet) / "contract.json",
                               Path(args.specqa) / "acceptance_tests_draft.json", scenarios)
+        auto_verification = verify_auto_fixes(
+            verdicts, disagreements, Path(args.specqa) / "auto_fix_ledger.jsonl",
+            Path(args.run).name if args.run else "?")
     escalate = [v for v in verdicts if v.get("class") == "ESCALATE"]
 
     if not args.replay:
         out = Path(args.specqa).parent / "reconcile_report.json"
         out.write_text(json.dumps({"run": Path(args.run).name if args.run else None,
                                    "verdicts": verdicts, "applied": applied,
+                                   "auto_verification": auto_verification,
                                    "escalate": [v["id"] for v in escalate]},
                                   ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[RECONCILE] 자동적용 {len(applied)}건, 사람결정(ESCALATE) {len(escalate)}건")
     for a in applied:
         print(f"  적용: {a}")
+    for c in auto_verification:
+        flag = " ★되돌림" if c["reverted_prior"] else ""
+        print(f"  [AUTO검증] {c['id']}: {c['status']}{flag}")
     for v in escalate:
         print(f"  ★ESCALATE {v['id']}: {v.get('reason', '')}")
     return 0
