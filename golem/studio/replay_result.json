@@ -1,8 +1,8 @@
 {
   "ok": true,
   "api_calls": 0,
-  "fixtures_total": 5,
-  "fixtures_passed": 5,
+  "fixtures_total": 11,
+  "fixtures_passed": 11,
   "records": [
     {
       "fixture": "demo_fail_bare_default",
@@ -57,6 +57,23 @@
       ]
     },
     {
+      "fixture": "demo_fail_math_random",
+      "expected": {
+        "ok": false,
+        "failing_check": "static_gate",
+        "note": "Math.random 비결정성"
+      },
+      "result_ok": false,
+      "failed_checks": [
+        "static_gate"
+      ],
+      "assertion_ok": true,
+      "reason": "기대대로 static_gate 실패",
+      "errors": [
+        "[static_gate] Math.random 사용 (src/engine.js) — 비결정적"
+      ]
+    },
+    {
       "fixture": "demo_fail_missing_file",
       "expected": {
         "ok": false,
@@ -76,7 +93,81 @@
       ]
     },
     {
+      "fixture": "demo_fail_npm_import",
+      "expected": {
+        "ok": false,
+        "failing_check": "static_gate",
+        "note": "비-빌트인 import lodash(npm 금지)"
+      },
+      "result_ok": false,
+      "failed_checks": [
+        "static_gate"
+      ],
+      "assertion_ok": true,
+      "reason": "기대대로 static_gate 실패",
+      "errors": [
+        "[static_gate] 비-빌트인 import 'lodash' (main.js) — npm 금지"
+      ]
+    },
+    {
+      "fixture": "demo_fail_parent_path_escape",
+      "expected": {
+        "ok": false,
+        "failing_check": "import_export",
+        "note": "../ 상위탈출 require 금지(path escape)"
+      },
+      "result_ok": false,
+      "failed_checks": [
+        "import_export"
+      ],
+      "assertion_ok": true,
+      "reason": "기대대로 import_export 실패",
+      "errors": [
+        "[import_export] main.js: require가 워크스페이스 밖 참조(path escape) 금지: ../secret.js",
+        "[import_export] main.js: 코드 import가 매니페스트에 없음 ['../secret.js']"
+      ]
+    },
+    {
+      "fixture": "demo_fail_unreachable_module",
+      "expected": {
+        "ok": false,
+        "failing_check": "static_gate",
+        "note": "src/orphan.js 미도달(고아=멀티파일 위장)"
+      },
+      "result_ok": false,
+      "failed_checks": [
+        "static_gate"
+      ],
+      "assertion_ok": true,
+      "reason": "기대대로 static_gate 실패",
+      "errors": [
+        "[static_gate] 고아 모듈 ['src/orphan.js'] — main.js에서 require로 도달 불가(위장)"
+      ]
+    },
+    {
       "fixture": "demo_pass",
+      "expected": {
+        "ok": true
+      },
+      "result_ok": true,
+      "failed_checks": [],
+      "assertion_ok": true,
+      "reason": "ok=true 기대",
+      "errors": []
+    },
+    {
+      "fixture": "demo_pass_module_exports_prop",
+      "expected": {
+        "ok": true
+      },
+      "result_ok": true,
+      "failed_checks": [],
+      "assertion_ok": true,
+      "reason": "ok=true 기대",
+      "errors": []
+    },
+    {
+      "fixture": "demo_pass_multiline_module_exports_object",
       "expected": {
         "ok": true
       },
